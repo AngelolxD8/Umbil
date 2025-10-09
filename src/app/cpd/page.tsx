@@ -1,8 +1,9 @@
+// app/cpd/page.tsx
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { CPDEntry, getCPD } from "@/lib/store";
-import { useUserEmail } from "@/hooks/useUser"; // 👈 added
+import { useUserEmail } from "@/hooks/useUser";
 
 function toCSV(rows: CPDEntry[]) {
   const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
@@ -18,50 +19,28 @@ function toCSV(rows: CPDEntry[]) {
   return [header.join(","), ...body].join("\n");
 }
 
-export default function CPDPage() {
+function CPDInner() {
   const [list, setList] = useState<CPDEntry[]>([]);
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
 
-  // ✅ Require sign-in
-  const { email, loading } = useUserEmail();
-  if (loading) return null; // or spinner
-  if (!email) {
-    return (
-      <section className="main-content">
-        <div className="container">
-          <div className="card">
-            <div className="card__body">
-              Please{" "}
-              <a href="/auth" className="link">
-                sign in
-              </a>{" "}
-              to view this page.
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // ✅ Load CPD entries once signed in
-  useEffect(() => setList(getCPD()), []);
+  useEffect(() => {
+    setList(getCPD());
+  }, []);
 
   const filtered = useMemo(() => {
     return list.filter((e) => {
       const hay = (
-        e.question +
+        (e.question || "") +
         " " +
-        e.answer +
+        (e.answer || "") +
         " " +
         (e.tags || []).join(" ")
       ).toLowerCase();
       const okQ = !q || hay.includes(q.toLowerCase());
       const okTag =
         !tag ||
-        (e.tags || [])
-          .map((t) => t.toLowerCase())
-          .includes(tag.toLowerCase());
+        (e.tags || []).map((t) => t.toLowerCase()).includes(tag.toLowerCase());
       return okQ && okTag;
     });
   }, [list, q, tag]);
@@ -137,6 +116,7 @@ export default function CPDPage() {
               <div className="entry-details">
                 <div
                   className="learning-points"
+                  // (you control the source of 'answer' so the risk is low here)
                   dangerouslySetInnerHTML={{
                     __html: (e.answer || "").replace(/\n/g, "<br/>"),
                   }}
@@ -151,4 +131,29 @@ export default function CPDPage() {
       </div>
     </section>
   );
+}
+
+export default function CPDPage() {
+  const { email, loading } = useUserEmail();
+
+  if (loading) {
+    return null; // or a spinner component
+  }
+
+  // Gate the *content*, not the hook calls
+  if (!email) {
+    return (
+      <section className="main-content">
+        <div className="container">
+          <div className="card">
+            <div className="card__body">
+              Please <a href="/auth" className="link">sign in</a> to view this page.
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return <CPDInner />;
 }

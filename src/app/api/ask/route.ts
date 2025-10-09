@@ -1,11 +1,23 @@
+// app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
+
+type ResponsesAPI = {
+  output_text?: string;
+  output?: Array<{
+    content?: Array<{ type?: string; text?: string }>;
+  }>;
+};
 
 export async function POST(req: NextRequest) {
   try {
-    const { question } = await req.json();
+    const body = await req.json();
+    const question: unknown = body?.question;
 
-    if (!question || typeof question !== "string") {
-      return NextResponse.json({ error: "Missing 'question' string" }, { status: 400 });
+    if (typeof question !== "string" || !question.trim()) {
+      return NextResponse.json(
+        { error: "Missing 'question' string" },
+        { status: 400 }
+      );
     }
 
     const r = await fetch("https://api.openai.com/v1/responses", {
@@ -32,14 +44,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: text }, { status: r.status });
     }
 
-    const data = await r.json();
+    const data: ResponsesAPI = await r.json();
+
+    // Try several shapes safely, without `any`
     const text =
-      (data as any).output_text ||
-      (Array.isArray((data as any).output) && (data as any).output[0]?.content?.[0]?.text) ||
+      data.output_text ??
+      data.output?.[0]?.content?.[0]?.text ??
       JSON.stringify(data);
 
     return NextResponse.json({ answer: text });
-  } catch (e: any) {
-    return NextResponse.json({ error: e.message || "Server error" }, { status: 500 });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

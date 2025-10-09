@@ -1,34 +1,19 @@
+// app/pdp/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { PDPGoal, getPDP, savePDP } from "@/lib/store";
-import { useUserEmail } from "@/hooks/useUser"; // ✅ auth hook
+import { useUserEmail } from "@/hooks/useUser";
 
-export default function PDPPage() {
+function PDPInner() {
   const [goals, setGoals] = useState<PDPGoal[]>([]);
   const [title, setTitle] = useState("");
   const [timeline, setTimeline] = useState("3 months");
   const [activities, setActivities] = useState("");
 
-  // ✅ Require sign-in
-  const { email, loading } = useUserEmail();
-  if (loading) return null; // or a spinner
-  if (!email) {
-    return (
-      <section className="main-content">
-        <div className="container">
-          <div className="card">
-            <div className="card__body">
-              Please <a href="/auth" className="link">sign in</a> to view this page.
-            </div>
-          </div>
-        </div>
-      </section>
-    );
-  }
-
-  // ✅ Load goals once signed in
-  useEffect(() => setGoals(getPDP()), []);
+  useEffect(() => {
+    setGoals(getPDP());
+  }, []);
 
   const add = () => {
     if (!title.trim()) return;
@@ -121,4 +106,26 @@ export default function PDPPage() {
       </div>
     </section>
   );
+}
+
+export default function PDPPage() {
+  const { email, loading } = useUserEmail();
+
+  if (loading) return null;
+
+  if (!email) {
+    return (
+      <section className="main-content">
+        <div className="container">
+          <div className="card">
+            <div className="card__body">
+              Please <a href="/auth" className="link">sign in</a> to view this page.
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  return <PDPInner />;
 }
