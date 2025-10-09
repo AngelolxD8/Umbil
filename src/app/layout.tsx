@@ -8,8 +8,8 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Umbil – CPD Assistant",
-  description: "Clinical CPD and PDP assistant for doctors",
+  title: "Umbil – Your Medical Co-Pilot",
+  description: "Clinical intelligence, reflection, and CPD — re-imagined for modern medicine.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className="flex items-center justify-between">
               <div className="logo">
                 <h1>🩺 Umbil</h1>
-                <p className="tagline">Professional Development Companion</p>
+                <p className="tagline">Your Medical Co-Pilot</p>
               </div>
 
               {/* ✅ Auth-aware user section */}
