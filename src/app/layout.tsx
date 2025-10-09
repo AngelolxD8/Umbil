@@ -1,0 +1,48 @@
+import type { Metadata } from "next";
+import { Geist, Geist_Mono } from "next/font/google";
+import "./globals.css";
+import NavTabs from "@/components/NavTabs";
+import AuthButtons from "@/components/AuthButtons"; // 👈 keep this import
+
+const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
+const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Umbil – CPD Assistant",
+  description: "Clinical CPD and PDP assistant for doctors",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      {/* 👇 Added suppressHydrationWarning here */}
+      <body
+        suppressHydrationWarning
+        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+      >
+        {/* Header */}
+        <header className="header">
+          <div className="container">
+            <div className="flex items-center justify-between">
+              <div className="logo">
+                <h1>🩺 Umbil</h1>
+                <p className="tagline">Professional Development Companion</p>
+              </div>
+
+              {/* ✅ Auth-aware user section */}
+              <div className="user-profile">
+                <AuthButtons />
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Nav Tabs */}
+        <NavTabs />
+
+        {/* Page content */}
+        <main>{children}</main>
+      </body>
+    </html>
+  );
+}
