@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase"; // or "@/supabaseClient" if that's your file
+import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
 export default function AuthPage() {
@@ -23,16 +23,33 @@ export default function AuthPage() {
     setSending(true);
     setMsg(null);
 
-    // No redirectTo — Supabase will use the Site URL you set in the dashboard
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    // Use NEXT_PUBLIC_SITE_URL for correct redirect (Vercel & local)
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: `${baseUrl}/auth/callback` },
+    });
 
     setSending(false);
-    setMsg(error ? `⚠️ ${error.message}` : "✅ Check your inbox for a login link.");
+    setMsg(
+      error
+        ? `⚠️ ${error.message}`
+        : "✅ Check your inbox for a login link."
+    );
   };
 
   const signInWithGoogle = async () => {
-    // No redirectTo — avoids redirect_uri mismatches
-    const { error } = await supabase.auth.signInWithOAuth({ provider: "google" });
+    // Use same redirect strategy for Google login
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${baseUrl}/auth/callback` },
+    });
+
     if (error) setMsg(`⚠️ ${error.message}`);
   };
 
@@ -54,13 +71,20 @@ export default function AuthPage() {
               />
             </div>
 
-            <button className="btn btn--primary" onClick={signInWithEmail} disabled={sending}>
+            <button
+              className="btn btn--primary"
+              onClick={signInWithEmail}
+              disabled={sending}
+            >
               {sending ? "Sending…" : "Send magic link"}
             </button>
 
             <div style={{ margin: "12px 0", opacity: 0.6 }}>— or —</div>
 
-            <button className="btn btn--outline" onClick={signInWithGoogle}>
+            <button
+              className="btn btn--outline"
+              onClick={signInWithGoogle}
+            >
               Continue with Google
             </button>
 
