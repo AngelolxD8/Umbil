@@ -1,6 +1,19 @@
+// src/app/page.tsx
 "use client";
 
 import { useState } from "react";
+
+type AskResponse = { answer?: string; error?: string };
+
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err);
+  } catch {
+    return "Unknown error";
+  }
+}
 
 export default function Home() {
   return (
@@ -30,11 +43,11 @@ export default function Home() {
 }
 
 function AskBox() {
-  const [q, setQ] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [q, setQ] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
   const [answer, setAnswer] = useState<string | null>(null);
-  const [reflection, setReflection] = useState("");
-  const [tags, setTags] = useState("");
+  const [reflection, setReflection] = useState<string>("");
+  const [tags, setTags] = useState<string>("");
 
   const ask = async () => {
     if (!q.trim()) return;
@@ -46,15 +59,17 @@ function AskBox() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: q }),
       });
-      const data = await res.json();
+
+      const data: AskResponse = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed");
-      setAnswer(data.answer);
+
+      setAnswer(data.answer ?? "");
       setTimeout(
         () => document.getElementById("response-section")?.scrollIntoView({ behavior: "smooth" }),
         50
       );
-    } catch (e: any) {
-      setAnswer(`⚠️ ${e.message}`);
+    } catch (err: unknown) {
+      setAnswer(`⚠️ ${getErrorMessage(err)}`);
     } finally {
       setLoading(false);
     }
@@ -67,7 +82,7 @@ function AskBox() {
       question: q,
       answer: answer || "",
       reflection: reflection || "",
-      tags: tags ? tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+      tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
     });
     const toast = document.getElementById("toast");
     if (toast) {
@@ -85,8 +100,8 @@ function AskBox() {
           className="form-control search-input"
           placeholder="Ask a clinical question..."
           value={q}
-          onChange={(e) => setQ(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && ask()}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
+          onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => e.key === "Enter" && ask()}
         />
         <button className="btn btn--primary search-btn" onClick={ask} disabled={loading}>
           {loading ? "Working..." : "Ask Umbil"}
@@ -128,7 +143,7 @@ function AskBox() {
                   rows={3}
                   placeholder="How will this influence your practice?"
                   value={reflection}
-                  onChange={(e) => setReflection(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setReflection(e.target.value)}
                 />
               </div>
               <div className="form-group">
@@ -137,12 +152,14 @@ function AskBox() {
                   className="form-control"
                   placeholder="e.g. respiratory, COPD"
                   value={tags}
-                  onChange={(e) => setTags(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTags(e.target.value)}
                 />
               </div>
 
               <div className="cpd-actions">
-                <button className="btn btn--primary" onClick={logToCPD}>📚 Log this learning for CPD</button>
+                <button className="btn btn--primary" onClick={logToCPD}>
+                  📚 Log this learning for CPD
+                </button>
               </div>
             </div>
           </div>

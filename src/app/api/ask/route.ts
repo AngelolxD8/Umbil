@@ -1,4 +1,4 @@
-// app/api/ask/route.ts
+// src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
 type ResponsesAPI = {
@@ -10,7 +10,7 @@ type ResponsesAPI = {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
+    const body: { question?: unknown } = await req.json();
     const question: unknown = body?.question;
 
     if (typeof question !== "string" || !question.trim()) {
@@ -45,15 +45,13 @@ export async function POST(req: NextRequest) {
     }
 
     const data: ResponsesAPI = await r.json();
-
-    // Try several shapes safely, without `any`
     const text =
       data.output_text ??
       data.output?.[0]?.content?.[0]?.text ??
       JSON.stringify(data);
 
     return NextResponse.json({ answer: text });
-  } catch (e) {
+  } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }

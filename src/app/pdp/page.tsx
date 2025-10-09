@@ -1,4 +1,4 @@
-// app/pdp/page.tsx
+// src/app/pdp/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -11,9 +11,7 @@ function PDPInner() {
   const [timeline, setTimeline] = useState("3 months");
   const [activities, setActivities] = useState("");
 
-  useEffect(() => {
-    setGoals(getPDP());
-  }, []);
+  useEffect(() => setGoals(getPDP()), []);
 
   const add = () => {
     if (!title.trim()) return;
@@ -28,9 +26,7 @@ function PDPInner() {
     ];
     setGoals(next);
     savePDP(next);
-    setTitle("");
-    setTimeline("3 months");
-    setActivities("");
+    setTitle(""); setTimeline("3 months"); setActivities("");
   };
 
   const remove = (id: string) => {
@@ -51,7 +47,7 @@ function PDPInner() {
               <input
                 className="form-control"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                 placeholder="e.g., Strengthen COPD management"
               />
             </div>
@@ -60,7 +56,7 @@ function PDPInner() {
               <select
                 className="form-control"
                 value={timeline}
-                onChange={(e) => setTimeline(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTimeline(e.target.value)}
               >
                 <option>1 month</option>
                 <option>3 months</option>
@@ -74,10 +70,8 @@ function PDPInner() {
                 className="form-control"
                 rows={4}
                 value={activities}
-                onChange={(e) => setActivities(e.target.value)}
-                placeholder={
-                  "Attend COPD guideline update webinar\nShadow respiratory clinic\nAudit rescue packs"
-                }
+                onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setActivities(e.target.value)}
+                placeholder={"Attend COPD guideline update webinar\nShadow respiratory clinic\nAudit rescue packs"}
               />
             </div>
             <button className="btn btn--primary" onClick={add}>➕ Add goal</button>
@@ -85,18 +79,12 @@ function PDPInner() {
         </div>
 
         <div className="pdp-content">
-          {goals.length === 0 && (
-            <div className="card" style={{ marginTop: 16 }}>
-              <div className="card__body">No goals yet.</div>
-            </div>
-          )}
+          {goals.length === 0 && <div className="card" style={{ marginTop: 16 }}><div className="card__body">No goals yet.</div></div>}
           {goals.map((g) => (
             <div key={g.id} className="pdp-goal">
               <div className="goal-title"><h3>{g.title}</h3></div>
               <div className="goal-timeline">{g.timeline}</div>
-              <ul className="goal-activities">
-                {g.activities.map((a, i) => <li key={i}>{a}</li>)}
-              </ul>
+              <ul className="goal-activities">{g.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
               <div className="pdp-actions">
                 <button className="btn btn--outline" onClick={() => remove(g.id)}>Remove</button>
               </div>
@@ -112,16 +100,11 @@ export default function PDPPage() {
   const { email, loading } = useUserEmail();
 
   if (loading) return null;
-
   if (!email) {
     return (
       <section className="main-content">
         <div className="container">
-          <div className="card">
-            <div className="card__body">
-              Please <a href="/auth" className="link">sign in</a> to view this page.
-            </div>
-          </div>
+          <div className="card"><div className="card__body">Please <a href="/auth" className="link">sign in</a> to view this page.</div></div>
         </div>
       </section>
     );
