@@ -2,6 +2,8 @@
 "use client";
 
 import { useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type AskResponse = { answer?: string; error?: string };
 
@@ -18,7 +20,7 @@ function getErrorMessage(err: unknown): string {
 export default function Home() {
   return (
     <main className="main-content">
-      {/* GDPR / sources note */}
+      {/* GDPR / sources note (now styled as a bubble via .compliance-note) */}
       <div className="container">
         <div className="compliance-note" role="note" aria-label="GDPR notice">
           <strong>Important:</strong> Please don’t enter any patient-identifiable information.
@@ -31,6 +33,12 @@ export default function Home() {
       <div className="container">
         <div className="ask-section">
           <h2>Ask Your Clinical Question</h2>
+
+          {/* NEW marketing line */}
+          <p className="subtagline">
+            Clinical intelligence, reflection, and CPD — re-imagined for modern medicine.
+          </p>
+
           <p className="section-description">
             Get evidence-based answers and automatically track your learning for CPD
           </p>
@@ -48,6 +56,9 @@ function AskBox() {
   const [answer, setAnswer] = useState<string | null>(null);
   const [reflection, setReflection] = useState<string>("");
   const [tags, setTags] = useState<string>("");
+  const [tone, setTone] = useState<"conversational" | "formal" | "reflective">(
+    "conversational"
+  );
 
   const ask = async () => {
     if (!q.trim()) return;
@@ -57,7 +68,7 @@ function AskBox() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ question: q, tone }),
       });
 
       const data: AskResponse = await res.json();
@@ -65,7 +76,10 @@ function AskBox() {
 
       setAnswer(data.answer ?? "");
       setTimeout(
-        () => document.getElementById("response-section")?.scrollIntoView({ behavior: "smooth" }),
+        () =>
+          document
+            .getElementById("response-section")
+            ?.scrollIntoView({ behavior: "smooth" }),
         50
       );
     } catch (err: unknown) {
@@ -82,7 +96,9 @@ function AskBox() {
       question: q,
       answer: answer || "",
       reflection: reflection || "",
-      tags: tags ? tags.split(",").map((t) => t.trim()).filter(Boolean) : [],
+      tags: tags
+        ? tags.split(",").map((t) => t.trim()).filter(Boolean)
+        : [],
     });
     const toast = document.getElementById("toast");
     if (toast) {
@@ -95,7 +111,7 @@ function AskBox() {
 
   return (
     <>
-      <div className="search-container">
+      <div className="search-container" role="search" aria-label="Ask Umbil">
         <input
           className="form-control search-input"
           placeholder="Ask a clinical question..."
@@ -108,7 +124,39 @@ function AskBox() {
         </button>
       </div>
 
-      <div id="response-section" className="response-section">
+      {/* Tone toggle */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
+        <label style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Tone:</label>
+        <label style={{ cursor: "pointer" }}>
+          <input
+            type="radio"
+            name="tone"
+            checked={tone === "conversational"}
+            onChange={() => setTone("conversational")}
+          />{" "}
+          Conversational
+        </label>
+        <label style={{ cursor: "pointer" }}>
+          <input
+            type="radio"
+            name="tone"
+            checked={tone === "formal"}
+            onChange={() => setTone("formal")}
+          />{" "}
+          Formal
+        </label>
+        <label style={{ cursor: "pointer" }}>
+          <input
+            type="radio"
+            name="tone"
+            checked={tone === "reflective"}
+            onChange={() => setTone("reflective")}
+          />{" "}
+          Reflective
+        </label>
+      </div>
+
+      <div id="response-section" className="response-section" style={{ marginTop: 20 }}>
         {loading && (
           <div className="loading" id="loading">
             <div className="spinner" />
@@ -117,7 +165,7 @@ function AskBox() {
         )}
 
         {!loading && answer && (
-          <div id="answer-content" className="answer-content">
+          <div id="answer-content" className="answer-content answer-card">
             <div className="answer-header">
               <h3>{q}</h3>
               <div className="evidence-badges">
@@ -130,9 +178,10 @@ function AskBox() {
 
             <div className="answer-body">
               <div className="answer-text">
-                {answer.split("\n").map((line, i) => (
-                  <p key={i} dangerouslySetInnerHTML={{ __html: line }} />
-                ))}
+                {/* Render Markdown cleanly */}
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                  {answer}
+                </ReactMarkdown>
               </div>
 
               {/* Reflection + tags + log button */}
