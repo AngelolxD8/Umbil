@@ -24,8 +24,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="container">
             <div className="flex items-center justify-between">
               <div className="logo">
-                {/* Replaced stethoscope emoji with the Umbil logo */}
-                <img src="/umbil_logo.png" alt="Umbil Logo" style={{ height: '40px', marginRight: '10px' }} />
+                <img src="/umbil_logo.png" alt="Umbil Logo" style={{ height: '40px' }} />
                 <h1>Umbil</h1>
                 <p className="tagline">Your Medical Co-Pilot</p>
               </div>

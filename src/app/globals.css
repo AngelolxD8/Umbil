@@ -160,7 +160,7 @@
     --color-bg-4: rgba(185, 28, 28, 0.15); /* Dark red */
     --color-bg-5: rgba(107, 33, 168, 0.15); /* Dark purple */
     --color-bg-6: rgba(194, 65, 12, 0.15); /* Dark orange */
-    --color-bg-7: rgba(236, 72, 153, 0.15); /* Dark pink */
+    --color-bg-7: rgba(190, 24, 93, 0.15); /* Dark pink */
     --color-bg-8: rgba(8, 145, 178, 0.15); /* Dark cyan */
 
     /* Semantic Color Tokens (Dark Mode) */
@@ -743,6 +743,12 @@ select.form-control {
     background: var(--color-primary);
     color: var(--color-btn-primary-text);
     padding: var(--space-16) 0;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Add some space between the logo and the text */
 }
 
 .logo h1 {
