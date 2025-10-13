@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import NavTabs from "@/components/NavTabs";
-import AuthButtons from "@/components/AuthButtons"; // 👈 keep this import
+import AuthButtons from "@/components/AuthButtons";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -15,7 +15,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      {/* 👇 Added suppressHydrationWarning here */}
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -25,11 +24,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="container">
             <div className="flex items-center justify-between">
               <div className="logo">
-                <h1>🩺 Umbil</h1>
+                {/* Replaced stethoscope emoji with the Umbil logo */}
+                <img src="/umbil_logo.png" alt="Umbil Logo" style={{ height: '40px', marginRight: '10px' }} />
+                <h1>Umbil</h1>
                 <p className="tagline">Your Medical Co-Pilot</p>
               </div>
 
-              {/* ✅ Auth-aware user section */}
+              {/* Auth-aware user section */}
               <div className="user-profile">
                 <AuthButtons />
               </div>
