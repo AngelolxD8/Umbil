@@ -75,12 +75,6 @@ export default function Home() {
       ) : (
         // Home Screen
         <div className="hero">
-          <div className="logo-section">
-            <img src="/umbil_logo.png.png" alt="Umbil Logo" />
-            <h2>Umbil</h2>
-            <p className="tagline">your medical lifeline</p>
-          </div>
-
           <h1 className="hero-headline">Smarter medicine starts here.</h1>
 
           <div className="ask-bar-container">
