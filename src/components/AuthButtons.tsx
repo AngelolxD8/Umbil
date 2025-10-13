@@ -27,10 +27,6 @@ export default function AuthButtons() {
   if (email) {
     return (
       <div className="user-profile">
-        <div className="profile-info">
-          <span className="user-name">{email}</span>
-          <span className="user-role">Signed in</span>
-        </div>
         <button className="btn btn--outline" onClick={signOut}>Sign out</button>
       </div>
     );

@@ -18,34 +18,9 @@ function getErrorMessage(err: unknown): string {
 }
 
 export default function Home() {
-  return (
-    <div className="hero">
-      <div className="logo-section">
-        <img src="/umbil_logo.png" alt="Umbil Logo" />
-        <h2>Umbil</h2>
-        <p className="tagline">your medical lifeline</p>
-      </div>
-
-      <h1 className="hero-headline">Smarter medicine starts here.</h1>
-
-      <AskBox />
-
-      <p className="disclaimer">
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
-        Please don’t enter any patient-identifiable information.
-      </p>
-    </div>
-  );
-}
-
-function AskBox() {
   const [q, setQ] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [answer, setAnswer] = useState<string | null>(null);
-  
-  // This state is just for demoing the conversation mode, it won't be used
-  // in the final minimalist home screen.
-  const [isConversation, setIsConversation] = useState<boolean>(false);
 
   const ask = async () => {
     if (!q.trim()) return;
@@ -56,14 +31,13 @@ function AskBox() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, tone: "conversational" }), // Default to conversational tone
+        body: JSON.stringify({ question: q, tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed");
 
       setAnswer(data.answer ?? "");
-      setIsConversation(true);
     } catch (err: unknown) {
       setAnswer(`⚠️ ${getErrorMessage(err)}`);
     } finally {
@@ -71,51 +45,63 @@ function AskBox() {
     }
   };
 
-  if (isConversation) {
-    return (
-      <div className="conversation-container">
-        {/* User's question */}
-        <div className="message-bubble user-message">
-          <p>{q}</p>
-        </div>
-
-        {/* Umbil's response */}
-        <div className="message-bubble umbil-message">
-          <p>This is a placeholder for Umbil's streaming response.</p>
-          <div className="evidence-pill">Evidence: High</div>
-          {/* We'll implement the full response view in a later iteration */}
-        </div>
-
-        {/* Ask bar at the bottom for conversation mode */}
-        <div className="ask-bar-container">
-          <input
-            className="ask-bar-input"
-            placeholder="Ask a follow-up question..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && ask()}
-          />
-          <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Initial home screen view
   return (
-    <div className="ask-bar-container">
-      <input
-        className="ask-bar-input"
-        placeholder="Ask anything — clinical, reflective, or educational..."
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && ask()}
-      />
-      <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-      </button>
-    </div>
+    <>
+      {answer ? (
+        // Conversation Mode
+        <div className="conversation-container">
+          <div className="message-bubble user-message">
+            <p>{q}</p>
+          </div>
+          <div className="message-bubble umbil-message">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
+            <div className="evidence-pill">Evidence: High</div>
+            <div className="sources-line">Sources: NICE, SIGN</div>
+            {/* Actions will be added in a later part */}
+          </div>
+          <div className="ask-bar-container sticky">
+            <input
+              className="ask-bar-input"
+              placeholder="Ask a follow-up question..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && ask()}
+            />
+            <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
+      ) : (
+        // Home Screen
+        <div className="hero">
+          <div className="logo-section">
+            <img src="/umbil_logo.png.png" alt="Umbil Logo" />
+            <h2>Umbil</h2>
+            <p className="tagline">your medical lifeline</p>
+          </div>
+
+          <h1 className="hero-headline">Smarter medicine starts here.</h1>
+
+          <div className="ask-bar-container">
+            <input
+              className="ask-bar-input"
+              placeholder="Ask anything — clinical, reflective, or educational..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && ask()}
+            />
+            <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+
+          <p className="disclaimer">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+            Please don’t enter any patient-identifiable information.
+          </p>
+        </div>
+      )}
+    </>
   );
 }

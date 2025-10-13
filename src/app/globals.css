@@ -11,6 +11,12 @@
   --umbil-brand-teal: #1fb8cd;
   --umbil-hover-bg: #f0f2f4;
   --umbil-focus-ring: rgba(31, 184, 205, 0.4);
+
+  /* New Design Tokens */
+  --umbil-radius-sm: 8px;
+  --umbil-radius-lg: 24px;
+  --umbil-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --umbil-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 body {
@@ -21,6 +27,9 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Base styles for a clean slate */
@@ -33,6 +42,17 @@ body {
 a {
   color: var(--umbil-brand-teal);
   text-decoration: none;
+}
+
+.container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  width: 100%;
+}
+
+.main-content {
+  flex-grow: 1;
 }
 
 /* Header */
@@ -62,6 +82,27 @@ a {
   gap: 16px;
 }
 
+.logo-section {
+  display: flex;
+  align-items: center;
+}
+
+.logo-section img {
+  height: 36px;
+  margin-right: 10px;
+}
+
+.logo-section h2 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.tagline {
+  font-size: 14px;
+  margin-left: 10px;
+  color: var(--umbil-muted);
+}
+
 .menu-button, .login-button {
   background: none;
   border: none;
@@ -70,17 +111,24 @@ a {
   color: var(--umbil-text);
   font-size: 16px;
   line-height: 1;
-}
-
-.login-button {
-  border: 1px solid var(--umbil-card-border);
-  border-radius: 8px;
-  padding: 8px 12px;
-  font-weight: 500;
+  border-radius: var(--umbil-radius-sm);
   transition: background-color 0.2s ease-in-out;
 }
 
-.login-button:hover {
+.menu-button:hover, .login-button:hover {
+  background-color: var(--umbil-hover-bg);
+}
+
+.login-link {
+  border: 1px solid var(--umbil-card-border);
+  border-radius: var(--umbil-radius-sm);
+  padding: 8px 12px;
+  font-weight: 500;
+  transition: background-color 0.2s ease-in-out;
+  color: var(--umbil-text);
+}
+
+.login-link:hover {
   background-color: var(--umbil-hover-bg);
 }
 
@@ -90,12 +138,12 @@ a {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: calc(100vh - 80px); /* Adjust based on header height */
+  min-height: calc(100vh - 80px);
   text-align: center;
   padding: 0 20px;
 }
 
-.hero h1 {
+.hero-headline {
   font-size: 48px;
   font-weight: 700;
   margin-bottom: 24px;
@@ -129,16 +177,18 @@ a {
   width: 100%;
   margin-top: 48px;
   position: relative;
+  display: flex;
+  align-items: center;
 }
 
 .ask-bar-input {
-  width: 100%;
+  flex-grow: 1;
   padding: 16px 60px 16px 20px;
   font-size: 16px;
   border: 1px solid var(--umbil-card-border);
-  border-radius: 24px;
+  border-radius: var(--umbil-radius-lg);
   background-color: var(--umbil-surface);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  box-shadow: var(--umbil-shadow-sm);
   transition: box-shadow 0.2s ease-in-out;
 }
 
@@ -175,34 +225,17 @@ a {
 }
 
 /* Conversation Mode Styles (after first question) */
-.conversation-header {
-  position: sticky;
-  top: 0;
-  left: 0;
-  width: 100%;
-  padding: 16px 20px;
-  background: var(--umbil-surface);
-  border-bottom: 1px solid var(--umbil-card-border);
-  z-index: 100;
-}
-
 .conversation-container {
   max-width: 800px;
   margin: 0 auto;
   padding: 20px;
 }
 
-/* User & Umbil message bubbles */
-.message-container {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
 .message-bubble {
   padding: 16px;
-  border-radius: 18px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  border-radius: var(--umbil-radius-sm);
+  box-shadow: var(--umbil-shadow-sm);
+  max-width: 80%;
 }
 
 .user-message {
@@ -216,9 +249,14 @@ a {
   border: 1px solid var(--umbil-card-border);
   border-bottom-left-radius: 4px;
   margin-right: auto;
+  position: relative;
+  padding-bottom: 50px; /* Space for sources and actions */
 }
 
 .umbil-message .evidence-pill {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
   display: inline-block;
   background-color: rgba(31, 184, 205, 0.1);
   color: var(--umbil-brand-teal);
@@ -226,7 +264,6 @@ a {
   border-radius: 12px;
   font-size: 12px;
   font-weight: 600;
-  margin-top: 12px;
 }
 
 /* Small, subtle disclaimer */
@@ -239,23 +276,113 @@ a {
   margin-top: 16px;
 }
 
-/* Other components (login, toast, etc.) still need to be adjusted */
-.login-link {
-  color: var(--umbil-text);
-  border: 1px solid var(--umbil-card-border);
-  padding: 8px 16px;
-  border-radius: 20px;
+.form-group {
+  margin-bottom: 1rem;
 }
 
-.compliance-note {
-  margin: 14px 0 26px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  background: rgba(31, 184, 205, 0.12);
-  border: 1px solid rgba(31, 184, 205, 0.35);
-  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
-  font-size: 0.95rem;
-  line-height: 1.45;
-  color: var(--umbil-text);
+.form-label {
+  display: block;
+  font-weight: 500;
+  margin-bottom: 0.5rem;
 }
-.compliance-note strong { font-weight: 600; }
+
+.form-control {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--umbil-text);
+  background-color: var(--umbil-surface);
+  background-clip: padding-box;
+  border: 1px solid var(--umbil-card-border);
+  border-radius: var(--umbil-radius-sm);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+  color: var(--umbil-text);
+  background-color: var(--umbil-surface);
+  border-color: var(--umbil-brand-teal);
+  outline: 0;
+  box-shadow: 0 0 0 0.25rem var(--umbil-focus-ring);
+}
+
+.btn {
+  display: inline-block;
+  font-weight: 600;
+  line-height: 1.5;
+  text-align: center;
+  vertical-align: middle;
+  cursor: pointer;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+  background-color: transparent;
+  border: 1px solid transparent;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  border-radius: var(--umbil-radius-sm);
+  transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.btn--primary {
+  color: var(--umbil-surface);
+  background-color: var(--umbil-brand-teal);
+  border-color: var(--umbil-brand-teal);
+}
+
+.btn--primary:hover {
+  background-color: #1a92a5;
+  border-color: #1a92a5;
+}
+
+.btn--outline {
+  color: var(--umbil-text);
+  border-color: var(--umbil-card-border);
+}
+
+.btn--outline:hover {
+  color: var(--umbil-text);
+  background-color: var(--umbil-hover-bg);
+  border-color: var(--umbil-card-border);
+}
+
+.card {
+  background-color: var(--umbil-surface);
+  border: 1px solid var(--umbil-card-border);
+  border-radius: var(--umbil-radius-sm);
+  box-shadow: var(--umbil-shadow-sm);
+}
+
+.card__body {
+  padding: 20px;
+}
+
+.pdp-goal {
+  background-color: var(--umbil-surface);
+  border: 1px solid var(--umbil-card-border);
+  border-radius: var(--umbil-radius-sm);
+  padding: 20px;
+  margin-top: 16px;
+  position: relative;
+}
+
+.pdp-goal .goal-title h3 {
+  margin-bottom: 8px;
+}
+
+.pdp-goal .goal-timeline {
+  font-size: 0.875rem;
+  color: var(--umbil-muted);
+  margin-bottom: 12px;
+}
+
+.pdp-goal .goal-activities {
+  padding-left: 20px;
+}
+
+.pdp-goal .pdp-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}

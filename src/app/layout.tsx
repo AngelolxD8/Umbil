@@ -19,7 +19,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {/* New Header */}
         <header className="header">
           <div className="header-left">
             <button className="menu-button" aria-label="Open sidebar menu">
@@ -29,16 +28,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </button>
           </div>
           <div className="logo-section">
-            <img src="/umbil_logo.png" alt="Umbil Logo" style={{ height: '36px', marginRight: '10px' }} />
+            <img src="/umbil_logo.png.png" alt="Umbil Logo" style={{ height: '36px', marginRight: '10px' }} />
             <h2 style={{ fontSize: '24px', fontWeight: '600' }}>Umbil</h2>
             <p className="tagline" style={{ fontSize: '14px', marginLeft: '10px' }}>Your Medical Co-Pilot</p>
           </div>
           <div className="header-right">
-            <button className="login-button">Log in</button>
+            <AuthButtons />
           </div>
         </header>
-        
+
         <main>{children}</main>
+        <NavTabs />
       </body>
     </html>
   );
