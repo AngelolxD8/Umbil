@@ -22,7 +22,6 @@ export default function Home() {
     <main className="main-content">
       {/* GDPR / sources note (now styled as a bubble via .compliance-note) */}
       <div className="container">
-        {/* Use the new .compliance-note style */}
         <div className="compliance-note" role="note" aria-label="GDPR notice">
           <strong>Important:</strong> Please don’t enter any patient-identifiable information.
           Umbil summarises trusted sources like <strong>NICE</strong>, <strong>SIGN</strong>, and <strong>CKS</strong>.
@@ -35,7 +34,7 @@ export default function Home() {
         <div className="ask-section">
           <h2>Ask Your Clinical Question</h2>
 
-          {/* Use the new .subtagline style */}
+          {/* NEW marketing line */}
           <p className="subtagline">
             Clinical intelligence, reflection, and CPD — re-imagined for modern medicine.
           </p>
@@ -126,7 +125,7 @@ function AskBox() {
       </div>
 
       {/* Tone toggle */}
-      <div className="flex" style={{ gap: 12, alignItems: "center", marginTop: 12 }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 12 }}>
         <label style={{ fontSize: 13, color: "var(--color-text-secondary)" }}>Tone:</label>
         <label style={{ cursor: "pointer" }}>
           <input
@@ -157,7 +156,7 @@ function AskBox() {
         </label>
       </div>
 
-      <div id="response-section" className="response-section">
+      <div id="response-section" className="response-section" style={{ marginTop: 20 }}>
         {loading && (
           <div className="loading" id="loading">
             <div className="spinner" />
