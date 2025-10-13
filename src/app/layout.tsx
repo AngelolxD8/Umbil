@@ -15,7 +15,6 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      {/* 👇 Added suppressHydrationWarning here */}
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
@@ -29,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <p className="tagline">Your Medical Co-Pilot</p>
               </div>
 
-              {/* ✅ Auth-aware user section */}
+              {/* Auth-aware user section */}
               <div className="user-profile">
                 <AuthButtons />
               </div>
