@@ -1,3 +1,4 @@
+// src/app/settings/page.tsx
 "use client";
 
 import { clearAll } from "@/lib/store";
@@ -29,7 +30,7 @@ export default function SettingsPage() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card__body">
             <h3>Safety</h3>
-            <label style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 8 }}>
+            <label className="flex" style={{ gap: 8, alignItems: "center", marginTop: 8 }}>
               <input type="checkbox" checked={accepted} onChange={(e)=>setAccepted(e.target.checked)} />
               I understand I must not enter patient-identifiable information (GDPR).
             </label>

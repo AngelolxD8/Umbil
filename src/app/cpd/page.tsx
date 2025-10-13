@@ -111,7 +111,7 @@ function CPDInner() {
 }
 
 export default function CPDPage() {
-  const { email, loading } = useUserEmail(); // hook runs unconditionally
+  const { email, loading } = useUserEmail();
 
   if (loading) return null;
   if (!email) {
