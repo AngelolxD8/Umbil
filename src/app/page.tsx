@@ -4,9 +4,13 @@
 import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import ReflectionModal from "@/components/ReflectionModal";
+import Toast from "@/components/Toast";
+import { addCPD, CPDEntry } from "@/lib/store";
+import { useUserEmail } from "@/hooks/useUser";
 
 type AskResponse = { answer?: string; error?: string };
-type ConversationEntry = { type: "user" | "umbil"; content: string };
+type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string };
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -23,6 +27,11 @@ export default function Home() {
   const [loading, setLoading] = useState<boolean>(false);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentCpdEntry, setCurrentCpdEntry] = useState<Omit<CPDEntry, "reflection" | "tags"> | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const { email } = useUserEmail();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -36,7 +45,7 @@ export default function Home() {
     const newQuestion = q;
     setQ("");
     setLoading(true);
-    setConversation((prev) => [...prev, { type: "user", content: newQuestion }]);
+    setConversation((prev) => [...prev, { type: "user", content: newQuestion, question: newQuestion }]);
 
     try {
       const res = await fetch("/api/ask", {
@@ -48,7 +57,10 @@ export default function Home() {
       const data: AskResponse = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed");
 
-      setConversation((prev) => [...prev, { type: "umbil", content: data.answer ?? "" }]);
+      setConversation((prev) => [
+        ...prev,
+        { type: "umbil", content: data.answer ?? "", question: newQuestion },
+      ]);
     } catch (err: unknown) {
       setConversation((prev) => [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }]);
     } finally {
@@ -56,18 +68,53 @@ export default function Home() {
     }
   };
 
+  const handleSaveToCPD = (entry: ConversationEntry) => {
+    if (!email) {
+      setToastMessage("Please sign in to save CPD entries.");
+      return;
+    }
+    const cpd: Omit<CPDEntry, "reflection" | "tags"> = {
+      timestamp: new Date().toISOString(),
+      question: entry.question || "",
+      answer: entry.content,
+    };
+    addCPD(cpd);
+    setToastMessage("✅ Saved to CPD");
+  };
+
+  const handleOpenReflectionModal = (entry: ConversationEntry) => {
+    if (!email) {
+      setToastMessage("Please sign in to add a reflection.");
+      return;
+    }
+    setCurrentCpdEntry({
+      timestamp: new Date().toISOString(),
+      question: entry.question || "",
+      answer: entry.content,
+    });
+    setIsModalOpen(true);
+  };
+
+  const handleSaveReflection = (reflection: string, tags: string[]) => {
+    if (currentCpdEntry) {
+      const cpdEntry = { ...currentCpdEntry, reflection, tags };
+      addCPD(cpdEntry);
+      setToastMessage("✅ Reflection saved to CPD");
+    }
+  };
+
   const renderMessage = (entry: ConversationEntry, index: number) => {
     const isUmbil = entry.type === "umbil";
     const className = `message-bubble ${isUmbil ? "umbil-message" : "user-message"}`;
+
     return (
       <div key={index} className={className}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
         {isUmbil && (
-          <>
-            <div className="evidence-pill">Evidence: High</div>
-            <div className="sources-line">Sources: NICE, SIGN</div>
-            {/* Actions will be added in a later part */}
-          </>
+          <div className="umbil-message-actions">
+            <button className="action-button" onClick={() => handleSaveToCPD(entry)}>Save to CPD</button>
+            <button className="action-button" onClick={() => handleOpenReflectionModal(entry)}>Reflect</button>
+          </div>
         )}
       </div>
     );
@@ -126,6 +173,12 @@ export default function Home() {
           </p>
         </div>
       )}
+      <ReflectionModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSaveReflection}
+      />
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </>
   );
 }

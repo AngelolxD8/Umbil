@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useUserEmail } from "@/hooks/useUser";
@@ -29,6 +28,15 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
     );
   };
 
+  const menuItems = [
+    { href: "/", label: "Ask Umbil" },
+    { href: "/cpd", label: "My CPD", requiresAuth: true },
+    { href: "/pdp", label: "PDP", requiresAuth: true },
+    { href: "/settings", label: "Settings" },
+  ];
+
+  const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || email);
+
   if (!isOpen) return null;
 
   return (
@@ -39,6 +47,7 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
       <div
         className="fixed top-0 left-0 w-64 h-full bg-white shadow-lg p-4 transform transition-transform duration-200 ease-in-out"
         onClick={(e) => e.stopPropagation()}
+        style={{ transform: isOpen ? 'translateX(0)' : 'translateX(-100%)' }}
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold">Navigation</h3>
@@ -61,10 +70,7 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
         </div>
 
         <nav className="flex flex-col space-y-2">
-          {tab("/", "Ask Umbil")}
-          {email && tab("/cpd", "My CPD")}
-          {email && tab("/pdp", "PDP")}
-          {tab("/settings", "Settings")}
+          {filteredMenuItems.map((item) => tab(item.href, item.label))}
         </nav>
       </div>
     </div>

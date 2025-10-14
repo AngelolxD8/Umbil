@@ -3,7 +3,6 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { useState } from "react";
 import "./globals.css";
-import NavTabs from "@/components/NavTabs";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
 
@@ -33,7 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </button>
             </div>
             <div className="logo-section">
-              <img src="/umbil_logo.png.png" alt="Umbil Logo" className="umbil-logo"/>
+              <span role="img" aria-label="stethoscope" className="umbil-logo-emoji">🩺</span>
               <h2 className="umbil-logo-text">Umbil</h2>
               <p className="tagline">Your Medical Lifeline</p>
             </div>
@@ -43,7 +42,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </header>
 
           <main>{children}</main>
-          <NavTabs />
           <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} />
         </div>
       </body>
