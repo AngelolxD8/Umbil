@@ -51,7 +51,7 @@ export default function Home() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: newQuestion, tone: "conversational" }),
+        body: JSON.stringify({ question: newQuestion, conversation: conversation.map(c => ({ role: c.type, content: c.content })), tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();
