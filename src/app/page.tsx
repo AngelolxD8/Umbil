@@ -1,11 +1,12 @@
 // src/app/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 type AskResponse = { answer?: string; error?: string };
+type ConversationEntry = { type: "user" | "umbil"; content: string };
 
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
@@ -20,44 +21,73 @@ function getErrorMessage(err: unknown): string {
 export default function Home() {
   const [q, setQ] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
-  const [answer, setAnswer] = useState<string | null>(null);
+  const [conversation, setConversation] = useState<ConversationEntry[]>([]);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(scrollToBottom, [conversation]);
 
   const ask = async () => {
-    if (!q.trim()) return;
+    if (!q.trim() || loading) return;
+
+    const newQuestion = q;
+    setQ("");
     setLoading(true);
-    setAnswer(null);
+    setConversation((prev) => [...prev, { type: "user", content: newQuestion }]);
 
     try {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: q, tone: "conversational" }),
+        body: JSON.stringify({ question: newQuestion, tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();
       if (!res.ok) throw new Error(data.error || "Request failed");
 
-      setAnswer(data.answer ?? "");
+      setConversation((prev) => [...prev, { type: "umbil", content: data.answer ?? "" }]);
     } catch (err: unknown) {
-      setAnswer(`⚠️ ${getErrorMessage(err)}`);
+      setConversation((prev) => [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }]);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <>
-      {answer ? (
-        // Conversation Mode
-        <div className="conversation-container">
-          <div className="message-bubble user-message">
-            <p>{q}</p>
-          </div>
-          <div className="message-bubble umbil-message">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{answer}</ReactMarkdown>
+  const renderMessage = (entry: ConversationEntry, index: number) => {
+    const isUmbil = entry.type === "umbil";
+    const className = `message-bubble ${isUmbil ? "umbil-message" : "user-message"}`;
+    return (
+      <div key={index} className={className}>
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
+        {isUmbil && (
+          <>
             <div className="evidence-pill">Evidence: High</div>
             <div className="sources-line">Sources: NICE, SIGN</div>
             {/* Actions will be added in a later part */}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <>
+      {conversation.length > 0 ? (
+        // Conversation Mode
+        <div className="conversation-container">
+          <div className="message-thread">
+            {conversation.map(renderMessage)}
+            {loading && (
+              <div className="loading-indicator">
+                <span>•</span>
+                <span>•</span>
+                <span>•</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
           </div>
           <div className="ask-bar-container sticky">
             <input
