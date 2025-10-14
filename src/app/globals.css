@@ -133,6 +133,28 @@ a {
   background-color: var(--umbil-hover-bg);
 }
 
+/* Auth Buttons and Profile Display */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.profile-info {
+  text-align: right;
+  line-height: 1.2;
+}
+
+.profile-info .user-name {
+  font-weight: 600;
+  font-size: 1rem;
+}
+
+.profile-info .user-role {
+  font-size: 0.8rem;
+  color: var(--umbil-muted);
+}
+
 /* Hero Section */
 .hero {
   display: flex;

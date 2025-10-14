@@ -9,9 +9,11 @@ import Link from "next/link";
 export default function AuthButtons() {
   const [email, setEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const getSession = async () => {
+      setLoading(true);
       const { data } = await supabase.auth.getUser();
       setEmail(data.user?.email ?? null);
       if (data.user) {
@@ -20,6 +22,7 @@ export default function AuthButtons() {
       } else {
         setProfile(null);
       }
+      setLoading(false);
     };
     getSession();
 
@@ -33,13 +36,17 @@ export default function AuthButtons() {
     setProfile(null);
   };
 
+  if (loading) {
+    return <div className="user-profile"></div>; // Or a simple loading spinner
+  }
+
   if (email) {
     return (
       <div className="user-profile">
         {profile?.full_name ? (
-          <div style={{ textAlign: 'right' }}>
-            <span style={{ display: 'block', fontWeight: 'bold' }}>{profile.full_name}</span>
-            {profile.grade && <span style={{ display: 'block', fontSize: '0.8rem', color: '#666' }}>{profile.grade}</span>}
+          <div className="profile-info">
+            <span className="user-name">{profile.full_name}</span>
+            {profile.grade && <span className="user-role">{profile.grade}</span>}
           </div>
         ) : (
           <Link href="/profile" className="btn btn--outline">Complete Profile</Link>
