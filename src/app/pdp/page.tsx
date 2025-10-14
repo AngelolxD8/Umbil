@@ -1,17 +1,15 @@
 // src/app/pdp/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { PDPGoal, getPDP, savePDP } from "@/lib/store";
+import { useEffect, useState, useMemo } from "react";
+import { PDPGoal, getPDP, savePDP, getCPD } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
-import { useRouter } from "next/navigation";
 
 function PDPInner() {
   const [goals, setGoals] = useState<PDPGoal[]>([]);
   const [title, setTitle] = useState("");
   const [timeline, setTimeline] = useState("3 months");
   const [activities, setActivities] = useState("");
-  const router = useRouter();
 
   useEffect(() => setGoals(getPDP()), []);
 
@@ -36,6 +34,18 @@ function PDPInner() {
     setGoals(next);
     savePDP(next);
   };
+
+  const cpdEntries = getCPD();
+  const suggestedGoals = useMemo(() => {
+    const tagCounts = cpdEntries.flatMap(entry => entry.tags || []).reduce((acc, tag) => {
+      acc[tag] = (acc[tag] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return Object.entries(tagCounts)
+      .filter(([, count]) => count >= 7) // Suggest a goal if a tag appears 7 or more times
+      .map(([tag]) => `Strengthen knowledge in ${tag}`);
+  }, [cpdEntries]);
 
   return (
     <section className="main-content">
@@ -79,6 +89,24 @@ function PDPInner() {
             <button className="btn btn--primary" onClick={add}>➕ Add goal</button>
           </div>
         </div>
+
+        {suggestedGoals.length > 0 && (
+          <div className="card" style={{ marginTop: 24 }}>
+            <div className="card__body">
+              <h3 style={{ marginBottom: 12 }}>Suggested Goals</h3>
+              {suggestedGoals.map((sg, idx) => (
+                <button
+                  key={idx}
+                  className="btn btn--outline"
+                  style={{ marginRight: 8, marginBottom: 8 }}
+                  onClick={() => setTitle(sg)}
+                >
+                  {sg}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div style={{ marginTop: 24 }}>
           {goals.length === 0 && <div className="card"><div className="card__body">No goals yet.</div></div>}

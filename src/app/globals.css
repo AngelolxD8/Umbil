@@ -153,6 +153,7 @@ a {
 .profile-info .user-role {
   font-size: 0.8rem;
   color: var(--umbil-muted);
+  margin-top: 4px; /* Added spacing */
 }
 
 /* Hero Section */
@@ -279,7 +280,6 @@ a {
   border: 1px solid var(--umbil-card-border);
   margin-right: auto;
   position: relative;
-  padding-bottom: 50px;
 }
 
 .umbil-message p {
@@ -489,4 +489,10 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
+}
+
+.filters {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
 }

@@ -65,7 +65,7 @@ function CPDInner() {
           <button className="btn btn--outline" onClick={download}>📥 Download CSV</button>
         </div>
 
-        <div className="card card__body" style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
+        <div className="filters">
           <input
             className="form-control"
             placeholder="Search text…"
