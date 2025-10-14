@@ -4,6 +4,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { CPDEntry, getCPD } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 function toCSV(rows: CPDEntry[]) {
   const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
@@ -57,15 +59,13 @@ function CPDInner() {
 
   return (
     <section className="main-content">
-      <div className="container cpd-log-section">
-        <div className="section-header">
+      <div className="container">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <h2>My CPD Learning Log</h2>
-          <div className="header-actions">
-            <button className="btn btn--outline" onClick={download}>📥 Download CSV</button>
-          </div>
+          <button className="btn btn--outline" onClick={download}>📥 Download CSV</button>
         </div>
 
-        <div className="filters">
+        <div className="card card__body" style={{ display: 'flex', gap: 12, marginBottom: 24 }}>
           <input
             className="form-control"
             placeholder="Search text…"
@@ -87,20 +87,29 @@ function CPDInner() {
             <div className="card"><div className="card__body">No entries yet. Log something on the Ask page.</div></div>
           )}
           {filtered.map((e, idx) => (
-            <div key={idx} className="cpd-entry">
-              <div className="entry-header">
-                <div>
-                  <div className="entry-date">{new Date(e.timestamp).toLocaleString()}</div>
-                  <div className="entry-question">{e.question}</div>
+            <div key={idx} className="card" style={{ marginBottom: 16 }}>
+              <div className="card__body">
+                <div style={{ marginBottom: 12, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 12 }}>
+                  <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>
+                    {new Date(e.timestamp).toLocaleString()}
+                  </div>
+                  <div style={{ fontWeight: 600, marginTop: 4 }}>{e.question}</div>
                 </div>
-                <div className="status status--info">{(e.tags || []).join(" • ") || "No tags"}</div>
-              </div>
-              <div className="entry-details">
-                <div
-                  className="learning-points"
-                  dangerouslySetInnerHTML={{ __html: (e.answer || "").replace(/\n/g, "<br/>") }}
-                />
-                {e.reflection && <div className="reflection">{e.reflection}</div>}
+                <div style={{ fontSize: '0.9rem' }}>
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
+                </div>
+                {e.reflection && (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--umbil-divider)', fontStyle: 'italic', color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
+                    <strong>Reflection:</strong> {e.reflection}
+                  </div>
+                )}
+                <div style={{ marginTop: 12 }}>
+                  {(e.tags || []).map((t) => (
+                    <span key={t} style={{ marginRight: 8, padding: '4px 8px', borderRadius: 12, backgroundColor: 'rgba(31, 184, 205, 0.1)', fontSize: '0.8rem', color: 'var(--umbil-brand-teal)' }}>
+                      {t}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           ))}

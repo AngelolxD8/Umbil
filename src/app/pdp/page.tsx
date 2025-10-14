@@ -4,12 +4,14 @@
 import { useEffect, useState } from "react";
 import { PDPGoal, getPDP, savePDP } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
+import { useRouter } from "next/navigation";
 
 function PDPInner() {
   const [goals, setGoals] = useState<PDPGoal[]>([]);
   const [title, setTitle] = useState("");
   const [timeline, setTimeline] = useState("3 months");
   const [activities, setActivities] = useState("");
+  const router = useRouter();
 
   useEffect(() => setGoals(getPDP()), []);
 
@@ -78,15 +80,21 @@ function PDPInner() {
           </div>
         </div>
 
-        <div className="pdp-content">
-          {goals.length === 0 && <div className="card" style={{ marginTop: 16 }}><div className="card__body">No goals yet.</div></div>}
+        <div style={{ marginTop: 24 }}>
+          {goals.length === 0 && <div className="card"><div className="card__body">No goals yet.</div></div>}
           {goals.map((g) => (
-            <div key={g.id} className="pdp-goal">
-              <div className="goal-title"><h3>{g.title}</h3></div>
-              <div className="goal-timeline">{g.timeline}</div>
-              <ul className="goal-activities">{g.activities.map((a, i) => <li key={i}>{a}</li>)}</ul>
-              <div className="pdp-actions">
-                <button className="btn btn--outline" onClick={() => remove(g.id)}>Remove</button>
+            <div key={g.id} className="card pdp-goal" style={{ marginBottom: 16 }}>
+              <div className="card__body">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <h3 style={{ fontSize: '1.25rem', marginBottom: '0.25rem' }}>{g.title}</h3>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>{g.timeline}</div>
+                  </div>
+                  <button className="btn btn--outline" onClick={() => remove(g.id)}>Remove</button>
+                </div>
+                <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', marginTop: '1rem' }}>
+                  {g.activities.map((a, i) => <li key={i}>{a}</li>)}
+                </ul>
               </div>
             </div>
           ))}

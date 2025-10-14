@@ -6,6 +6,10 @@ import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
 
+function getErrorMessage(e: unknown): string {
+  return e instanceof Error ? e.message : "An unknown error occurred.";
+}
+
 export default function ProfilePage() {
   const { email, loading: userLoading } = useUserEmail();
   const router = useRouter();
@@ -41,8 +45,8 @@ export default function ProfilePage() {
       await upsertMyProfile(profile);
       setLoading(false);
       router.push("/");
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      setError(getErrorMessage(e));
       setLoading(false);
     }
   };
