@@ -48,10 +48,17 @@ export default function Home() {
     setConversation((prev) => [...prev, { type: "user", content: newQuestion, question: newQuestion }]);
 
     try {
+      // Build the message history for the API call
+      const messages = conversation.map(entry => ({
+        role: entry.type === "user" ? "user" : "assistant",
+        content: entry.content
+      }));
+      messages.push({ role: "user", content: newQuestion });
+
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: newQuestion, conversation: conversation.map(c => ({ role: c.type, content: c.content })), tone: "conversational" }),
+        body: JSON.stringify({ messages, tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();

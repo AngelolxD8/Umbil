@@ -19,8 +19,8 @@ const TONE_PROMPTS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: { question?: unknown; tone?: unknown } = await req.json();
-    const question: unknown = body?.question;
+    const body: { messages?: unknown; tone?: unknown } = await req.json();
+    const messages: unknown = body?.messages;
     const toneRaw: unknown = body?.tone;
     const tone =
       typeof toneRaw === "string" &&
@@ -28,23 +28,20 @@ export async function POST(req: NextRequest) {
         ? toneRaw
         : "conversational";
 
-    if (typeof question !== "string" || !question.trim()) {
+    if (!Array.isArray(messages) || messages.length === 0) {
       return NextResponse.json(
-        { error: "Missing 'question' string" },
+        { error: "Missing 'messages' array" },
         { status: 400 }
       );
     }
 
-    // Build system prompt from chosen tone
     const systemPrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
+    
+    // Add the system prompt to the beginning of the messages array
+    const fullMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
-    // A compact few-shot example to model structure & tone
-    const fewShotUser = "Example: Would you start a statin on a 55-year-old smoker?";
-    const fewShotAssistant =
-      "Good question — it depends mainly on cardiovascular risk. For a 55-year-old smoker, use QRISK3 to estimate 10-year CVD risk. If risk is above the usual treatment threshold (per NICE), consider starting a statin after discussing benefits/risks and shared decision-making.\n\n• Assess QRISK3 and address modifiable factors\n• Consider atorvastatin as per NICE guidance\n\nReflective prompt: How would you discuss absolute risk reduction with this patient?";
-
-    // Call OpenAI Responses API (matches your original approach)
-    const r = await fetch("https://api.openai.com/v1/responses", {
+    // Call OpenAI Chat API
+    const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
@@ -52,30 +49,20 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        // The Responses API can accept an "input" array with message-like objects.
-        input: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: fewShotUser },
-          { role: "assistant", content: fewShotAssistant },
-          { role: "user", content: String(question) },
-        ],
-        // Keep token limits reasonable for clinical answers
-        max_output_tokens: 800,
+        messages: fullMessages,
+        max_tokens: 800,
       }),
     });
 
     if (!r.ok) {
-      const text = await r.text();
-      return NextResponse.json({ error: text }, { status: r.status });
+      const errorData = await r.json();
+      return NextResponse.json({ error: errorData.error.message || "Request to OpenAI failed" }, { status: r.status });
     }
 
-    const data: ResponsesAPI = await r.json();
-    const text =
-      data.output_text ??
-      data.output?.[0]?.content?.[0]?.text ??
-      JSON.stringify(data);
+    const data = await r.json();
+    const answer = data.choices?.[0]?.message?.content;
 
-    return NextResponse.json({ answer: String(text) });
+    return NextResponse.json({ answer: String(answer) });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });
