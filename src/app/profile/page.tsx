@@ -66,7 +66,7 @@ export default function ProfilePage() {
                 type="text"
                 value={profile.full_name || ""}
                 onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                placeholder="Dr. Rishika Pasupulate"
+                placeholder="Dr. Angel Lian"
               />
             </div>
             <div className="form-group">
@@ -80,13 +80,13 @@ export default function ProfilePage() {
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Title</label>
+              <label className="form-label">Professional Body Number</label>
               <input
                 className="form-control"
                 type="text"
                 value={profile.title || ""}
                 onChange={(e) => setProfile({ ...profile, title: e.target.value })}
-                placeholder="e.g., General Medical Council (GMC)"
+                placeholder="e.g., GMC number"
               />
             </div>
             {error && <p style={{ color: 'red' }}>{error}</p>}

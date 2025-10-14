@@ -48,9 +48,7 @@ export default function AuthButtons() {
             <span className="user-name">{profile.full_name}</span>
             {profile.grade && <span className="user-role">{profile.grade}</span>}
           </div>
-        ) : (
-          <Link href="/profile" className="btn btn--outline">Complete Profile</Link>
-        )}
+        ) : null}
         <button className="btn btn--outline" onClick={signOut}>Sign out</button>
       </div>
     );
