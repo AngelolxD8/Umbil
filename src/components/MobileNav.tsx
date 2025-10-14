@@ -19,11 +19,12 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
     window.location.href = "/";
   };
 
-  const menuItems = [
-    { href: "/cpd", label: "My CPD", requiresAuth: true },
-    { href: "/pdp", label: "My PDP", requiresAuth: true },
-    { href: "/settings", label: "Settings" },
-  ];
+const menuItems = [
+  { href: "/cpd", label: "My CPD", requiresAuth: true },
+  { href: "/pdp", label: "My PDP", requiresAuth: true },
+  { href: "/profile", label: "My Profile", requiresAuth: true },
+  { href: "/settings", label: "Settings" },
+];
 
   const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || email);
 
