@@ -33,9 +33,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </button>
             </div>
             <div className="logo-section">
-              <Link href="/?new-chat=true" className="flex items-center">
-                <h2 className="umbil-logo-text">Umbil</h2>
-                <p className="tagline">Your Medical Lifeline</p>
+              <Link href="/?new-chat=true" className="flex items-center" style={{ display: 'flex', alignItems: 'flex-end' }}>
+                <h2 className="umbil-logo-text" style={{ fontSize: '24px', fontWeight: '600' }}>Umbil</h2>
+                <p className="tagline" style={{ fontSize: '14px', marginLeft: '10px', marginBottom: '3px' }}>Your Medical Lifeline</p>
               </Link>
             </div>
             <div className="header-right">

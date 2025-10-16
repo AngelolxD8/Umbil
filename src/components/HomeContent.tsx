@@ -48,7 +48,7 @@ export default function HomeContent() {
   }, [email]);
 
   useEffect(() => {
-    if (searchParams.get("new-chat") === "true") {
+    if (searchParams.get("new-chat")) {
       setConversation([]);
     }
   }, [searchParams]);
@@ -94,23 +94,9 @@ export default function HomeContent() {
     }
   };
 
-  const handleSaveToCPD = (entry: ConversationEntry) => {
+  const handleOpenAddCpdModal = (entry: ConversationEntry) => {
     if (!email) {
-      setToastMessage("Please sign in to save CPD entries.");
-      return;
-    }
-    const cpd: Omit<CPDEntry, "reflection" | "tags"> = {
-      timestamp: new Date().toISOString(),
-      question: entry.question || "",
-      answer: entry.content,
-    };
-    addCPD(cpd);
-    setToastMessage("✅ Saved to CPD");
-  };
-
-  const handleOpenReflectionModal = (entry: ConversationEntry) => {
-    if (!email) {
-      setToastMessage("Please sign in to add a reflection.");
+      setToastMessage("Please sign in to add CPD entries.");
       return;
     }
     setCurrentCpdEntry({
@@ -121,11 +107,11 @@ export default function HomeContent() {
     setIsModalOpen(true);
   };
 
-  const handleSaveReflection = (reflection: string, tags: string[]) => {
+  const handleSaveCpd = (reflection: string, tags: string[]) => {
     if (currentCpdEntry) {
       const cpdEntry = { ...currentCpdEntry, reflection, tags };
       addCPD(cpdEntry);
-      setToastMessage("✅ Reflection saved to CPD");
+      setToastMessage("✅ CPD entry saved!");
     }
   };
 
@@ -138,8 +124,7 @@ export default function HomeContent() {
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
         {isUmbil && (
           <div className="umbil-message-actions">
-            <button className="action-button" onClick={() => handleSaveToCPD(entry)}>Save to CPD</button>
-            <button className="action-button" onClick={() => handleOpenReflectionModal(entry)}>Reflect</button>
+            <button className="action-button" onClick={() => handleOpenAddCpdModal(entry)}>Add to CPD</button>
           </div>
         )}
       </div>
@@ -202,7 +187,7 @@ export default function HomeContent() {
       <ReflectionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveReflection}
+        onSave={handleSaveCpd}
       />
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </>

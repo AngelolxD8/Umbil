@@ -332,28 +332,12 @@ a {
   font-weight: 700;
 }
 
-.umbil-message .evidence-pill {
-  display: inline-block;
-  background-color: rgba(31, 184, 205, 0.1);
-  color: var(--umbil-brand-teal);
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
-  font-weight: 600;
-  margin-top: 1rem;
-}
-
 .umbil-message-actions {
-  position: absolute;
-  bottom: 8px;
-  left: 16px;
   display: flex;
   gap: 8px;
-  opacity: 0;
-  transition: opacity 0.2s ease-in-out;
-}
-
-.umbil-message:hover .umbil-message-actions {
+  margin-top: 1rem;
+  justify-content: flex-end;
+  /* Action buttons are now always visible */
   opacity: 1;
 }
 

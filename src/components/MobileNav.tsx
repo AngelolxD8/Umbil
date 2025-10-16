@@ -16,7 +16,8 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
 
   const handleNewChat = () => {
     onClose();
-    router.push("/?new-chat=true");
+    // Use a unique key to force a state reset on the home page
+    router.push(`/?new-chat=${Date.now()}`);
   };
 
   const menuItems = [
