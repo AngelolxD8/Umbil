@@ -26,7 +26,7 @@ export default function ReflectionModal({ isOpen, onClose, onSave }: ReflectionM
       <div className="modal-content">
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Add Reflection to CPD</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="close-button">
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"

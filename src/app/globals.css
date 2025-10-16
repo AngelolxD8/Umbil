@@ -409,6 +409,30 @@ a {
   box-shadow: var(--umbil-shadow-lg);
 }
 
+/* Update Modal Header for close button positioning */
+.modal-content .flex {
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.modal-content .close-button {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  color: var(--umbil-text);
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.modal-content .close-button:hover {
+  opacity: 1;
+}
+
 .toast-container {
   position: fixed;
   bottom: 20px;
