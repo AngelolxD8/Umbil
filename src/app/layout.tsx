@@ -1,49 +1,19 @@
 "use client";
 
 import { Geist, Geist_Mono } from "next/font/google";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import "./globals.css";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
 import Link from "next/link";
-import { getMyProfile, Profile } from "@/lib/profile";
-import { supabase } from "@/lib/supabase";
+import { useUserEmail } from "@/hooks/useUser";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [email, setEmail] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchUser = async () => {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        setEmail(user.email ?? null);
-        const userProfile = await getMyProfile();
-        setProfile(userProfile);
-      } else {
-        setEmail(null);
-        setProfile(null);
-      }
-      setLoading(false);
-    };
-
-    fetchUser();
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      fetchUser();
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+  const { email } = useUserEmail();
 
   return (
     <html lang="en">
@@ -71,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
             </div>
             <div className="header-right">
-              <AuthButtons userEmail={email} userProfile={profile} loading={loading} />
+              <AuthButtons />
             </div>
           </header>
 

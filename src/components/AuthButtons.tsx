@@ -1,35 +1,59 @@
 "use client";
 
-import Link from "next/link";
-import { Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { getMyProfile } from "@/lib/profile";
+import { getMyProfile, Profile } from "@/lib/profile";
+import Link from "next/link";
 
-type AuthButtonsProps = {
-  userEmail: string | null;
-  userProfile: Partial<Profile> | null;
-  loading: boolean;
-};
+export default function AuthButtons() {
+  const [user, setUser] = useState<{ email: string | null; profile: Partial<Profile> | null }>({
+    email: null,
+    profile: null,
+  });
+  const [loading, setLoading] = useState(true);
 
-export default function AuthButtons({ userEmail, userProfile, loading }: AuthButtonsProps) {
+  useEffect(() => {
+    const handleAuthChange = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
+        const userProfile = await getMyProfile();
+        setUser({ email: user.email ?? null, profile: userProfile });
+      } else {
+        setUser({ email: null, profile: null });
+      }
+      setLoading(false);
+    };
+
+    handleAuthChange();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // For all auth state changes, re-fetch user and profile to ensure consistency
+      handleAuthChange();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    window.location.reload(); // Force a full page reload to reflect the signed-out state
+    window.location.reload();
   };
 
   if (loading) {
+    // Return a simple loading state or an empty div to prevent layout shift
     return <div className="user-profile"></div>;
   }
 
-  if (userEmail) {
+  if (user.email) {
     return (
       <div className="user-profile">
-        {userProfile?.full_name ? (
+        {user.profile?.full_name ? (
           <div className="profile-info">
-            <span className="user-name">{userProfile.full_name}</span>
-            {userProfile.grade && <span className="user-role">{userProfile.grade}</span>}
+            <span className="user-name">{user.profile.full_name}</span>
+            {user.profile.grade && <span className="user-role">{user.profile.grade}</span>}
           </div>
         ) : null}
         <button className="btn btn--primary" onClick={signOut}>Sign out</button>
