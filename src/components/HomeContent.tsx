@@ -98,18 +98,14 @@ export default function HomeContent() {
     setConversation(updatedConversation);
 
     try {
-      // The error is here because the `messages` array for the API expects objects with `role` and `content`
-      // You are mapping `type` to `role` correctly, so we can just update the `updatedConversation` and pass it directly
-      // This is a more direct and efficient way to handle the messages.
-      const messages = updatedConversation.map(entry => ({
-        role: entry.type === "user" ? "user" : "assistant",
-        content: entry.content
-      }));
-
+      // The old code sent the entire history, this is the change.
+      // We now send only the new message to the API.
+      const messagesToSend = [{ role: "user", content: newQuestion }];
+      
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, profile, tone: "conversational" }),
+        body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();
