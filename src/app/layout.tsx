@@ -6,29 +6,44 @@ import "./globals.css";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
 import Link from "next/link";
-import { useUserEmail } from "@/hooks/useUser";
-import { getMyProfile } from "@/lib/profile";
-import { Profile } from "@/lib/profile";
+import { getMyProfile, Profile } from "@/lib/profile";
+import { supabase } from "@/lib/supabase";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const { email, loading: userLoading } = useUserEmail();
+  const [email, setEmail] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (email) {
+    const fetchUser = async () => {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        setEmail(user.email ?? null);
         const userProfile = await getMyProfile();
         setProfile(userProfile);
       } else {
+        setEmail(null);
         setProfile(null);
       }
+      setLoading(false);
     };
-    fetchProfile();
-  }, [email]);
+
+    fetchUser();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      fetchUser();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <html lang="en">
@@ -56,7 +71,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
             </div>
             <div className="header-right">
-              <AuthButtons userEmail={email} userProfile={profile} loading={userLoading} />
+              <AuthButtons userEmail={email} userProfile={profile} loading={loading} />
             </div>
           </header>
 
