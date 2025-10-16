@@ -12,11 +12,11 @@ type OpenAIResponse = {
 
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
-    "You are Umbil — a friendly, concise clinical assistant for UK doctors. Prefer NICE, SIGN, CKS and BNF where relevant. Start with a short, conversational one-line overview, then provide structured, evidence-based guidance (bullets or short paragraphs). Conclude with a fitting question to encourage reflective thinking and support CPD (e.g., 'How might you discuss this with the patient?' or 'Would you like to log this as a learning point for your CPD?'). Keep language clear and clinician-friendly.",
+    "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For clinical questions, prefer trusted sources like NICE, SIGN, CKS and BNF where relevant. You can also answer non-clinical questions, but maintain a helpful and professional tone. Start with a short, conversational one-line overview, then provide structured, evidence-based guidance (bullets or short paragraphs). Conclude with a fitting question to encourage reflective thinking and support CPD (e.g., 'How might you discuss this with the patient?' or 'Would you like to log this as a learning point for your CPD?'). Keep language clear and clinician-friendly.",
   formal:
-    "You are Umbil — a formal and precise clinical summariser for UK doctors. Prefer NICE, SIGN, CKS and BNF where relevant. Provide concise, structured, evidence-focused guidance. Avoid chattiness. End with a short signpost for further reading.",
+    "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS, and BNF where relevant. Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
   reflective:
-    "You are Umbil — a supportive clinical coach for UK doctors. Prefer NICE, SIGN, CKS and BNF where relevant. Provide evidence-based guidance and close with reflective questions and prompts to encourage learning and CPD. Use a warm, mentoring tone."
+    "You are Umbil — a supportive clinical coach for UK doctors. Use UK English spelling and phrasing. For clinical questions, provide evidence-based guidance based on trusted UK sources like NICE, SIGN, CKS and BNF, and close with reflective questions and prompts to encourage learning and CPD. Use a warm, mentoring tone. For non-clinical queries, you may respond in a broader, more conversational style."
 };
 
 export async function POST(req: NextRequest) {
@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+    
+    // START of new architectural approach
+    // With a full solution, this is where you would:
+    // 1. Check a cache for a pre-computed response.
+    // 2. If a cache miss, use the user's message to retrieve relevant context from a database.
+    // 3. Construct a more targeted system prompt and add the retrieved context.
+    // For now, we'll just send the last message to the model.
 
     const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
 
@@ -46,7 +53,7 @@ export async function POST(req: NextRequest) {
       personalizedPrompt = `You are Umbil, a personalized clinical assistant for ${name}, a ${grade}. ${basePrompt}`;
     }
 
-    const fullMessages = [{ role: "system", content: personalizedPrompt }, ...messages];
+    const fullMessages = [{ role: "system", content: personalizedPrompt }, messages[0]];
 
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -60,20 +67,18 @@ export async function POST(req: NextRequest) {
         max_tokens: 800,
       }),
     });
+    // END of new architectural approach
 
     if (!r.ok) {
-      // The original code returned the raw error, here we catch it and replace with a custom message
       const errorData = await r.json();
       
-      // Check for a specific rate limit error message from OpenAI
       if (errorData.error?.code === "rate_limit_exceeded" || r.status === 429) {
          return NextResponse.json(
              { error: "Umbil’s taking a short pause to catch up with demand. Please check back later — your lifeline will be ready soon." },
-             { status: 429 } // Use the standard 429 Too Many Requests status code
+             { status: 429 }
          );
       }
       
-      // For all other errors, still show a generic error message
       return NextResponse.json({ error: "Sorry, an unexpected error occurred. Please try again." }, { status: r.status });
     }
 
