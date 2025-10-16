@@ -8,6 +8,7 @@ import ReflectionModal from "@/components/ReflectionModal";
 import Toast from "@/components/Toast";
 import { addCPD, CPDEntry } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
+import { useSearchParams } from "next/navigation";
 
 type AskResponse = { answer?: string; error?: string };
 type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string };
@@ -32,6 +33,13 @@ export default function Home() {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { email } = useUserEmail();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("new-chat") === "true") {
+      setConversation([]);
+    }
+  }, [searchParams]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -48,7 +56,6 @@ export default function Home() {
     setConversation((prev) => [...prev, { type: "user", content: newQuestion, question: newQuestion }]);
 
     try {
-      // Build the message history for the API call
       const messages = conversation.map(entry => ({
         role: entry.type === "user" ? "user" : "assistant",
         content: entry.content

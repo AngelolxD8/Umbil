@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useUserEmail } from "@/hooks/useUser";
 
 type MobileNavProps = {
@@ -11,20 +11,20 @@ type MobileNavProps = {
 
 export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const { email } = useUserEmail();
 
   const handleNewChat = () => {
     onClose();
-    // Redirect to home or implement a more complex new chat logic
-    window.location.href = "/";
+    router.push("/?new-chat=true"); // Use router.push to navigate without reloading
   };
 
-const menuItems = [
-  { href: "/cpd", label: "My CPD", requiresAuth: true },
-  { href: "/pdp", label: "My PDP", requiresAuth: true },
-  { href: "/profile", label: "My Profile", requiresAuth: true },
-  { href: "/settings", label: "Settings" },
-];
+  const menuItems = [
+    { href: "/cpd", label: "My CPD", requiresAuth: true },
+    { href: "/pdp", label: "My PDP", requiresAuth: true },
+    { href: "/profile", label: "My Profile", requiresAuth: true },
+    { href: "/settings", label: "Settings" },
+  ];
 
   const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || email);
 
