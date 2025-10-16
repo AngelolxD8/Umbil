@@ -15,14 +15,12 @@ function PDPInner() {
 
   const add = () => {
     if (!title.trim()) return;
-    // Use a Set to automatically handle duplicate activities
-    const uniqueActivities = Array.from(new Set(activities.split("\n").filter(Boolean)));
     const next: PDPGoal[] = [
       {
         id: crypto.randomUUID(),
         title,
         timeline,
-        activities: uniqueActivities,
+        activities: activities.split("\n").filter(Boolean),
       },
       ...goals,
     ];
@@ -85,7 +83,7 @@ function PDPInner() {
                 rows={4}
                 value={activities}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setActivities(e.target.value)}
-                placeholder={"Attend COPD guideline update webinar\nShadow respiratory clinic\nAudit rescue packs"}
+                placeholder="Attend COPD guideline update webinar\nShadow respiratory clinic\nAudit rescue packs"
               />
             </div>
             <button className="btn btn--primary" onClick={add}>➕ Add goal</button>

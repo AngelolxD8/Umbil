@@ -16,6 +16,7 @@ export default function AuthButtons({ userEmail, userProfile, loading }: AuthBut
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    window.location.reload(); // Force a full page reload to reflect the signed-out state
   };
 
   if (loading) {

@@ -407,29 +407,23 @@ a {
   width: 90%;
   max-width: 500px;
   box-shadow: var(--umbil-shadow-lg);
-}
-
-/* Update Modal Header for close button positioning */
-.modal-content .flex {
-  justify-content: space-between;
-  align-items: center;
   position: relative;
 }
 
-.modal-content .close-button {
+.close-button {
   position: absolute;
-  top: -10px;
-  right: -10px;
+  top: 10px;
+  right: 10px;
   background: none;
   border: none;
   cursor: pointer;
   padding: 10px;
-  color: var(--umbil-text);
+  color: var(--umbil-muted);
   opacity: 0.6;
   transition: opacity 0.2s;
 }
 
-.modal-content .close-button:hover {
+.close-button:hover {
   opacity: 1;
 }
 
@@ -607,6 +601,13 @@ a {
   border: 1px solid var(--umbil-card-border);
   border-radius: var(--umbil-radius-sm);
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+/* New CSS to style the placeholder text */
+.form-control::placeholder {
+  color: var(--umbil-muted);
+  font-family: inherit;
+  opacity: 1; /* For Firefox */
 }
 
 .form-control:focus {
