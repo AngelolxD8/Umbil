@@ -9,6 +9,7 @@ import Toast from "@/components/Toast";
 import { addCPD, CPDEntry } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
+import { getMyProfile, Profile } from "@/lib/profile";
 
 type AskResponse = { answer?: string; error?: string };
 type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string };
@@ -34,6 +35,17 @@ export default function Home() {
 
   const { email } = useUserEmail();
   const searchParams = useSearchParams();
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      const userProfile = await getMyProfile();
+      setProfile(userProfile);
+    };
+    if (email) {
+      fetchProfile();
+    }
+  }, [email]);
 
   useEffect(() => {
     if (searchParams.get("new-chat") === "true") {
@@ -65,7 +77,7 @@ export default function Home() {
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages, tone: "conversational" }),
+        body: JSON.stringify({ messages, profile, tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();

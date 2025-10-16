@@ -1,10 +1,11 @@
+// src/lib/profile.ts
 import { supabase } from "@/lib/supabase";
 
 export type Profile = {
   id: string;
   full_name: string | null;
-  title: string | null;
   grade: string | null;
+  title: string | null; // This will now store the Professional Body Number
   dob: string | null; // ISO date
 };
 

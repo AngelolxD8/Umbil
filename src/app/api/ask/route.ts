@@ -19,9 +19,11 @@ const TONE_PROMPTS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const body: { messages?: unknown; tone?: unknown } = await req.json();
+    const body: { messages?: unknown; profile?: { full_name?: string | null; grade?: string | null }; tone?: unknown } = await req.json();
     const messages: unknown = body?.messages;
+    const profile = body?.profile;
     const toneRaw: unknown = body?.tone;
+
     const tone =
       typeof toneRaw === "string" &&
       ["conversational", "formal", "reflective"].includes(toneRaw)
@@ -35,12 +37,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const systemPrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
-    
-    // Add the system prompt to the beginning of the messages array
-    const fullMessages = [{ role: "system", content: systemPrompt }, ...messages];
+    const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
 
-    // Call OpenAI Chat API
+    let personalizedPrompt = basePrompt;
+    if (profile?.full_name) {
+      const name = profile.full_name;
+      const grade = profile.grade || "a doctor";
+      personalizedPrompt = `You are Umbil, a personalized clinical assistant for ${name}, a ${grade}. ${basePrompt}`;
+    }
+
+    const fullMessages = [{ role: "system", content: personalizedPrompt }, ...messages];
+
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: {

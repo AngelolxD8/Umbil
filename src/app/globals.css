@@ -241,6 +241,18 @@ a {
 
 .ask-bar-send-button:hover {
   background-color: #1a92a5;
+  animation: none;
+}
+
+/* Add a new keyframes animation for the send button */
+@keyframes pulseSend {
+  0% { transform: translateY(-50%) scale(1); }
+  50% { transform: translateY(-50%) scale(1.1); }
+  100% { transform: translateY(-50%) scale(1); }
+}
+
+.ask-bar-send-button:active {
+  animation: pulseSend 0.3s ease-in-out;
 }
 
 .ask-bar-send-button:disabled {
@@ -278,21 +290,46 @@ a {
 .umbil-message {
   background-color: var(--umbil-surface);
   border: 1px solid var(--umbil-card-border);
+  border-radius: var(--umbil-radius-sm);
+  box-shadow: var(--umbil-shadow-sm);
+  padding: 20px;
   margin-right: auto;
   position: relative;
+  /* Adjusting inner spacing for better readability */
+  line-height: 1.6;
 }
 
 .umbil-message p {
-  margin: 0 0 1rem 0; /* Add bottom margin to paragraphs for spacing */
+  margin: 0 0 1rem 0;
 }
 
 .umbil-message p:last-child {
   margin-bottom: 0;
 }
 
+.umbil-message ul,
+.umbil-message ol {
+  margin: 1rem 0 1rem 1.5rem;
+  padding: 0;
+}
+
 .umbil-message li {
-  margin-left: 1.5rem;
   margin-bottom: 0.5rem;
+}
+
+.umbil-message h1,
+.umbil-message h2,
+.umbil-message h3,
+.umbil-message h4,
+.umbil-message h5,
+.umbil-message h6 {
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.umbil-message strong {
+  font-weight: 700;
 }
 
 .umbil-message .evidence-pill {
