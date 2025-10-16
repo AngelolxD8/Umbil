@@ -66,7 +66,7 @@ export default function ProfilePage() {
                 type="text"
                 value={profile.full_name || ""}
                 onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                placeholder="Dr. Rishika Pasupulate"
+                placeholder="Dr. Angel Lian"
               />
             </div>
             <div className="form-group">

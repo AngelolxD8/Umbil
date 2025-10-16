@@ -517,3 +517,76 @@ a {
   gap: 16px;
   margin-bottom: 24px;
 }
+
+/* Buttons */
+.btn {
+  padding: 10px 16px;
+  border-radius: var(--umbil-radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  font-size: 1rem;
+  line-height: 1.5;
+  text-align: center;
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.btn--primary {
+  background-color: var(--umbil-brand-teal);
+  color: var(--umbil-surface);
+  border: 1px solid var(--umbil-brand-teal);
+}
+
+.btn--primary:hover {
+  background-color: #1a92a5;
+  border-color: #1a92a5;
+}
+
+.btn--outline {
+  background-color: transparent;
+  color: var(--umbil-text);
+  border: 1px solid var(--umbil-card-border);
+}
+
+.btn--outline:hover {
+  background-color: var(--umbil-hover-bg);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Other form styles */
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--umbil-muted);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--umbil-text);
+  background-color: var(--umbil-surface);
+  background-clip: padding-box;
+  border: 1px solid var(--umbil-card-border);
+  border-radius: var(--umbil-radius-sm);
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: var(--umbil-brand-teal);
+  box-shadow: 0 0 0 3px var(--umbil-focus-ring);
+}

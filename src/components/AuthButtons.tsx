@@ -56,7 +56,7 @@ export default function AuthButtons() {
             {user.profile.grade && <span className="user-role">{user.profile.grade}</span>}
           </div>
         ) : null}
-        <button className="btn btn--outline" onClick={signOut}>Sign out</button>
+        <button className="btn btn--primary" onClick={signOut}>Sign out</button>
       </div>
     );
   }
