@@ -5,6 +5,7 @@ import { useState } from "react";
 import "./globals.css";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
+import Link from "next/link";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -32,9 +33,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </button>
             </div>
             <div className="logo-section">
-              <span role="img" aria-label="stethoscope" className="umbil-logo-emoji">🩺</span>
-              <h2 className="umbil-logo-text">Umbil</h2>
-              <p className="tagline">Your Medical Lifeline</p>
+              <Link href="/?new-chat=true" className="flex items-center">
+                <h2 className="umbil-logo-text">Umbil</h2>
+                <p className="tagline">Your Medical Lifeline</p>
+              </Link>
             </div>
             <div className="header-right">
               <AuthButtons />

@@ -16,7 +16,7 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
 
   const handleNewChat = () => {
     onClose();
-    router.push("/?new-chat=true"); // Use router.push to navigate without reloading
+    router.push("/?new-chat=true");
   };
 
   const menuItems = [
