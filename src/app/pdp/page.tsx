@@ -15,12 +15,14 @@ function PDPInner() {
 
   const add = () => {
     if (!title.trim()) return;
+    // Use a Set to automatically handle duplicate activities
+    const uniqueActivities = Array.from(new Set(activities.split("\n").filter(Boolean)));
     const next: PDPGoal[] = [
       {
         id: crypto.randomUUID(),
         title,
         timeline,
-        activities: activities.split("\n").filter(Boolean),
+        activities: uniqueActivities,
       },
       ...goals,
     ];

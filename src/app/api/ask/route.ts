@@ -1,10 +1,12 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-type ResponsesAPI = {
-  output_text?: string;
-  output?: Array<{
-    content?: Array<{ type?: string; text?: string }>;
+// Define a more specific type for the API response to improve type safety
+type OpenAIResponse = {
+  choices: Array<{
+    message: {
+      content: string;
+    };
   }>;
 };
 
@@ -20,9 +22,7 @@ const TONE_PROMPTS: Record<string, string> = {
 export async function POST(req: NextRequest) {
   try {
     const body: { messages?: unknown; profile?: { full_name?: string | null; grade?: string | null }; tone?: unknown } = await req.json();
-    const messages: unknown = body?.messages;
-    const profile = body?.profile;
-    const toneRaw: unknown = body?.tone;
+    const { messages, profile, tone: toneRaw } = body;
 
     const tone =
       typeof toneRaw === "string" &&
@@ -66,10 +66,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: errorData.error.message || "Request to OpenAI failed" }, { status: r.status });
     }
 
-    const data = await r.json();
+    const data: OpenAIResponse = await r.json();
     const answer = data.choices?.[0]?.message?.content;
 
-    return NextResponse.json({ answer: String(answer) });
+    return NextResponse.json({ answer: answer ?? "" });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });

@@ -65,14 +65,18 @@ export default function HomeContent() {
     const newQuestion = q;
     setQ("");
     setLoading(true);
-    setConversation((prev) => [...prev, { type: "user", content: newQuestion, question: newQuestion }]);
+
+    const updatedConversation: ConversationEntry[] = [
+      ...conversation,
+      { type: "user", content: newQuestion, question: newQuestion }
+    ];
+    setConversation(updatedConversation);
 
     try {
-      const messages = conversation.map(entry => ({
+      const messages = updatedConversation.map(entry => ({
         role: entry.type === "user" ? "user" : "assistant",
         content: entry.content
       }));
-      messages.push({ role: "user", content: newQuestion });
 
       const res = await fetch("/api/ask", {
         method: "POST",
