@@ -24,9 +24,18 @@ function getErrorMessage(err: unknown): string {
   }
 }
 
+const loadingMessages = [
+  "Umbil is thinking...",
+  "Consulting the guidelines...",
+  "Synthesizing clinical data...",
+  "Almost there...",
+  "Crafting your response...",
+];
+
 export default function HomeContent() {
   const [q, setQ] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [loadingMsg, setLoadingMsg] = useState(loadingMessages[0]);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,6 +68,22 @@ export default function HomeContent() {
 
   useEffect(scrollToBottom, [conversation]);
 
+  // Handle dynamic loading message
+  useEffect(() => {
+    if (loading) {
+      const interval = setInterval(() => {
+        setLoadingMsg((prevMsg) => {
+          const currentIndex = loadingMessages.indexOf(prevMsg);
+          const nextIndex = (currentIndex + 1) % loadingMessages.length;
+          return loadingMessages[nextIndex];
+        });
+      }, 2000);
+      return () => clearInterval(interval);
+    } else {
+      setLoadingMsg(loadingMessages[0]); // Reset to initial message
+    }
+  }, [loading]);
+
   const ask = async () => {
     if (!q.trim() || loading) return;
 
@@ -73,6 +98,9 @@ export default function HomeContent() {
     setConversation(updatedConversation);
 
     try {
+      // The error is here because the `messages` array for the API expects objects with `role` and `content`
+      // You are mapping `type` to `role` correctly, so we can just update the `updatedConversation` and pass it directly
+      // This is a more direct and efficient way to handle the messages.
       const messages = updatedConversation.map(entry => ({
         role: entry.type === "user" ? "user" : "assistant",
         content: entry.content
@@ -144,6 +172,7 @@ export default function HomeContent() {
             {conversation.map(renderMessage)}
             {loading && (
               <div className="loading-indicator">
+                {loadingMsg}
                 <span>•</span>
                 <span>•</span>
                 <span>•</span>
