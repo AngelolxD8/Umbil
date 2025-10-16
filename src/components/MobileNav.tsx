@@ -2,17 +2,16 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useUserEmail } from "@/hooks/useUser";
 
 type MobileNavProps = {
   isOpen: boolean;
   onClose: () => void;
+  userEmail: string | null;
 };
 
-export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
+export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { email } = useUserEmail();
 
   const handleNewChat = () => {
     onClose();
@@ -27,7 +26,7 @@ export default function MobileNav({ isOpen, onClose }: MobileNavProps) {
     { href: "/settings", label: "Settings" },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || email);
+  const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || userEmail);
 
   return (
     <>

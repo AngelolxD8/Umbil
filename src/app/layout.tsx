@@ -1,17 +1,34 @@
 "use client";
 
 import { Geist, Geist_Mono } from "next/font/google";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./globals.css";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
 import Link from "next/link";
+import { useUserEmail } from "@/hooks/useUser";
+import { getMyProfile } from "@/lib/profile";
+import { Profile } from "@/lib/profile";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+  const { email, loading: userLoading } = useUserEmail();
+  const [profile, setProfile] = useState<Profile | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (email) {
+        const userProfile = await getMyProfile();
+        setProfile(userProfile);
+      } else {
+        setProfile(null);
+      }
+    };
+    fetchProfile();
+  }, [email]);
 
   return (
     <html lang="en">
@@ -39,12 +56,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
             </div>
             <div className="header-right">
-              <AuthButtons />
+              <AuthButtons userEmail={email} userProfile={profile} loading={userLoading} />
             </div>
           </header>
 
           <main>{children}</main>
-          <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} />
+          <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} userEmail={email} />
         </div>
       </body>
     </html>
