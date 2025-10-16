@@ -62,8 +62,19 @@ export async function POST(req: NextRequest) {
     });
 
     if (!r.ok) {
+      // The original code returned the raw error, here we catch it and replace with a custom message
       const errorData = await r.json();
-      return NextResponse.json({ error: errorData.error.message || "Request to OpenAI failed" }, { status: r.status });
+      
+      // Check for a specific rate limit error message from OpenAI
+      if (errorData.error?.code === "rate_limit_exceeded" || r.status === 429) {
+         return NextResponse.json(
+             { error: "Umbil’s taking a short pause to catch up with demand. Please check back later — your lifeline will be ready soon." },
+             { status: 429 } // Use the standard 429 Too Many Requests status code
+         );
+      }
+      
+      // For all other errors, still show a generic error message
+      return NextResponse.json({ error: "Sorry, an unexpected error occurred. Please try again." }, { status: r.status });
     }
 
     const data: OpenAIResponse = await r.json();
