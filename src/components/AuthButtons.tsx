@@ -1,4 +1,3 @@
-// src/components/AuthButtons.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -7,46 +6,54 @@ import { getMyProfile, Profile } from "@/lib/profile";
 import Link from "next/link";
 
 export default function AuthButtons() {
-  const [email, setEmail] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Partial<Profile> | null>(null);
+  const [user, setUser] = useState<{ email: string | null; profile: Partial<Profile> | null }>({
+    email: null,
+    profile: null,
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getSession = async () => {
-      setLoading(true);
-      const { data } = await supabase.auth.getUser();
-      setEmail(data.user?.email ?? null);
-      if (data.user) {
+    const handleAuthChange = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (user) {
         const userProfile = await getMyProfile();
-        setProfile(userProfile);
+        setUser({ email: user.email ?? null, profile: userProfile });
       } else {
-        setProfile(null);
+        setUser({ email: null, profile: null });
       }
       setLoading(false);
     };
-    getSession();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => getSession());
-    return () => sub?.subscription.unsubscribe();
+    handleAuthChange();
+    
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // For all auth state changes, re-fetch user and profile to ensure consistency
+      handleAuthChange();
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {
     await supabase.auth.signOut();
-    setEmail(null);
-    setProfile(null);
+    setUser({ email: null, profile: null });
   };
 
   if (loading) {
-    return <div className="user-profile"></div>; // Or a simple loading spinner
+    // Return a simple loading state or an empty div to prevent layout shift
+    return <div className="user-profile"></div>;
   }
 
-  if (email) {
+  if (user.email) {
     return (
       <div className="user-profile">
-        {profile?.full_name ? (
+        {user.profile?.full_name ? (
           <div className="profile-info">
-            <span className="user-name">{profile.full_name}</span>
-            {profile.grade && <span className="user-role">{profile.grade}</span>}
+            <span className="user-name">{user.profile.full_name}</span>
+            {user.profile.grade && <span className="user-role">{user.profile.grade}</span>}
           </div>
         ) : null}
         <button className="btn btn--outline" onClick={signOut}>Sign out</button>
