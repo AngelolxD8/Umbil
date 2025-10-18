@@ -100,7 +100,7 @@ export default function HomeContent() {
     try {
       // --- FIX: Send the entire conversation history ---
       const messagesToSend = updatedConversation.map(entry => ({
-        // Map local type to Gemini API role (umbil messages are the model's responses)
+        // Map local type to Gemini API role (umbil messages are the model's responses, which should use "model" role)
         role: entry.type === "user" ? "user" : "model",
         content: entry.content,
       }));

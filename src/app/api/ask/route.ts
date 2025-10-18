@@ -15,7 +15,7 @@ type GeminiResponse = {
 
 // Define a type for a message received from the client
 type ClientMessage = {
-  role: "user" | "model"; // Roles are now strictly user or model (model is for the AI's previous responses)
+  role: "user" | "model"; // Roles must be 'user' or 'model'
   content: string;
 };
 
