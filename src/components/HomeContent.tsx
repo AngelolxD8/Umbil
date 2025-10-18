@@ -1,4 +1,4 @@
-// src/components/HomeContent.tsx (Use the previously provided correct version)
+// src/components/HomeContent.tsx
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -85,53 +85,37 @@ export default function HomeContent() {
   }, [loading]);
 
   const ask = async () => {
-    if (!q.trim()) return;
-    
-    setLoading(true);
-    const userQuestion = q;
-    setQ("");
-    
-    // Add user message to conversation
-    setConversation(prev => [...prev, { type: "user", content: userQuestion }]);
-    
-    try {
-      const messages = conversation.map(entry => ({
-        role: entry.type === "user" ? "user" : "model",
-        content: entry.content
-      }));
-      
-      // Add the current question
-      messages.push({ role: "user", content: userQuestion });
+    if (!q.trim() || loading) return;
 
+    const newQuestion = q;
+    setQ("");
+    setLoading(true);
+
+    const updatedConversation: ConversationEntry[] = [
+      ...conversation,
+      { type: "user", content: newQuestion, question: newQuestion }
+    ];
+    setConversation(updatedConversation);
+
+    try {
+      // Sending only the new message for efficiency (reverted from old code, but keeps the efficiency fix)
+      const messagesToSend = [{ role: "user", content: newQuestion }];
+      
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages,
-          profile,
-          tone: "conversational"
-        })
+        body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();
-      
-      if (data.error) throw new Error(data.error);
-      if (!data.answer) throw new Error("No answer received");
+      if (!res.ok) throw new Error(data.error || "Request failed");
 
-      // Add Umbil's response to conversation
-      setConversation(prev => [...prev, {
-        type: "umbil",
-        content: data.answer!,
-        question: userQuestion
-      }]);
-
-    } catch (err) {
-      const errorMessage = getErrorMessage(err);
-      setConversation(prev => [...prev, {
-        type: "umbil",
-        content: `Sorry, I encountered an error: ${errorMessage}`,
-        question: userQuestion
-      }]);
+      setConversation((prev) => [
+        ...prev,
+        { type: "umbil", content: data.answer ?? "", question: newQuestion },
+      ]);
+    } catch (err: unknown) {
+      setConversation((prev) => [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }]);
     } finally {
       setLoading(false);
     }
