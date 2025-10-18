@@ -1,9 +1,10 @@
+// src/components/AuthButtons.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, Profile } from "@/lib/profile";
-import Link from "next/link";
+// import Link from "next/link"; // REMOVED unused import
 
 export default function AuthButtons() {
   const [user, setUser] = useState<{ email: string | null; profile: Partial<Profile> | null }>({
@@ -27,7 +28,8 @@ export default function AuthButtons() {
 
     handleAuthChange();
     
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    // Updated line to ignore unused 'event' parameter
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       // For all auth state changes, re-fetch user and profile to ensure consistency
       handleAuthChange();
     });

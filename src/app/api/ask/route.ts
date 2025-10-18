@@ -1,20 +1,33 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-// Define a more specific type for the API response to improve type safety
+// Define a type for a single message part
+type ContentPart = { text: string };
+
+// Define a type for a single message/content block
+type Content = {
+  role: "user" | "model" | "system";
+  parts: ContentPart[];
+};
+
+// Define a type for the API response to improve type safety
 type GeminiResponse = {
   candidates: Array<{
     content: {
-      parts: Array<{
-        text: string;
-      }>;
+      parts: ContentPart[];
     };
   }>;
 };
 
+// Define a type for a message received from the client
+type ClientMessage = {
+  role: string;
+  content: string;
+};
+
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
-    "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS, and BNF where relevant. For non-clinical queries, you may respond in a broader, more conversational style. Start with a short, conversational one-line overview, then provide structured, evidence-based guidance (bullets or short paragraphs). Conclude with a clear suggestion for a similar, relevant follow-up question or related action (e.g., 'Would you like me to suggest a differential diagnosis?' or 'Would you like to log this as a learning point for your CPD?').",
+    "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS and BNF where relevant. For non-clinical queries, you may respond in a broader, more conversational style. Start with a short, conversational one-line overview, then provide structured, evidence-based guidance (bullets or short paragraphs). Conclude with a clear suggestion for a similar, relevant follow-up question or related action (e.g., 'Would you like me to suggest a differential diagnosis?' or 'Would you like to log this as a learning point for your CPD?').",
   formal:
     "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS, and BNF where relevant. Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
   reflective:
@@ -40,7 +53,7 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // --- Model Configuration: SWITCH TO GEMINI ---
+    // --- Model Configuration: SWITCH TO GEMINI 2.5 FLASH-LITE ---
     const GEMINI_MODEL = "gemini-2.5-flash-lite"; // Highest throughput for scaling
     const API_KEY = process.env.GEMINI_API_KEY;
 
@@ -60,8 +73,8 @@ export async function POST(req: NextRequest) {
       personalizedPrompt = `You are Umbil, a personalized clinical assistant for ${name}, a ${grade}. ${basePrompt}`;
     }
     
-    // messages[0] contains the single user message: { role: "user", content: "..." }
-    const userMessage: any = messages[0];
+    // FIX: Explicitly cast the message to the defined type to avoid the 'any' error
+    const userMessage = messages[0] as ClientMessage;
 
     // Convert to Gemini API request body format. We use systemInstruction for the main prompt.
     const requestBody = {
