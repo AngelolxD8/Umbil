@@ -15,7 +15,7 @@ type GeminiResponse = {
 
 // Define a type for a message received from the client
 type ClientMessage = {
-  role: string;
+  role: "user" | "model"; // Roles are now strictly user or model (model is for the AI's previous responses)
   content: string;
 };
 
@@ -67,18 +67,20 @@ export async function POST(req: NextRequest) {
       personalizedPrompt = `You are Umbil, a personalized clinical assistant for ${name}, a ${grade}. ${basePrompt}`;
     }
     
-    const userMessage = messages[0] as ClientMessage;
+    // --- FIX: Map all client messages to the required API content structure ---
+    const contents = (messages as ClientMessage[]).map(message => ({
+        role: message.role,
+        parts: [{ text: message.content }],
+    }));
+    // --------------------------------------------------------------------------
 
     // The Gemini API requires system instruction to be a top-level field.
     const requestBody = {
       // 1. System Instruction is a TOP-LEVEL FIELD
       systemInstruction: personalizedPrompt, 
       
-      // 2. Contents array is correct
-      contents: [{
-        role: "user",
-        parts: [{ text: userMessage.content }],
-      }],
+      // 2. Contents array now contains the entire conversation history
+      contents: contents,
 
       // 3. generationConfig now ONLY contains model parameters
       generationConfig: {

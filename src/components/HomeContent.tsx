@@ -98,9 +98,13 @@ export default function HomeContent() {
     setConversation(updatedConversation);
 
     try {
-      // The old code sent the entire history, this is the change.
-      // We now send only the new message to the API.
-      const messagesToSend = [{ role: "user", content: newQuestion }];
+      // --- FIX: Send the entire conversation history ---
+      const messagesToSend = updatedConversation.map(entry => ({
+        // Map local type to Gemini API role (umbil messages are the model's responses)
+        role: entry.type === "user" ? "user" : "model",
+        content: entry.content,
+      }));
+      // ------------------------------------------------
       
       const res = await fetch("/api/ask", {
         method: "POST",
