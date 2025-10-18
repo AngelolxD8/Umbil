@@ -71,40 +71,44 @@ export async function POST(req: NextRequest) {
       personalizedPrompt = `Personalized for ${name}, a ${grade}. ${basePrompt}`;
     }
     
-    // Map all client messages to the required API content structure
-    const contents = (messages as ClientMessage[]).map(message => ({
-        role: message.role,
+    // Map client messages to the API's expected content shape:
+    // each message should include an "author" (system/user/assistant) and a "content" object with parts[]
+    const contents = (messages as ClientMessage[]).map((message) => ({
+      author: message.role === "user" ? "user" : "assistant",
+      content: {
         parts: [{ text: message.content }],
+      },
     }));
-    
-    // The Gemini API requires system instruction to be a top-level field.
-    const requestBody = {
-      // 1. System Instruction is a TOP-LEVEL FIELD
-      systemInstruction: personalizedPrompt, 
-      
-      // 2. Contents array now contains the entire conversation history
-      contents: contents,
 
-      // 3. generationConfig now ONLY contains model parameters
-      generationConfig: {
-          maxOutputTokens: 800,
-          temperature: 0.7, 
-      }
+    // systemInstruction must be a Content object (not a plain string)
+    const systemInstruction = {
+      parts: [{ text: personalizedPrompt }],
     };
 
-    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const requestBody = {
+      systemInstruction, // now an object with parts[]
+      contents, // conversation messages
+      generationConfig: {
+        maxOutputTokens: 800,
+        temperature: 0.7,
       },
-      body: JSON.stringify(requestBody),
-    });
+    };
+
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
 
     if (!r.ok) {
-      const errorData: { error?: { message: string, code: number } } = await r.json();
-      
+      const errorData: { error?: { message: string; code?: number } } = await r.json();
       const detailedError = errorData.error?.message || `API Request Failed (Status: ${r.status})`;
-      
+
       // Handle rate limit (HTTP 429 is common)
       if (r.status === 429) {
          return NextResponse.json(
@@ -112,14 +116,14 @@ export async function POST(req: NextRequest) {
              { status: 429 }
          );
       }
-      
+
       return NextResponse.json({ error: detailedError }, { status: r.status });
     }
 
     const data: GeminiResponse = await r.json();
-    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
 
-    return NextResponse.json({ answer: answer ?? "" });
+    return NextResponse.json({ answer });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });
