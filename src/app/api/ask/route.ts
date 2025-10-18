@@ -69,18 +69,18 @@ export async function POST(req: NextRequest) {
     
     const userMessage = messages[0] as ClientMessage;
 
-    // CORRECTED PAYLOAD STRUCTURE: systemInstruction must be top-level
+    // The Gemini API requires system instruction to be a top-level field.
     const requestBody = {
-      // 1. System Instruction is now a top-level field
+      // 1. System Instruction is a TOP-LEVEL FIELD
       systemInstruction: personalizedPrompt, 
       
-      // 2. Messages/Contents is correct
+      // 2. Contents array is correct
       contents: [{
         role: "user",
         parts: [{ text: userMessage.content }],
       }],
 
-      // 3. generationConfig now ONLY contains model parameters (max tokens, temperature)
+      // 3. generationConfig now ONLY contains model parameters
       generationConfig: {
           maxOutputTokens: 800,
           temperature: 0.7, 
