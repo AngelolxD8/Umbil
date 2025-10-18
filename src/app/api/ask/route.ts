@@ -2,10 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
 // Define a more specific type for the API response to improve type safety
-type OpenAIResponse = {
-  choices: Array<{
-    message: {
-      content: string;
+type GeminiResponse = {
+  candidates: Array<{
+    content: {
+      parts: Array<{
+        text: string;
+      }>;
     };
   }>;
 };
@@ -16,8 +18,9 @@ const TONE_PROMPTS: Record<string, string> = {
   formal:
     "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS, and BNF where relevant. Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
   reflective:
-    "You are Umbil — a supportive clinical coach for UK doctors. Use UK English spelling and phrasing. For clinical questions, provide evidence-based guidance based on trusted UK sources like NICE, SIGN, CKS and BNF, and close with reflective questions and prompts to encourage learning and CPD. Use a warm, mentoring tone. For non-clinical queries, you may respond in a broader, more conversational style."
+    "You are Umbil — a supportive clinical coach for UK doctors. Use UK English spelling and phrasing. For clinical questions, provide evidence-based guidance based on trusted UK sources like NICE, SIGN, CKS and BNF, and close with a fitting suggestion for a similar, relevant follow-up question or related action. Use a warm, mentoring tone. For non-clinical queries, you may respond in a broader, more conversational style."
 };
+
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,12 +40,16 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // START of new architectural approach
-    // With a full solution, this is where you would:
-    // 1. Check a cache for a pre-computed response.
-    // 2. If a cache miss, use the user's message to retrieve relevant context from a database.
-    // 3. Construct a more targeted system prompt and add the retrieved context.
-    // For now, we'll just send the last message to the model.
+    // --- Model Configuration: SWITCH TO GEMINI ---
+    const GEMINI_MODEL = "gemini-2.5-flash-lite"; // Highest throughput for scaling
+    const API_KEY = process.env.GEMINI_API_KEY;
+
+    if (!API_KEY) {
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY environment variable not set." },
+        { status: 500 }
+      );
+    }
 
     const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
 
@@ -52,38 +59,49 @@ export async function POST(req: NextRequest) {
       const grade = profile.grade || "a doctor";
       personalizedPrompt = `You are Umbil, a personalized clinical assistant for ${name}, a ${grade}. ${basePrompt}`;
     }
+    
+    // messages[0] contains the single user message: { role: "user", content: "..." }
+    const userMessage: any = messages[0];
 
-    const fullMessages = [{ role: "system", content: personalizedPrompt }, messages[0]];
+    // Convert to Gemini API request body format. We use systemInstruction for the main prompt.
+    const requestBody = {
+      contents: [{
+        role: "user",
+        parts: [{ text: userMessage.content }],
+      }],
+      config: {
+          systemInstruction: personalizedPrompt,
+          maxOutputTokens: 800,
+          temperature: 0.7, 
+      }
+    };
 
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+
+    const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: fullMessages,
-        max_tokens: 800,
-      }),
+      body: JSON.stringify(requestBody),
     });
-    // END of new architectural approach
 
     if (!r.ok) {
-      const errorData = await r.json();
+      const errorData: { error?: { message: string, code: number } } = await r.json();
       
-      if (errorData.error?.code === "rate_limit_exceeded" || r.status === 429) {
+      // Handle rate limit (HTTP 429 is common)
+      if (r.status === 429) {
          return NextResponse.json(
              { error: "Umbil’s taking a short pause to catch up with demand. Please check back later — your lifeline will be ready soon." },
              { status: 429 }
          );
       }
       
-      return NextResponse.json({ error: "Sorry, an unexpected error occurred. Please try again." }, { status: r.status });
+      const errorMessage = errorData.error?.message || "Sorry, an unexpected error occurred. Please try again.";
+      return NextResponse.json({ error: errorMessage }, { status: r.status });
     }
 
-    const data: OpenAIResponse = await r.json();
-    const answer = data.choices?.[0]?.message?.content;
+    const data: GeminiResponse = await r.json();
+    const answer = data.candidates?.[0]?.content?.parts?.[0]?.text;
 
     return NextResponse.json({ answer: answer ?? "" });
   } catch (e: unknown) {
