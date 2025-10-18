@@ -69,29 +69,23 @@ export async function POST(req: NextRequest) {
     
     const userMessage = messages[0] as ClientMessage;
 
-    // CORRECTED PAYLOAD STRUCTURE for the standard Gemini API
+    // CORRECTED PAYLOAD STRUCTURE: systemInstruction must be top-level
     const requestBody = {
-      // 1. Messages/Contents is correct
+      // 1. System Instruction is now a top-level field
+      systemInstruction: personalizedPrompt, 
+      
+      // 2. Messages/Contents is correct
       contents: [{
         role: "user",
         parts: [{ text: userMessage.content }],
       }],
-      // 2. System instruction is a top-level field (or under generationConfig for the newer client libraries)
-      // For the raw REST API, we'll use 'config' as 'generationConfig' and restructure the system prompt.
-      // The most reliable way for raw REST calls is to ensure the API key parameters are correct.
-      // Reverting to the 'generationConfig' structure as it's common, but renaming 'config' to 'generationConfig'
-      // and checking if 'systemInstruction' should be inside or outside based on known REST API patterns.
-      
-      // Let's use the explicit 'generationConfig' field for model parameters
+
+      // 3. generationConfig now ONLY contains model parameters (max tokens, temperature)
       generationConfig: {
-          systemInstruction: personalizedPrompt,
           maxOutputTokens: 800,
           temperature: 0.7, 
       }
     };
-
-    // The previous code used 'config', which is the error source.
-    // Changing 'config' to 'generationConfig' should fix the "Unknown name 'config'" error.
 
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
       method: "POST",
@@ -104,7 +98,6 @@ export async function POST(req: NextRequest) {
     if (!r.ok) {
       const errorData: { error?: { message: string, code: number } } = await r.json();
       
-      // Attempt to return the actual error message for better debugging if it's not a rate limit issue
       const detailedError = errorData.error?.message || `API Request Failed (Status: ${r.status})`;
       
       // Handle rate limit (HTTP 429 is common)
