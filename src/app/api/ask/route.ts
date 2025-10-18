@@ -12,6 +12,11 @@ type ApiBody = {
   tone?: unknown;
 };
 
+type ApiMessageForGemini = {
+  author: "system" | "user" | "assistant";
+  content: Array<{ type: "text"; text: string }>;
+};
+
 export async function POST(req: NextRequest) {
   try {
     const body: ApiBody = await req.json();
@@ -23,8 +28,26 @@ export async function POST(req: NextRequest) {
         ? toneRaw
         : "conversational";
 
-    if (!Array.isArray(messages) || (messages as any[]).length === 0) {
+    // Validate messages is an array of objects that at least have content string
+    if (!Array.isArray(messages) || (messages as unknown[]).length === 0) {
       return NextResponse.json({ error: "Missing 'messages' array" }, { status: 400 });
+    }
+
+    // Narrow messages to ClientMessage[] where possible
+    const messagesTyped = (messages as unknown[]).filter((m): m is ClientMessage => {
+      return (
+        typeof m === "object" &&
+        m !== null &&
+        ("role" in m) &&
+        ("content" in m) &&
+        (m as any).content !== undefined &&
+        (typeof (m as any).content === "string") &&
+        ((m as any).role === "user" || (m as any).role === "model")
+      );
+    });
+
+    if (messagesTyped.length === 0) {
+      return NextResponse.json({ error: "No valid messages found" }, { status: 400 });
     }
 
     const GEMINI_MODEL = "gemini-2.5-flash-lite";
@@ -43,17 +66,12 @@ export async function POST(req: NextRequest) {
     };
 
     const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
-
-    // personalization prefix (keep it short)
     const personalization =
       profile?.full_name ? `Personalized for ${profile.full_name}${profile.grade ? `, ${profile.grade}` : ""}. ` : "";
-
     const systemPrompt = `${personalization}${basePrompt}`;
 
-    // Map client messages to API's expected messages array:
-    const clientMessages = (messages as ClientMessage[]).map((m) => {
-      // Map our 'model' role to 'assistant' in Google API terms
-      const author = m.role === "user" ? "user" : "assistant";
+    const clientMessagesForApi: ApiMessageForGemini[] = messagesTyped.map((m) => {
+      const author: ApiMessageForGemini["author"] = m.role === "user" ? "user" : "assistant";
       return {
         author,
         content: [
@@ -65,8 +83,7 @@ export async function POST(req: NextRequest) {
       };
     });
 
-    // Prepend system message
-    const messagesForApi = [
+    const messagesForApi: ApiMessageForGemini[] = [
       {
         author: "system",
         content: [
@@ -76,16 +93,11 @@ export async function POST(req: NextRequest) {
           }
         ]
       },
-      // then conversation history
-      ...clientMessages
+      ...clientMessagesForApi
     ];
 
     const requestBody = {
-      // The `generateContent` endpoint expects messages-like content with authors & content.parts
-      // Keep generation params simple and top-level where supported:
       messages: messagesForApi,
-      // generationConfig may be accepted as nested; many examples accept simple top-level params too
-      // but keeping them under generationConfig is safe
       generationConfig: {
         maxOutputTokens: 800,
         temperature: 0.7
@@ -104,13 +116,18 @@ export async function POST(req: NextRequest) {
     );
 
     if (!r.ok) {
-      // try to surface a helpful message from the API
       let errText = `API Request Failed (Status: ${r.status})`;
       try {
         const errJson = await r.json();
-        errText = errJson.error?.message ?? JSON.stringify(errJson);
+        if (errJson && typeof errJson === "object" && "error" in errJson) {
+          // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+          // @ts-ignore - errJson typing is unknown from the API
+          errText = (errJson as any).error?.message ?? JSON.stringify(errJson);
+        } else {
+          errText = JSON.stringify(errJson);
+        }
       } catch {
-        // keep default errText
+        // keep default
       }
 
       if (r.status === 429) {
@@ -124,24 +141,66 @@ export async function POST(req: NextRequest) {
 
     const data = await r.json();
 
-    // Response parsing: different API versions give slightly different shapes.
-    // Try the common candidate/content.parts.* places, fallback to joined text from candidates.
-    let answer = "";
-    try {
-      // Most common structure
-      answer =
-        data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text || p).join("") ||
-        data?.candidates?.[0]?.content?.text ||
-        data?.candidates?.[0]?.content?.[0]?.text ||
-        data?.outputText ||
-        "";
-    } catch {
-      answer = JSON.stringify(data).slice(0, 1000); // fallback: include snippet
-    }
+    // Safely extract string output from several possible response shapes
+    const answer = extractTextFromResponse(data);
 
     return NextResponse.json({ answer });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
+}
+
+/**
+ * Safely attempts to extract textual answer from the API response.
+ * Avoids `any` by treating response as unknown and checking shapes.
+ */
+function extractTextFromResponse(response: unknown): string {
+  // Typical structure: { candidates: [ { content: { parts: [ { text: "..." } ] } } ] }
+  if (isObject(response)) {
+    const maybeCandidates = (response as Record<string, unknown>)["candidates"];
+    if (Array.isArray(maybeCandidates) && maybeCandidates.length > 0) {
+      const first = maybeCandidates[0];
+      if (isObject(first)) {
+        const content = (first as Record<string, unknown>)["content"];
+        if (isObject(content)) {
+          const parts = content["parts"];
+          if (Array.isArray(parts) && parts.length > 0) {
+            // collect text fields from parts if present
+            const texts: string[] = [];
+            for (const p of parts) {
+              if (isObject(p) && typeof p["text"] === "string") {
+                texts.push(p["text"]);
+              } else if (typeof p === "string") {
+                texts.push(p);
+              }
+            }
+            if (texts.length > 0) return texts.join("");
+          }
+          // fallback: content might have 'text' directly
+          if (typeof content["text"] === "string") return content["text"];
+        }
+      }
+    }
+
+    // Another common shape: { outputText: "..." } or { answer: "..." }
+    if (typeof (response as Record<string, unknown>)["outputText"] === "string") {
+      return (response as Record<string, unknown>)["outputText"] as string;
+    }
+    if (typeof (response as Record<string, unknown>)["answer"] === "string") {
+      return (response as Record<string, unknown>)["answer"] as string;
+    }
+  }
+
+  // As a last resort, return a short JSON snippet (safe):
+  try {
+    const json = JSON.stringify(response);
+    return json.length > 200 ? json.slice(0, 200) + "..." : json;
+  } catch {
+    return "";
+  }
+}
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
 }
