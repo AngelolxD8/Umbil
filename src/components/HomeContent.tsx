@@ -1,4 +1,4 @@
-// src/components/HomeContent.tsx
+// src/components/HomeContent.tsx (Use the previously provided correct version)
 "use client";
 
 import { useState, useRef, useEffect } from "react";
@@ -98,17 +98,17 @@ export default function HomeContent() {
     setConversation(updatedConversation);
 
     try {
-      // --- FIX: Send the entire conversation history ---
+      // FIX: Send the entire conversation history
       const messagesToSend = updatedConversation.map(entry => ({
         // Map local type to Gemini API role (umbil messages are the model's responses, which should use "model" role)
         role: entry.type === "user" ? "user" : "model",
         content: entry.content,
       }));
-      // ------------------------------------------------
       
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // IMPORTANT: messagesToSend contains the whole history with correct roles
         body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
 

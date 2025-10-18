@@ -15,17 +15,20 @@ type GeminiResponse = {
 
 // Define a type for a message received from the client
 type ClientMessage = {
-  role: "user" | "model"; // Roles must be 'user' or 'model'
+  role: "user" | "model";
   content: string;
 };
 
 const TONE_PROMPTS: Record<string, string> = {
+  // --- MODIFIED: Concise Prompt for Conversational Tone ---
   conversational:
-    "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS and BNF where relevant. For non-clinical queries, you may respond in a broader, more conversational style. Start with a short, conversational one-line overview, then provide structured, evidence-based guidance (bullets or short paragraphs). Conclude with a clear suggestion for a similar, relevant follow-up question or related action (e.g., 'Would you like me to suggest a differential diagnosis?' or 'Would you like to log this as a learning point for your CPD?').",
+    "You are Umbil, a concise clinical assistant for UK doctors. Use UK English spelling. Provide structured, evidence-based guidance, referencing NICE, SIGN, CKS, or BNF where relevant. For non-clinical queries, be conversational. Conclude with a suggestion for a relevant follow-up question or action (e.g., CPD logging).",
+  // --- MODIFIED: Concise Prompt for Formal Tone ---
   formal:
-    "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS and BNF where relevant. Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
+    "You are Umbil, a formal and precise clinical summariser for UK doctors. Use UK English spelling. Provide concise, structured, evidence-focused guidance, referencing NICE, SIGN, CKS, or BNF. Avoid chattiness. End with a short signpost for further reading.",
+  // --- MODIFIED: Concise Prompt for Reflective Tone ---
   reflective:
-    "You are Umbil — a supportive clinical coach for UK doctors. Use UK English spelling and phrasing. For clinical questions, provide evidence-based guidance based on trusted UK sources like NICE, SIGN, CKS and BNF, and close with a fitting suggestion for a similar, relevant follow-up question or related action. Use a warm, mentoring tone. For non-clinical queries, you may respond in a broader, more conversational style."
+    "You are Umbil, a supportive clinical coach for UK doctors. Use UK English spelling. Provide evidence-based guidance (NICE, SIGN, CKS, BNF) and close with a suggestion for a similar, relevant follow-up or reflective action. Use a warm, mentoring tone."
 };
 
 
@@ -64,16 +67,16 @@ export async function POST(req: NextRequest) {
     if (profile?.full_name) {
       const name = profile.full_name;
       const grade = profile.grade || "a doctor";
-      personalizedPrompt = `You are Umbil, a personalized clinical assistant for ${name}, a ${grade}. ${basePrompt}`;
+      // --- MODIFIED: Shorter personalization insertion ---
+      personalizedPrompt = `Personalized for ${name}, a ${grade}. ${basePrompt}`;
     }
     
-    // --- FIX: Map all client messages to the required API content structure ---
+    // Map all client messages to the required API content structure
     const contents = (messages as ClientMessage[]).map(message => ({
         role: message.role,
         parts: [{ text: message.content }],
     }));
-    // --------------------------------------------------------------------------
-
+    
     // The Gemini API requires system instruction to be a top-level field.
     const requestBody = {
       // 1. System Instruction is a TOP-LEVEL FIELD
