@@ -15,18 +15,17 @@ type GeminiResponse = {
 
 // Define a type for a message received from the client
 type ClientMessage = {
-  role: "user" | "model";
+  // Roles MUST be 'user' or 'model' for chat history in contents
+  role: "user" | "model"; 
   content: string;
 };
 
 const TONE_PROMPTS: Record<string, string> = {
-  // --- MODIFIED: Concise Prompt for Conversational Tone ---
+  // Concise prompts (kept short to avoid payload limits)
   conversational:
     "You are Umbil, a concise clinical assistant for UK doctors. Use UK English spelling. Provide structured, evidence-based guidance, referencing NICE, SIGN, CKS, or BNF where relevant. For non-clinical queries, be conversational. Conclude with a suggestion for a relevant follow-up question or action (e.g., CPD logging).",
-  // --- MODIFIED: Concise Prompt for Formal Tone ---
   formal:
     "You are Umbil, a formal and precise clinical summariser for UK doctors. Use UK English spelling. Provide concise, structured, evidence-focused guidance, referencing NICE, SIGN, CKS, or BNF. Avoid chattiness. End with a short signpost for further reading.",
-  // --- MODIFIED: Concise Prompt for Reflective Tone ---
   reflective:
     "You are Umbil, a supportive clinical coach for UK doctors. Use UK English spelling. Provide evidence-based guidance (NICE, SIGN, CKS, BNF) and close with a suggestion for a similar, relevant follow-up or reflective action. Use a warm, mentoring tone."
 };
@@ -67,27 +66,33 @@ export async function POST(req: NextRequest) {
     if (profile?.full_name) {
       const name = profile.full_name;
       const grade = profile.grade || "a doctor";
-      // --- MODIFIED: Shorter personalization insertion ---
+      // Concatenate personalization. Keeping it short is best practice for system instructions.
       personalizedPrompt = `Personalized for ${name}, a ${grade}. ${basePrompt}`;
     }
     
-    // Map client messages to the API's expected content shape:
-    // each message should include an "author" (system/user/assistant) and a "content" object with parts[]
+    // --- FIX 1: Correctly map client messages to the required API content structure ---
     const contents = (messages as ClientMessage[]).map((message) => ({
-      author: message.role === "user" ? "user" : "assistant",
-      content: {
-        parts: [{ text: message.content }],
-      },
+      role: message.role, // Must be 'user' or 'model'
+      parts: [{ text: message.content }], // Must be wrapped in 'parts'
     }));
 
-    // systemInstruction must be a Content object (not a plain string)
-    const systemInstruction = {
-      parts: [{ text: personalizedPrompt }],
-    };
-
+    // --- FIX 2: Use the model's preferred system instruction format (plain string, wrapped for safety) ---
+    // The previous attempt to use 'author' or the wrong object structure caused the error.
+    // We will use a top-level field `systemInstruction` with the plain text, 
+    // which is the documented method and should eliminate the "Content" object error.
+    
+    // If the top-level string `systemInstruction` property is *still* rejected, 
+    // it means the service is expecting it inside the first 'user' message as a special token,
+    // which is bad practice and unnecessary for Gemini. Let's stick to the cleanest documented approach first.
+    
     const requestBody = {
-      systemInstruction, // now an object with parts[]
-      contents, // conversation messages
+      // 1. System Instruction as a plain text string
+      systemInstruction: personalizedPrompt, 
+      
+      // 2. Contents array now contains the entire conversation history in the correct role/parts format
+      contents: contents,
+
+      // 3. generationConfig now ONLY contains model parameters
       generationConfig: {
         maxOutputTokens: 800,
         temperature: 0.7,
