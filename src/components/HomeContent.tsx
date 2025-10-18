@@ -85,42 +85,53 @@ export default function HomeContent() {
   }, [loading]);
 
   const ask = async () => {
-    if (!q.trim() || loading) return;
-
-    const newQuestion = q;
-    setQ("");
+    if (!q.trim()) return;
+    
     setLoading(true);
-
-    const updatedConversation: ConversationEntry[] = [
-      ...conversation,
-      { type: "user", content: newQuestion, question: newQuestion }
-    ];
-    setConversation(updatedConversation);
-
+    const userQuestion = q;
+    setQ("");
+    
+    // Add user message to conversation
+    setConversation(prev => [...prev, { type: "user", content: userQuestion }]);
+    
     try {
-      // FIX: Send the entire conversation history
-      const messagesToSend = updatedConversation.map(entry => ({
-        // Map local type to Gemini API role (umbil messages are the model's responses, which should use "model" role)
+      const messages = conversation.map(entry => ({
         role: entry.type === "user" ? "user" : "model",
-        content: entry.content,
+        content: entry.content
       }));
       
+      // Add the current question
+      messages.push({ role: "user", content: userQuestion });
+
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // IMPORTANT: messagesToSend contains the whole history with correct roles
-        body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
+        body: JSON.stringify({
+          messages,
+          profile,
+          tone: "conversational"
+        })
       });
 
       const data: AskResponse = await res.json();
-      if (!res.ok) throw new Error(data.error || "Request failed");
+      
+      if (data.error) throw new Error(data.error);
+      if (!data.answer) throw new Error("No answer received");
 
-      setConversation((prev) => [
-        ...prev,
-        { type: "umbil", content: data.answer ?? "", question: newQuestion },
-      ]);
-    } catch (err: unknown) {
-      setConversation((prev) => [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }]);
+      // Add Umbil's response to conversation
+      setConversation(prev => [...prev, {
+        type: "umbil",
+        content: data.answer!,
+        question: userQuestion
+      }]);
+
+    } catch (err) {
+      const errorMessage = getErrorMessage(err);
+      setConversation(prev => [...prev, {
+        type: "umbil",
+        content: `Sorry, I encountered an error: ${errorMessage}`,
+        question: userQuestion
+      }]);
     } finally {
       setLoading(false);
     }
