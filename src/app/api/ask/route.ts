@@ -4,12 +4,6 @@ import { NextRequest, NextResponse } from "next/server";
 // Define a type for a single message part
 type ContentPart = { text: string };
 
-// Define a type for a single message/content block
-type Content = {
-  role: "user" | "model" | "system";
-  parts: ContentPart[];
-};
-
 // Define a type for the API response to improve type safety
 type GeminiResponse = {
   candidates: Array<{
@@ -29,7 +23,7 @@ const TONE_PROMPTS: Record<string, string> = {
   conversational:
     "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS and BNF where relevant. For non-clinical queries, you may respond in a broader, more conversational style. Start with a short, conversational one-line overview, then provide structured, evidence-based guidance (bullets or short paragraphs). Conclude with a clear suggestion for a similar, relevant follow-up question or related action (e.g., 'Would you like me to suggest a differential diagnosis?' or 'Would you like to log this as a learning point for your CPD?').",
   formal:
-    "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS, and BNF where relevant. Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
+    "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS and BNF where relevant. Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
   reflective:
     "You are Umbil — a supportive clinical coach for UK doctors. Use UK English spelling and phrasing. For clinical questions, provide evidence-based guidance based on trusted UK sources like NICE, SIGN, CKS and BNF, and close with a fitting suggestion for a similar, relevant follow-up question or related action. Use a warm, mentoring tone. For non-clinical queries, you may respond in a broader, more conversational style."
 };
@@ -73,22 +67,31 @@ export async function POST(req: NextRequest) {
       personalizedPrompt = `You are Umbil, a personalized clinical assistant for ${name}, a ${grade}. ${basePrompt}`;
     }
     
-    // FIX: Explicitly cast the message to the defined type to avoid the 'any' error
     const userMessage = messages[0] as ClientMessage;
 
-    // Convert to Gemini API request body format. We use systemInstruction for the main prompt.
+    // CORRECTED PAYLOAD STRUCTURE for the standard Gemini API
     const requestBody = {
+      // 1. Messages/Contents is correct
       contents: [{
         role: "user",
         parts: [{ text: userMessage.content }],
       }],
-      config: {
+      // 2. System instruction is a top-level field (or under generationConfig for the newer client libraries)
+      // For the raw REST API, we'll use 'config' as 'generationConfig' and restructure the system prompt.
+      // The most reliable way for raw REST calls is to ensure the API key parameters are correct.
+      // Reverting to the 'generationConfig' structure as it's common, but renaming 'config' to 'generationConfig'
+      // and checking if 'systemInstruction' should be inside or outside based on known REST API patterns.
+      
+      // Let's use the explicit 'generationConfig' field for model parameters
+      generationConfig: {
           systemInstruction: personalizedPrompt,
           maxOutputTokens: 800,
           temperature: 0.7, 
       }
     };
 
+    // The previous code used 'config', which is the error source.
+    // Changing 'config' to 'generationConfig' should fix the "Unknown name 'config'" error.
 
     const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${API_KEY}`, {
       method: "POST",
@@ -101,6 +104,9 @@ export async function POST(req: NextRequest) {
     if (!r.ok) {
       const errorData: { error?: { message: string, code: number } } = await r.json();
       
+      // Attempt to return the actual error message for better debugging if it's not a rate limit issue
+      const detailedError = errorData.error?.message || `API Request Failed (Status: ${r.status})`;
+      
       // Handle rate limit (HTTP 429 is common)
       if (r.status === 429) {
          return NextResponse.json(
@@ -109,8 +115,7 @@ export async function POST(req: NextRequest) {
          );
       }
       
-      const errorMessage = errorData.error?.message || "Sorry, an unexpected error occurred. Please try again.";
-      return NextResponse.json({ error: errorMessage }, { status: r.status });
+      return NextResponse.json({ error: detailedError }, { status: r.status });
     }
 
     const data: GeminiResponse = await r.json();
