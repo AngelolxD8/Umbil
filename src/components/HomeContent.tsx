@@ -14,6 +14,12 @@ import { getMyProfile, Profile } from "@/lib/profile";
 type AskResponse = { answer?: string; error?: string };
 type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string };
 
+// Define a type for a message to be sent to the API
+type ClientMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
 function getErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   if (typeof err === "string") return err;
@@ -98,12 +104,27 @@ export default function HomeContent() {
     setConversation(updatedConversation);
 
     try {
-      // Sending only the new message for efficiency (reverted from old code, but keeps the efficiency fix)
-      const messagesToSend = [{ role: "user", content: newQuestion }];
+      // START: Lightweight Session Memory Implementation
+      // Map internal conversation history to OpenAI format ({ role, content })
+      const historyForApi: ClientMessage[] = conversation.map(entry => ({
+        role: entry.type === "umbil" ? "assistant" : "user",
+        // For conversational history, we use the full content for context
+        content: entry.content
+      }));
+
+      // Add the new user question to the history
+      const allMessages = [...historyForApi, { role: "user", content: newQuestion }];
+      
+      // TRUNCATION: Keep the last 5 turns (10 messages total for history + current) to balance context and tokens.
+      // This is the core efficiency fix for context.
+      const MAX_HISTORY_MESSAGES = 10;
+      const messagesToSend = allMessages.slice(-MAX_HISTORY_MESSAGES);
+      // END: Lightweight Session Memory Implementation
       
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Pass the truncated message history for context
         body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
 

@@ -10,24 +10,28 @@ type OpenAIResponse = {
   }>;
 };
 
-const TONE_PROMPTS: Record<string, string> = {
-  conversational:
-    "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS and BNF where relevant. For non-clinical queries, you may respond in a broader, more conversational style. Start with a short, conversational one-line overview, then provide structured, evidence-based guidance (bullets or short paragraphs). Conclude with a clear suggestion for a similar, relevant follow-up question or related action (e.g., 'Would you like me to suggest a differential diagnosis?' or 'Would you like to log this as a learning point for your CPD?').",
-  formal:
-    "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide concise, structured, and evidence-focused guidance, referencing trusted sources such as NICE, SIGN, CKS and BNF where relevant. Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
-  reflective:
-    "You are Umbil — a supportive clinical coach for UK doctors. Use UK English spelling and phrasing. For clinical questions, provide evidence-based guidance based on trusted UK sources like NICE, SIGN, CKS and BNF, and close with a fitting suggestion for a similar, relevant follow-up question or related action. Use a warm, mentoring tone. For non-clinical queries, you may respond in a broader, more conversational style."
-};
-
 // Define a type for a message received from the client
 type ClientMessage = {
-  role: string;
+  role: "user" | "assistant";
   content: string;
+};
+
+// Conceptual In-Memory Cache (Non-persistent across lambda cold starts, but catches immediate repeats)
+const cache = new Map<string, string>();
+
+// Updated TONE_PROMPTS for Tighter Prompt (Added "highly concise")
+const TONE_PROMPTS: Record<string, string> = {
+  conversational:
+    "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide highly concise, structured, and evidence-focused guidance. Reference trusted sources such as NICE, SIGN, CKS and BNF concisely where relevant. For non-clinical queries, use a conversational style. Start with a very short, conversational one-line overview. Follow with structured, evidence-based guidance (bullets or short paragraphs). Conclude with a clear, relevant follow-up suggestion.",
+  formal:
+    "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide highly concise, structured, and evidence-focused guidance. Reference trusted sources such as NICE, SIGN, CKS and BNF concisely where relevant. Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
+  reflective:
+    "You are Umbil — a supportive clinical coach for UK doctors. Use UK English spelling and phrasing. For clinical questions, provide highly concise, evidence-based guidance based on trusted UK sources like NICE, SIGN, CKS and BNF, and close with a fitting suggestion for a similar, relevant follow-up question or related action. Use a warm, mentoring tone. For non-clinical queries, you may respond in a broader, more conversational style."
 };
 
 export async function POST(req: NextRequest) {
   try {
-    const body: { messages?: unknown; profile?: { full_name?: string | null; grade?: string | null }; tone?: unknown } = await req.json();
+    const body: { messages?: ClientMessage[]; profile?: { full_name?: string | null; grade?: string | null }; tone?: unknown } = await req.json();
     const { messages, profile, tone: toneRaw } = body;
 
     const tone =
@@ -43,20 +47,31 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // We are still only taking the first message (the latest user input) as part of the efficiency measure
-    const userMessage = messages[0] as ClientMessage;
-
     const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
 
     let personalizedPrompt = basePrompt;
     if (profile?.full_name) {
       const name = profile.full_name;
       const grade = profile.grade || "a doctor";
+      // Tighter System Prompt: Personalization is now prepended to the base prompt.
       personalizedPrompt = `You are Umbil, a personalized clinical assistant for ${name}, a ${grade}. ${basePrompt}`;
     }
 
-    // Prepare messages array: System prompt + only the latest user message
-    const fullMessages = [{ role: "system", content: personalizedPrompt }, { role: "user", content: userMessage.content }];
+    // 1. Construct Cache Key from the full request (messages and personalized prompt)
+    const cacheKey = JSON.stringify({ messages, personalizedPrompt });
+
+    // 2. Check Cache
+    if (cache.has(cacheKey)) {
+        // Cache Hit: Respond instantly without calling OpenAI
+        console.log("Cache hit!");
+        return NextResponse.json({ answer: cache.get(cacheKey) ?? "" });
+    }
+
+    // Prepare messages array: System prompt + Conversation History (Sent as truncated array from client)
+    const systemMessage = { role: "system", content: personalizedPrompt };
+    
+    // The client sends the truncated history, we simply add the system prompt as the first message.
+    const fullMessages = [systemMessage, ...messages];
 
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -67,7 +82,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: fullMessages,
-        max_tokens: 800,
+        max_tokens: 800, // Token Truncation is already set here.
       }),
     });
 
@@ -88,6 +103,11 @@ export async function POST(req: NextRequest) {
 
     const data: OpenAIResponse = await r.json();
     const answer = data.choices?.[0]?.message?.content;
+
+    // 3. Set Cache (for subsequent identical requests within this session/lambda instance)
+    if (answer) {
+        cache.set(cacheKey, answer);
+    }
 
     return NextResponse.json({ answer: answer ?? "" });
   } catch (e: unknown) {
