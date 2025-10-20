@@ -1,7 +1,7 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-// Define a more specific type for the API response to improve type safety
+// Define a more specific type for the API response
 type OpenAIResponse = {
   choices: Array<{
     message: {
@@ -18,14 +18,14 @@ type OpenAIResponse = {
 
 // Define a type for a message received from the client
 type ClientMessage = {
-  role: "user" | "assistant";
+  role: "system" | "user" | "assistant";
   content: string;
 };
 
 // Conceptual In-Memory Cache (Non-persistent across lambda cold starts, but catches immediate repeats)
 const cache = new Map<string, string>();
 
-// Updated TONE_PROMPTS for Tighter Prompt (Added "highly concise")
+// Updated TONE_PROMPTS 
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
     "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide highly concise, structured, and evidence-focused guidance. Reference trusted sources such as NICE, SIGN, CKS and BNF concisely where relevant. For non-clinical queries, use a conversational style. Start with a very short, conversational one-line overview. Follow with structured, evidence-based guidance (bullets or short paragraphs). Conclude with a clear, relevant follow-up suggestion.",
@@ -69,14 +69,13 @@ export async function POST(req: NextRequest) {
     if (cache.has(cacheKey)) {
         // Cache Hit: Respond instantly without calling OpenAI
         console.log(`[UMBL-API] Cache HIT!`);
-        // Log Cache usage as 0 tokens, as requested
-        console.log(`[UMBL-API] Tokens Used: Total: 0, (Cache Hit)`);
+        console.log(`[UMBL-API] Tokens Used: Total: 0 (Cache Hit)`);
         return NextResponse.json({ answer: cache.get(cacheKey) ?? "" });
     }
 
     // Prepare messages array: System prompt + Conversation History
-    const systemMessage = { role: "system", content: personalizedPrompt };
-    const fullMessages = [systemMessage, ...messages];
+    const systemMessage: ClientMessage = { role: "system", content: personalizedPrompt };
+    const fullMessages = [systemMessage, ...(messages as ClientMessage[])];
 
     const r = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -87,7 +86,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: fullMessages,
-        max_tokens: 800,
+        max_tokens: 800, 
       }),
     });
 
@@ -107,13 +106,12 @@ export async function POST(req: NextRequest) {
     const data: OpenAIResponse = await r.json();
     const answer = data.choices?.[0]?.message?.content;
     
-    // START: Token Logging Implementation
+    // Token Logging Implementation
     if (data.usage) {
         console.log(`[UMBL-API] Tokens Used: Total: ${data.usage.total_tokens}, Prompt: ${data.usage.prompt_tokens}, Completion: ${data.usage.completion_tokens}`);
     } else {
         console.log(`[UMBL-API] Tokens Used: Usage information not available in response.`);
     }
-    // END: Token Logging Implementation
 
     // 3. Set Cache
     if (answer) {
