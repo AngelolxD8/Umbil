@@ -51,18 +51,18 @@ export default function SettingsPage() {
                 Your safety and data privacy is our priority. Please review and confirm your understanding of our data practices:
             </p>
             
-            {/* Checklist items visually represent compliance - FIXED CHECKBOX CLICKABILITY */}
+            {/* Checklist items visually represent compliance - FIXED UNESCAPED QUOTES */}
             <div style={{ marginBottom: 16, paddingTop: 8 }}>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={accepted} onChange={(e)=>setAccepted(e.target.checked)} />
                     <label>I understand I must not enter patient-identifiable information (PHI) into Umbil.</label>
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="checkbox" checked={true} onChange={handleInformationalChange} /> {/* FIXED */}
-                    <label>I know that my conversations are logged as CPD and can be exported as a CSV from the 'My CPD' page (Right to Data Portability).</label>
+                    <input type="checkbox" checked={true} onChange={handleInformationalChange} />
+                    <label>I know that my conversations are logged as CPD and can be exported as a CSV from the &apos;My CPD&apos; page (Right to Data Portability).</label> {/* FIXED QUOTES */}
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="checkbox" checked={true} onChange={handleInformationalChange} /> {/* FIXED */}
+                    <input type="checkbox" checked={true} onChange={handleInformationalChange} />
                     <label>I know that my local CPD/PDP logs can be manually cleared below (Right to Erasure - Local Data).</label>
                 </div>
             </div>

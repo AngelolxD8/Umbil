@@ -82,7 +82,8 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    let basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
+    // CHANGED 'let' to 'const' to fix prefer-const error
+    const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
 
     // START: PRIVACY ENHANCEMENT / ANONYMIZATION
     let systemPromptContent = basePrompt;
