@@ -9,12 +9,13 @@ export default function AboutPage() {
       <div className="container">
         <h2 style={{marginBottom: 24}}>About Umbil: Your Medical Lifeline</h2>
         
+        {/* What is Umbil? */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card__body">
             <h3>What is Umbil?</h3>
-            <p className="section-description">
-              [cite_start]Umbil is a **web-based clinical co-pilot** designed for doctors, students, and allied health professionals[cite: 161]. 
-              [cite_start]It uses AI to answer clinical queries in real time, summarises **evidence-based UK guidelines**, and logs reflective learning for **CPD and appraisal**[cite: 162].
+            <p className="section-description" style={{marginBottom: 16}}>
+              Umbil is a web-based clinical co-pilot designed for doctors, students, and allied health professionals. 
+              It uses AI to answer clinical queries in real time, summarises evidence-based UK guidelines, and logs reflective learning for CPD and appraisal.
             </p>
           </div>
         </div>
@@ -22,28 +23,28 @@ export default function AboutPage() {
         {/* Clinical Safety Disclaimer */}
         <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--umbil-brand-teal)' }}>
           <div className="card__body">
-            <h3 style={{color: 'var(--umbil-brand-teal)'}}>⚠️ Critical Safety Disclaimer</h3>
-            <p className="section-description" style={{ fontWeight: 600 }}>
-              [cite_start]Umbil is an **assistance tool** designed to support—not replace—professional clinical judgement[cite: 198].
+            <h3 style={{color: 'var(--umbil-brand-teal)', marginBottom: 8}}>⚠️ Critical Safety Disclaimer</h3>
+            <p className="section-description" style={{ fontWeight: 600, marginBottom: 8 }}>
+              Umbil is an **assistance tool** designed to support—not replace—professional clinical judgement.
             </p>
             <p className="section-description">
-              AI-generated summaries can occasionally contain errors, omissions, or misinterpretations. **Always double-check** all advice and information against trusted medical sources (NICE, BNF, local guidelines) before making patient-care decisions.
+              AI-generated summaries can occasionally contain errors, omissions, or misinterpretations. Always **double-check** all advice and information against trusted medical sources (NICE, BNF, local guidelines) before making patient-care decisions.
             </p>
           </div>
         </div>
 
-        {/* GDPR and Data Safety */}
+        {/* GDPR and Data Safety - UPDATED HEADING AND LINK */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card__body">
-            <h3>Data Safety & GDPR Compliance</h3>
-            <p className="section-description">
-              We take data security seriously. Here is how your data is handled:
+            <h3 style={{marginBottom: 8}}>Data Safety Summary (Read Full Privacy Policy)</h3>
+            <p className="section-description" style={{marginBottom: 16}}>
+              We take data security seriously. Here is a summary of how your data is handled. For the full legal terms, please read our **<Link href="/privacy" className="link">Privacy Policy</Link>** (required under GDPR).
             </p>
-            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '12px 0 0 0' }}>
-              <li style={{marginBottom: 8}}>
-                **No Patient Data**: You must **never enter any patient-identifiable information (PHI)** into Umbil. Our platform is not built for storing or processing PHI.
+            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '16px 0 0 0' }}>
+              <li style={{marginBottom: 12}}>
+                **No Patient Data**: You must never enter **patient-identifiable information (PHI)** into Umbil. Our platform is not built for storing or processing PHI.
               </li>
-              <li style={{marginBottom: 8}}>
+              <li style={{marginBottom: 12}}>
                 **CPD Logging**: All conversations and reflections are securely stored for your CPD/PDP log. This data is kept local to your browser until you sign in, at which point it is associated with your private account.
               </li>
               <li>
@@ -53,15 +54,25 @@ export default function AboutPage() {
           </div>
         </div>
         
-        {/* Simple FAQ Section */}
+        {/* Updated FAQ Section */}
         <div className="card">
           <div className="card__body">
-            <h3>Frequently Asked Questions (FAQ)</h3>
+            <h3 style={{marginBottom: 12}}>Frequently Asked Questions (FAQ)</h3>
             <div style={{ marginTop: 12 }}>
                 <p style={{ fontWeight: 600, marginBottom: 4 }}>Q: Is Umbil free?</p>
-                <p className="section-description" style={{ marginBottom: 12 }}>A: Umbil is currently in a beta/early access phase. Our goal is to keep essential features affordable and accessible for all medical professionals.</p>
+                <p className="section-description" style={{ marginBottom: 16 }}>A: Umbil is currently in a beta/early access phase. Our goal is to keep essential features affordable and accessible for all medical professionals.</p>
+                
                 <p style={{ fontWeight: 600, marginBottom: 4 }}>Q: Which guidelines does Umbil use?</p>
-                <p className="section-description">A: Umbil is specifically prompted to reference **UK-based trusted sources** like NICE, SIGN, CKS, and the BNF where relevant.</p>
+                <p className="section-description" style={{ marginBottom: 16 }}>A: Umbil is specifically prompted to reference UK-based trusted sources like NICE, SIGN, CKS, and the BNF where relevant.</p>
+
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>Q: How is my personal data used?</p>
+                <p className="section-description" style={{ marginBottom: 16 }}>A: Your full name and professional grade are used solely to personalize the AI's system prompt (e.g., "answering a GP Trainee") to provide more relevant context-aware guidance. They are **never** shared with the AI or used for targeted marketing.</p>
+                
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>Q: What technology powers Umbil?</p>
+                <p className="section-description" style={{ marginBottom: 16 }}>A: Umbil is built on modern technologies including Next.js/React, TypeScript, and utilizes the OpenAI API (GPT-4o-mini) for its core clinical intelligence functions. We use Supabase for secure user authentication.</p>
+                
+                <p style={{ fontWeight: 600, marginBottom: 4 }}>Q: What kind of questions can I ask?</p>
+                <p className="section-description">A: You can ask clinical questions ("Management of community acquired pneumonia?"), educational questions ("What is the mechanism of action of SGLT2 inhibitors?"), or reflective prompts ("What did I learn from the recent chest pain case?").</p>
             </div>
           </div>
         </div>

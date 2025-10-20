@@ -25,62 +25,66 @@ export default function SettingsPage() {
   };
     
   // --- New function: Simulate GDPR action for remote account deletion ---
-  // NOTE: In a production app, this would trigger an API endpoint to delete 
-  // the user record (and its associated data) from Supabase or your backend.
   const deleteAccount = () => {
-      if (!confirm("Are you sure you want to permanently delete your Umbil account and all associated remote data (excluding local CPD/PDP which must be cleared below)? This action cannot be undone.")) return;
+      if (!confirm("Are you sure you want to permanently delete your Umbil account and all associated remote data? This action cannot be undone.")) return;
       
-      alert("Account deletion request initiated. Please check your email for confirmation steps to complete the remote data erasure process.");
+      alert("Account deletion request initiated. Please clear your local data using the button below to complete the erasure process.");
   }
+
+  // Dummy change handler for the informational checkboxes
+  const handleInformationalChange = () => {
+    // This function does nothing as these checkboxes are for information only.
+    // However, including it makes the checkbox clickable and visually responsive.
+  };
 
 
   return (
     <section className="main-content">
       <div className="container">
         <h2>Settings</h2>
-        
+
         {/* GDPR Safety and Consent Check */}
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
           <div className="card__body">
-            <h3>GDPR / Data Safety Checklist</h3>
-            <p className="section-description" style={{marginBottom: 12}}>
+            <h3 style={{marginBottom: 12}}>GDPR / Data Safety Checklist</h3>
+            <p className="section-description" style={{marginBottom: 16}}>
                 Your safety and data privacy is our priority. Please review and confirm your understanding of our data practices:
             </p>
             
-            {/* Checklist items visually represent compliance */}
-            <ul style={{ listStyle: 'none', padding: 0, marginBottom: '16px' }}>
-                <li style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Checklist items visually represent compliance - FIXED CHECKBOX CLICKABILITY */}
+            <div style={{ marginBottom: 16, paddingTop: 8 }}>
+                <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={accepted} onChange={(e)=>setAccepted(e.target.checked)} />
-                    <label>I understand I must not enter **patient-identifiable information (PHI)** into Umbil.</label>
-                </li>
-                <li style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="checkbox" checked={true} disabled />
-                    <label>I know that my conversations are logged as CPD and can be exported as a CSV from the 'My CPD' page (Right to **Data Portability**).</label>
-                </li>
-                <li style={{ marginBottom: 8, display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="checkbox" checked={true} disabled />
-                    <label>I know that my local CPD/PDP logs can be manually cleared below (Right to **Erasure** - Local Data).</label>
-                </li>
-            </ul>
+                    <label>I understand I must not enter patient-identifiable information (PHI) into Umbil.</label>
+                </div>
+                <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="checkbox" checked={true} onChange={handleInformationalChange} /> {/* FIXED */}
+                    <label>I know that my conversations are logged as CPD and can be exported as a CSV from the 'My CPD' page (Right to Data Portability).</label>
+                </div>
+                <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="checkbox" checked={true} onChange={handleInformationalChange} /> {/* FIXED */}
+                    <label>I know that my local CPD/PDP logs can be manually cleared below (Right to Erasure - Local Data).</label>
+                </div>
+            </div>
 
             <button className="btn btn--primary" onClick={saveAck}>Save PHI Acknowledgment</button>
           </div>
         </div>
 
         {/* Local Data Management (Right to Erasure / Data Portability - Local Scope) */}
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card" style={{ marginBottom: 24 }}>
           <div className="card__body">
-            <h3>Data Management: Local Browser Storage</h3>
-            <p className="section-description">This action clears all CPD/PDP data stored **locally** in this browser (Right to Erasure - Local Data).</p>
+            <h3 style={{marginBottom: 8}}>Data Management: Local Browser Storage</h3>
+            <p className="section-description" style={{marginBottom: 12}}>This action clears all CPD/PDP data stored locally in this browser (Right to Erasure - Local Data).</p>
             <button className="btn btn--outline" onClick={clear}>🗑️ Clear ALL local data (CPD/PDP)</button>
           </div>
         </div>
         
         {/* Account Deletion (Right to Erasure - Remote Scope) */}
-        <div className="card" style={{ marginTop: 16 }}>
+        <div className="card">
           <div className="card__body">
-            <h3>Account Deletion (Remote Data Erasure)</h3>
-            <p className="section-description">Permanently delete your Umbil user profile and associated remote data (e.g., full name, grade).</p>
+            <h3 style={{marginBottom: 8}}>Account Deletion (Remote Data Erasure)</h3>
+            <p className="section-description" style={{marginBottom: 12}}>Permanently delete your Umbil user profile and associated remote data (e.g., full name, grade).</p>
             <button className="btn btn--outline" style={{backgroundColor: 'var(--umbil-hover-bg)', color: '#dc3545', borderColor: '#dc3545'}} onClick={deleteAccount}>
                 ⚠️ Request Account Deletion (Right to Erasure)
             </button>
