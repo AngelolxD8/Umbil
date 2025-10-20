@@ -2,7 +2,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
 :root {
-  /* Simplified Color Palette */
+  /* Simplified Color Palette (Light Mode Default) */
   --umbil-bg: #f7f8fa;
   --umbil-surface: #ffffff;
   --umbil-text: #212529; /* Increased contrast */
@@ -20,6 +20,32 @@
   --umbil-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
+/* --- Dark Mode Variables --- */
+:root .dark {
+  --umbil-bg: #121212;
+  --umbil-surface: #1e1e1e;
+  --umbil-text: #ffffff;
+  --umbil-muted: #a0a0a0;
+  --umbil-card-border: rgba(255, 255, 255, 0.1);
+  --umbil-brand-teal: #3de0f7; /* Slightly brighter teal for contrast */
+  --umbil-hover-bg: #2d2d2d;
+  --umbil-focus-ring: rgba(61, 224, 247, 0.4);
+  --umbil-divider: rgba(255, 255, 255, 0.15);
+  --umbil-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 1px 2px 0 rgba(0, 0, 0, 0.2);
+  --umbil-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
+
+  /* Specific Dark Mode Component Adjustments */
+  .user-message {
+    background-color: #004d4d; /* Darker teal for user messages */
+    color: var(--umbil-text);
+  }
+  
+  .umbil-message {
+    background-color: var(--umbil-surface);
+    border: 1px solid var(--umbil-card-border);
+  }
+}
+
 body {
   font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--umbil-bg);
@@ -31,6 +57,7 @@ body {
   height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: background-color 0.3s, color 0.3s; /* Smooth transition */
 }
 
 /* Base styles for a clean slate */
@@ -69,6 +96,7 @@ a {
   justify-content: space-between;
   align-items: center;
   z-index: 100;
+  transition: background-color 0.3s, border-color 0.3s; /* Smooth transition */
 }
 
 .header-left {
@@ -213,7 +241,7 @@ a {
   border-radius: var(--umbil-radius-lg);
   background-color: var(--umbil-surface);
   box-shadow: var(--umbil-shadow-sm);
-  transition: box-shadow 0.2s ease-in-out;
+  transition: box-shadow 0.2s ease-in-out, background-color 0.3s;
 }
 
 .ask-bar-input:focus {
@@ -280,6 +308,7 @@ a {
   box-shadow: var(--umbil-shadow-sm);
   max-width: 80%;
   animation: fadeIn 0.5s ease-out;
+  transition: background-color 0.3s, border-color 0.3s;
 }
 
 .user-message {
@@ -408,6 +437,7 @@ a {
   max-width: 500px;
   box-shadow: var(--umbil-shadow-lg);
   position: relative;
+  transition: background-color 0.3s;
 }
 
 .close-button {
@@ -482,7 +512,7 @@ a {
   box-shadow: 2px 0 5px rgba(0,0,0,0.1);
   z-index: 200;
   transform: translateX(-100%);
-  transition: transform 0.3s ease-in-out;
+  transition: transform 0.3s ease-in-out, background-color 0.3s;
   display: flex;
   flex-direction: column;
   padding: 20px;
@@ -497,6 +527,10 @@ a {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+.sidebar-nav {
+    flex-grow: 1; /* Allows the nav to take up available space */
 }
 
 .sidebar-nav a {
@@ -528,6 +562,7 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  transition: background-color 0.3s;
 }
 
 .filters {
@@ -565,6 +600,7 @@ a {
   background-color: transparent;
   color: var(--umbil-text);
   border: 1px solid var(--umbil-card-border);
+  transition: background-color 0.2s ease-in-out, border-color 0.3s, color 0.3s;
 }
 
 .btn--outline:hover {
@@ -600,7 +636,7 @@ a {
   background-clip: padding-box;
   border: 1px solid var(--umbil-card-border);
   border-radius: var(--umbil-radius-sm);
-  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+  transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.3s, color 0.3s;
 }
 
 /* New CSS to style the placeholder text */

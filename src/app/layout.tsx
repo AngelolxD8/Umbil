@@ -1,7 +1,7 @@
 "use client";
 
 import { Geist, Geist_Mono } from "next/font/google";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import "./globals.css";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
@@ -14,12 +14,40 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const { email } = useUserEmail();
+  
+  // Dark mode state and setter
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  // Hook to safely get initial state from localStorage and respect system preference
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedTheme = localStorage.getItem('theme');
+      if (storedTheme) {
+        setIsDarkMode(storedTheme === 'dark');
+      } else {
+        // Fallback to system preference
+        setIsDarkMode(window.matchMedia('(prefers-color-scheme: dark)').matches);
+      }
+    }
+  }, []);
+
+  // Handler to toggle and persist the theme
+  const toggleDarkMode = useCallback(() => {
+    setIsDarkMode(prev => {
+      const newMode = !prev;
+      localStorage.setItem('theme', newMode ? 'dark' : 'light');
+      return newMode;
+    });
+  }, []);
+
+  // Determine the body class based on dark mode state
+  const bodyClassName = `${geistSans.variable} ${geistMono.variable} antialiased ${isDarkMode ? 'dark' : ''}`;
 
   return (
     <html lang="en">
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={bodyClassName}
       >
         <div id="root">
           <header className="header">
@@ -46,7 +74,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </header>
 
           <main>{children}</main>
-          <MobileNav isOpen={isMobileNavOpen} onClose={() => setIsMobileNavOpen(false)} userEmail={email} />
+          <MobileNav 
+            isOpen={isMobileNavOpen} 
+            onClose={() => setIsMobileNavOpen(false)} 
+            userEmail={email} 
+            isDarkMode={isDarkMode} // <-- Pass dark mode state
+            toggleDarkMode={toggleDarkMode} // <-- Pass toggle function
+          />
         </div>
       </body>
     </html>
