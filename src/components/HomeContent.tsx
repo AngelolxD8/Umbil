@@ -41,9 +41,8 @@ const loadingMessages = [
 export default function HomeContent() {
   const [q, setQ] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [loadingMsg, setLoadingMsg] = useState(loadingMessages[0]);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
-  // New state to hold the actively streaming text from Umbil
-  const [streamingText, setStreamingText] = useState<string>("");
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentCpdEntry, setCurrentCpdEntry] = useState<Omit<CPDEntry, "reflection" | "tags"> | null>(null);
@@ -73,11 +72,23 @@ export default function HomeContent() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  // Scroll whenever conversation or streamingText updates
-  useEffect(scrollToBottom, [conversation, streamingText]);
+  useEffect(scrollToBottom, [conversation]);
 
-  // Removed dynamic loading message interval as streaming will replace the wait time.
-  // The 'loading' state is still used to disable the input.
+  // Handle dynamic loading message
+  useEffect(() => {
+    if (loading) {
+      const interval = setInterval(() => {
+        setLoadingMsg((prevMsg) => {
+          const currentIndex = loadingMessages.indexOf(prevMsg);
+          const nextIndex = (currentIndex + 1) % loadingMessages.length;
+          return loadingMessages[nextIndex];
+        });
+      }, 2000);
+      return () => clearInterval(interval);
+    } else {
+      setLoadingMsg(loadingMessages[0]); // Reset to initial message
+    }
+  }, [loading]);
 
   const ask = async () => {
     if (!q.trim() || loading) return;
@@ -86,67 +97,46 @@ export default function HomeContent() {
     setQ("");
     setLoading(true);
 
-    // 1. Add User message to conversation immediately
     const updatedConversation: ConversationEntry[] = [
       ...conversation,
       { type: "user", content: newQuestion, question: newQuestion }
     ];
     setConversation(updatedConversation);
-    setStreamingText(""); // Clear previous streaming text
 
     try {
-      // Prepare message history for API (Lightweight Session Memory)
+      // START: Lightweight Session Memory Implementation
+      // Map internal conversation history to OpenAI format ({ role, content })
       const historyForApi: ClientMessage[] = conversation.map(entry => ({
         role: entry.type === "umbil" ? "assistant" : "user",
+        // For conversational history, we use the full content for context
         content: entry.content
       }));
 
+      // Add the new user question to the history
       const allMessages = [...historyForApi, { role: "user", content: newQuestion }];
+      
+      // TRUNCATION: Keep the last 5 turns (10 messages total for history + current) to balance context and tokens.
+      // This is the core efficiency fix for context.
       const MAX_HISTORY_MESSAGES = 10;
       const messagesToSend = allMessages.slice(-MAX_HISTORY_MESSAGES);
+      // END: Lightweight Session Memory Implementation
       
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Pass the truncated message history for context
         body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
 
-      if (!res.ok || !res.body) {
-        let errorMsg = "Request failed.";
-        try {
-          const data: AskResponse = await res.json();
-          errorMsg = data.error || errorMsg;
-        } catch {
-          // If JSON parse fails, use status text
-          errorMsg = res.statusText || errorMsg;
-        }
-        throw new Error(errorMsg);
-      }
+      const data: AskResponse = await res.json();
+      if (!res.ok) throw new Error(data.error || "Request failed");
 
-      // 2. Read the stream
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let fullAnswer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        fullAnswer += chunk;
-        setStreamingText(fullAnswer); // Update streaming state with each chunk
-      }
-
-      // 3. Finalize: Commit the full answer to the conversation and clear streaming text
       setConversation((prev) => [
         ...prev,
-        { type: "umbil", content: fullAnswer, question: newQuestion },
+        { type: "umbil", content: data.answer ?? "", question: newQuestion },
       ]);
-      setStreamingText("");
-
     } catch (err: unknown) {
       setConversation((prev) => [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }]);
-      setStreamingText("");
     } finally {
       setLoading(false);
     }
@@ -189,49 +179,36 @@ export default function HomeContent() {
     );
   };
 
-  // Render the conversation and the live streaming message
-  const renderConversation = () => {
-    const allMessages = [...conversation];
-    if (streamingText) {
-      // Add a temporary 'umbil' message for the streaming content
-      allMessages.push({ type: "umbil", content: streamingText, question: "" });
-    }
-
-    return (
-      <div className="conversation-container">
-        <div className="message-thread">
-          {allMessages.map(renderMessage)}
-          {loading && streamingText === '' && (
-            // Only show loading dots if we are waiting for the *first* chunk of the response
-            <div className="loading-indicator">
-              Umbil is thinking...
-              <span>•</span>
-              <span>•</span>
-              <span>•</span>
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
-        <div className="ask-bar-container sticky">
-          <input
-            className="ask-bar-input"
-            placeholder="Ask a follow-up question..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && ask()}
-          />
-          <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
-      {conversation.length > 0 || streamingText ? (
-        renderConversation()
+      {conversation.length > 0 ? (
+        // Conversation Mode
+        <div className="conversation-container">
+          <div className="message-thread">
+            {conversation.map(renderMessage)}
+            {loading && (
+              <div className="loading-indicator">
+                {loadingMsg}
+                <span>•</span>
+                <span>•</span>
+                <span>•</span>
+              </div>
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+          <div className="ask-bar-container sticky">
+            <input
+              className="ask-bar-input"
+              placeholder="Ask a follow-up question..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && ask()}
+            />
+            <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
       ) : (
         // Home Screen
         <div className="hero">
