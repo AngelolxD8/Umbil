@@ -20,10 +20,12 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
   };
 
   const menuItems = [
+    { href: "/about", label: "About Umbil" }, // <-- ADDED: About Page
     { href: "/cpd", label: "My CPD", requiresAuth: true },
     { href: "/pdp", label: "My PDP", requiresAuth: true },
     { href: "/profile", label: "My Profile", requiresAuth: true },
     { href: "/settings", label: "Settings" },
+    { href: "/settings/feedback", label: "Send Feedback" }, // <-- ADDED: Feedback Page
   ];
 
   const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || userEmail);
