@@ -22,12 +22,13 @@ export default function AboutPage() {
             <p className="section-description" style={{marginBottom: 16}}>
               In a world where information is limitless but time is not, Umbil makes lifelong learning effortless.
             </p>
-            {/* Removed teal color, relying on inherited text color */}
-            <p style={{ fontWeight: 700 }}>
+            {/* START: Applied requested design changes (centered, bigger, more spaced) */}
+            <p style={{ fontWeight: 700, textAlign: 'center', fontSize: '1.25rem', padding: '20px 0' }}>
               Ask. Learn. Reflect. Log.
               <br/>
               All in one seamless experience.
             </p>
+            {/* END: Applied requested design changes */}
           </div>
         </div>
 

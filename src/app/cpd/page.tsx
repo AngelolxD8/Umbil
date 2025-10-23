@@ -7,14 +7,23 @@ import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+/**
+ * Converts the CPD log array into a CSV string for easy export.
+ * It carefully handles special characters (like commas and quotes) 
+ * by wrapping fields in double quotes and escaping existing double quotes.
+ * * @param rows - The array of CPD entries to convert.
+ * @returns A string representing the CSV content.
+ */
 function toCSV(rows: CPDEntry[]) {
   const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
   const body = rows.map((r) =>
     [
       r.timestamp,
+      // Wrap fields in quotes and escape existing quotes ("" instead of ")
       `"${(r.question || "").replace(/"/g, '""')}"`,
       `"${(r.answer || "").replace(/"/g, '""')}"`,
       `"${(r.reflection || "").replace(/"/g, '""')}"`,
+      // Join tags with a semicolon inside the field to avoid conflict with CSV commas
       `"${(r.tags || []).join("; ")}"`,
     ].join(",")
   );
@@ -26,10 +35,13 @@ function CPDInner() {
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
 
+  // Load the full CPD log from local storage when the component mounts
   useEffect(() => setList(getCPD()), []);
 
+  // Filter the CPD entries based on the current search text and selected tag
   const filtered = useMemo(() => {
     return list.filter((e) => {
+      // Create a single searchable string (haystack) from question, answer, and tags
       const hay = (
         (e.question || "") +
         " " +
@@ -37,35 +49,49 @@ function CPDInner() {
         " " +
         (e.tags || []).join(" ")
       ).toLowerCase();
+      
       const okQ = !q || hay.includes(q.toLowerCase());
       const okTag =
         !tag ||
         (e.tags || []).map((t) => t.toLowerCase()).includes(tag.toLowerCase());
+      
       return okQ && okTag;
     });
   }, [list, q, tag]);
 
+  // Generate a sorted list of all unique tags for the dropdown filter
   const allTags = Array.from(new Set(list.flatMap((e) => e.tags || []))).sort();
 
+  /**
+   * Generates a CSV file from the filtered entries and triggers a browser download.
+   */
   const download = () => {
-    const blob = new Blob([toCSV(filtered)], { type: "text/csv;charset=utf-8" });
+    const csvContent = toCSV(filtered);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
+    
+    // Create an invisible link element and click it to trigger download
     const a = document.createElement("a");
     a.href = url;
     a.download = "cpd_log.csv";
+    document.body.appendChild(a); // Append to DOM before click (needed for Firefox)
     a.click();
+    document.body.removeChild(a); // Clean up the element
+    
+    // Revoke the temporary URL after the download starts
     URL.revokeObjectURL(url);
   };
 
   return (
     <section className="main-content">
       <div className="container">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        {/* Increased bottom margin for better spacing from filters */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2>My CPD Learning Log</h2>
           <button className="btn btn--outline" onClick={download}>📥 Download CSV</button>
         </div>
 
-        <div className="filters">
+        <div className="filters" style={{ marginBottom: 32 }}> {/* Increased spacing under filters */}
           <input
             className="form-control"
             placeholder="Search text…"
@@ -87,25 +113,37 @@ function CPDInner() {
             <div className="card"><div className="card__body">No entries yet. Log something on the Ask page.</div></div>
           )}
           {filtered.map((e, idx) => (
-            <div key={idx} className="card" style={{ marginBottom: 16 }}>
-              <div className="card__body">
-                <div style={{ marginBottom: 12, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 12 }}>
+            <div key={idx} className="card" style={{ marginBottom: 24 }}> {/* Increased spacing between entries */}
+              <div className="card__body" style={{ padding: '20px' }}> {/* Added explicit padding for a slightly larger card feel */}
+                <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16 }}>
                   <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>
                     {new Date(e.timestamp).toLocaleString()}
                   </div>
-                  <div style={{ fontWeight: 600, marginTop: 4 }}>{e.question}</div>
+                  <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem' }}>{e.question}</div> {/* Slightly increased question size */}
                 </div>
                 <div style={{ fontSize: '0.9rem' }}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
                 </div>
                 {e.reflection && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--umbil-divider)', fontStyle: 'italic', color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
+                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--umbil-divider)', fontStyle: 'italic', color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
                     <strong>Reflection:</strong> {e.reflection}
                   </div>
                 )}
                 <div style={{ marginTop: 12 }}>
                   {(e.tags || []).map((t) => (
-                    <span key={t} style={{ marginRight: 8, padding: '4px 8px', borderRadius: 12, backgroundColor: 'rgba(31, 184, 205, 0.1)', fontSize: '0.8rem', color: 'var(--umbil-brand-teal)' }}>
+                    <span 
+                        key={t} 
+                        style={{ 
+                            marginRight: 8, 
+                            padding: '4px 8px', 
+                            borderRadius: 12, 
+                            // Use a solid background in dark mode, and a lighter one in light mode
+                            backgroundColor: 'var(--umbil-hover-bg)', 
+                            fontSize: '0.8rem', 
+                            color: 'var(--umbil-text)', // Inherit main text color
+                            fontWeight: 500
+                        }}
+                    >
                       {t}
                     </span>
                   ))}
@@ -119,6 +157,7 @@ function CPDInner() {
   );
 }
 
+// Wrapper component to check for user authentication before displaying the log
 export default function CPDPage() {
   const { email, loading } = useUserEmail();
 
