@@ -7,12 +7,14 @@ export default function AboutPage() {
   return (
     <section className="main-content">
       <div className="container">
-        <h2 style={{marginBottom: 24}}>About Umbil</h2>
+        {/* Added extra space after the main title for a cleaner look */}
+        <h2 style={{marginBottom: 32}}>About Umbil</h2>
         
         {/* The Intelligent Learning Platform for Modern Medicine */}
-        <div className="card" style={{ marginBottom: 24 }}>
+        {/* Increased vertical spacing around card */}
+        <div className="card" style={{ marginBottom: 32 }}>
           <div className="card__body">
-            <h3 style={{marginBottom: 8}}>The Intelligent Learning Platform for Modern Medicine</h3>
+            <h3 style={{marginBottom: 12}}>The Intelligent Learning Platform for Modern Medicine</h3>
             <p className="section-description" style={{marginBottom: 16}}>
               Umbil is a next-generation medtech platform redefining how clinicians learn, reflect, and grow.
               Built by frontline doctors, it merges trusted medical knowledge with intelligent automation &mdash; transforming everyday clinical questions into meaningful professional development.
@@ -20,7 +22,8 @@ export default function AboutPage() {
             <p className="section-description" style={{marginBottom: 16}}>
               In a world where information is limitless but time is not, Umbil makes lifelong learning effortless.
             </p>
-            <p style={{ fontWeight: 700, color: 'var(--umbil-brand-teal)' }}>
+            {/* Removed teal color, relying on inherited text color */}
+            <p style={{ fontWeight: 700 }}>
               Ask. Learn. Reflect. Log.
               <br/>
               All in one seamless experience.
@@ -29,7 +32,7 @@ export default function AboutPage() {
         </div>
 
         {/* Our Mission */}
-        <div className="card" style={{ marginBottom: 24 }}>
+        <div className="card" style={{ marginBottom: 32 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12}}>Our Mission</h3>
             <p className="section-description" style={{marginBottom: 16}}>
@@ -42,17 +45,18 @@ export default function AboutPage() {
         </div>
 
         {/* How It Works */}
-        <div className="card" style={{ marginBottom: 24 }}>
+        <div className="card" style={{ marginBottom: 32 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12}}>How It Works</h3>
-            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '16px 0 16px 0' }}>
-              <li style={{marginBottom: 8}}>
+            {/* Adjusted top margin on list for better flow and added spacing between list items */}
+            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '20px 0 20px 0' }}>
+              <li style={{marginBottom: 12}}>
                 Ask clinical questions. Umbil retrieves concise, evidence-based answers from UK-trusted sources &mdash; NICE, SIGN, CKS, and the BNF.
               </li>
-              <li style={{marginBottom: 8}}>
+              <li style={{marginBottom: 12}}>
                 Reflect instantly. With one click, generate structured reflections aligned with GMC domains.
               </li>
-              <li style={{marginBottom: 8}}>
+              <li style={{marginBottom: 12}}>
                 Build your PDP automatically. Umbil recognises learning patterns and suggests development goals.
               </li>
               <li>
@@ -65,14 +69,16 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Privacy and Trust - Aesthetic Flair Added */}
-        <div className="card" style={{ marginBottom: 24, borderLeft: '4px solid var(--umbil-brand-teal)' }}>
+        {/* Privacy and Trust - Keeping the teal border as a nice visual cue */}
+        <div className="card" style={{ marginBottom: 32, borderLeft: '4px solid var(--umbil-brand-teal)' }}>
           <div className="card__body">
-            <h3 style={{marginBottom: 12, color: 'var(--umbil-brand-teal)'}}>Privacy and Trust</h3>
+            {/* Removed teal color from header and relied on inherited text color */}
+            <h3 style={{marginBottom: 12}}>Privacy and Trust</h3>
             <p className="section-description" style={{marginBottom: 16}}>
               Security and transparency are at the heart of Umbil.
             </p>
-            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '16px 0 16px 0' }}>
+            {/* Adjusted top margin on list for better flow and bottom margin for more separation */}
+            <ul style={{ listStyleType: 'disc', paddingLeft: '1.5rem', margin: '20px 0 20px 0' }}>
               <li style={{marginBottom: 12}}>
                 All user data is encrypted and managed through secure Supabase Authentication.
               </li>
@@ -89,9 +95,10 @@ export default function AboutPage() {
             <p className="section-description" style={{marginBottom: 16}}>
               Our approach meets GDPR and NHS data-governance standards, ensuring compliance from design to delivery.
             </p>
-            <p className="section-description" style={{ fontWeight: 600, color: 'var(--umbil-brand-teal)' }}>
-              &rarr; <Link href="/privacy" className="link">Read the Full Privacy Policy and Legal Terms</Link>
-            </p>
+            {/* Removed teal color, relying on inherited text color. Changed from p to Link for better linking */}
+            <Link href="/privacy" className="link" style={{ fontWeight: 600, display: 'inline-block', marginTop: '8px' }}>
+                &rarr; Read the Full Privacy Policy and Legal Terms
+            </Link>
           </div>
         </div>
         

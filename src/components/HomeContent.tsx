@@ -20,15 +20,18 @@ type ClientMessage = {
   content: string;
 };
 
-function getErrorMessage(err: unknown): string {
+// Use a const arrow function for a cleaner utility structure, and more robust error checking
+const getErrorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
-  if (typeof err === "string") return err;
-  try {
-    return JSON.stringify(err);
-  } catch {
-    return "Unknown error";
+  // Handle objects that might have an error message property, common in API responses
+  if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+    return (err as { message: string }).message;
   }
-}
+  if (typeof err === "string") return err;
+  
+  // Final fallback
+  return "An unexpected error occurred.";
+};
 
 const loadingMessages = [
   "Umbil is thinking...",

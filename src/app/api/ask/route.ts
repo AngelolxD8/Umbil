@@ -67,6 +67,7 @@ const TONE_PROMPTS: Record<string, string> = {
 export async function POST(req: NextRequest) {
   try {
     const body: { messages?: ClientMessage[]; profile?: { full_name?: string | null; grade?: string | null }; tone?: unknown } = await req.json();
+    // Using object destructuring with default values for cleaner code
     const { messages, profile, tone: toneRaw } = body;
 
     const tone =
@@ -82,16 +83,14 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // CHANGED 'let' to 'const' to fix prefer-const error
+    // Use const for the base prompt as it is not reassigned
     const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
 
-    // START: PRIVACY ENHANCEMENT / ANONYMIZATION
-    let systemPromptContent = basePrompt;
-    if (profile?.grade) {
-      const grade = profile.grade || "a doctor";
-      // Ensure the system message is updated with the new safety directive.
-      systemPromptContent = `You are Umbil, a clinical assistant providing guidance to a user who is a ${grade}. ${basePrompt}`;
-    }
+    // START: Contextual Prompt Enhancement and PHI Security
+    // Construct the system prompt. If grade exists, add it for context.
+    const systemPromptContent = profile?.grade
+      ? `You are Umbil, a clinical assistant providing guidance to a user who is a ${profile.grade}. ${basePrompt}`
+      : basePrompt;
 
     // 1. SANITIZE ALL INCOMING MESSAGES FOR PHI
     const sanitizedMessages: ClientMessage[] = messages.map(msg => ({

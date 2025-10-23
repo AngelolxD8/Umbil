@@ -242,6 +242,8 @@ a {
   background-color: var(--umbil-surface);
   box-shadow: var(--umbil-shadow-sm);
   transition: box-shadow 0.2s ease-in-out, background-color 0.3s;
+  /* FIX 1: Explicitly set input text color to inherit theme, fixing dark mode issue on home screen */
+  color: var(--umbil-text); 
 }
 
 .ask-bar-input:focus {
@@ -644,6 +646,13 @@ a {
   color: var(--umbil-muted);
   font-family: inherit;
   opacity: 1; /* For Firefox */
+}
+
+/* FIX 2: Apply the same placeholder styling to the home screen input */
+.ask-bar-input::placeholder {
+  color: var(--umbil-muted);
+  font-family: inherit;
+  opacity: 1; 
 }
 
 .form-control:focus {
