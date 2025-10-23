@@ -4,7 +4,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { getMyProfile, Profile } from "@/lib/profile";
-// import Link from "next/link"; // Removed unused Link import
 
 export default function AuthButtons() {
   const [user, setUser] = useState<{ email: string | null; profile: Partial<Profile> | null }>({
@@ -14,6 +13,7 @@ export default function AuthButtons() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Function to fetch the user and their profile data from Supabase
     const handleAuthChange = async () => {
       const { data: { user } } = await supabase.auth.getUser();
 
@@ -28,9 +28,8 @@ export default function AuthButtons() {
 
     handleAuthChange();
     
-    // Original code, ignoring the unused 'event' parameter
+    // Subscribe to auth state changes to keep the UI in sync
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      // For all auth state changes, re-fetch user and profile to ensure consistency
       handleAuthChange();
     });
 
@@ -39,30 +38,20 @@ export default function AuthButtons() {
     };
   }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-    window.location.reload();
-  };
-
+  // We are moving the sign-out functionality and profile display to MobileNav
+  // so we no longer need the signOut function here.
+  
   if (loading) {
-    // Return a simple loading state or an empty div to prevent layout shift
+    // Return an empty div to reserve space/prevent layout shift during load
     return <div className="user-profile"></div>;
   }
 
   if (user.email) {
-    return (
-      <div className="user-profile">
-        {user.profile?.full_name ? (
-          <div className="profile-info">
-            <span className="user-name">{user.profile.full_name}</span>
-            {user.profile.grade && <span className="user-role">{user.profile.grade}</span>}
-          </div>
-        ) : null}
-        <button className="btn btn--primary" onClick={signOut}>Sign out</button>
-      </div>
-    );
+    // If signed in, return an empty fragment. The Sign out button is now in MobileNav.
+    return <></>; 
   }
 
+  // If signed out, return the Sign in button
   return (
     <div className="user-profile">
       <a className="btn btn--primary" href="/auth">Sign in</a>

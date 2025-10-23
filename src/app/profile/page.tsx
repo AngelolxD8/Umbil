@@ -6,6 +6,11 @@ import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
 
+/**
+ * Utility function to get a user-friendly error message from an unknown error object.
+ * @param e - The error object/value.
+ * @returns A string containing the error message.
+ */
 function getErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : "An unknown error occurred.";
 }
@@ -17,33 +22,40 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Partial<Profile>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Assume a new user if no profile data is loaded initially
   const [isNewUser, setIsNewUser] = useState(true);
 
+  // Redirect unauthenticated users to the sign-in page
   useEffect(() => {
     if (!userLoading && !email) {
       router.push("/auth");
     }
   }, [userLoading, email, router]);
 
+  // Load the user's existing profile data from the database
   useEffect(() => {
     const loadProfile = async () => {
       setLoading(true);
       const userProfile = await getMyProfile();
       if (userProfile) {
         setProfile(userProfile);
-        setIsNewUser(false);
+        setIsNewUser(false); // User exists if a profile was returned
       }
       setLoading(false);
     };
     if (email) loadProfile();
   }, [email]);
 
+  /**
+   * Handles saving the updated profile data to the database (upsert operation).
+   */
   const handleSave = async () => {
     setLoading(true);
     setError(null);
     try {
       await upsertMyProfile(profile);
       setLoading(false);
+      // Navigate back to the home screen on successful save
       router.push("/");
     } catch (e: unknown) {
       setError(getErrorMessage(e));
@@ -66,7 +78,7 @@ export default function ProfilePage() {
                 type="text"
                 value={profile.full_name || ""}
                 onChange={(e) => setProfile({ ...profile, full_name: e.target.value })}
-                placeholder="Dr. Angel Lian"
+                placeholder="Dr. Mickey Mouse" // The updated placeholder text
               />
             </div>
             <div className="form-group">
@@ -85,6 +97,7 @@ export default function ProfilePage() {
                 className="form-control"
                 type="text"
                 value={profile.title || ""}
+                // Note: The 'title' field is repurposed to store the Professional Body Number
                 onChange={(e) => setProfile({ ...profile, title: e.target.value })}
                 placeholder="e.g., GMC number"
               />

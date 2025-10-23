@@ -167,7 +167,8 @@ a {
   align-items: center;
   gap: 12px;
 }
-
+/* REMOVED: Since the profile display is now in the sidebar, these styles are removed for a cleaner header. */
+/*
 .profile-info {
   text-align: right;
   line-height: 1.2;
@@ -181,8 +182,10 @@ a {
 .profile-info .user-role {
   font-size: 0.8rem;
   color: var(--umbil-muted);
-  margin-top: 4px; /* Added spacing */
+  margin-top: 4px;
 }
+*/
+
 
 /* Hero Section */
 .hero {
@@ -242,7 +245,7 @@ a {
   background-color: var(--umbil-surface);
   box-shadow: var(--umbil-shadow-sm);
   transition: box-shadow 0.2s ease-in-out, background-color 0.3s;
-  /* FIX 1: Explicitly set input text color to inherit theme, fixing dark mode issue on home screen */
+  /* Fix: Explicitly set input text color to inherit theme, fixing dark mode issue on home screen */
   color: var(--umbil-text); 
 }
 

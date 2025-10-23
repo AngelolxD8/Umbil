@@ -1,7 +1,12 @@
+// src/components/MobileNav.tsx
 "use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase"; // Import supabase for sign out
+import { useUserEmail } from "@/hooks/useUser";
+import { getMyProfile, Profile } from "@/lib/profile";
+import { useEffect, useState } from "react";
 
 type MobileNavProps = {
   isOpen: boolean;
@@ -14,11 +19,40 @@ type MobileNavProps = {
 export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, toggleDarkMode }: MobileNavProps) {
   const pathname = usePathname();
   const router = useRouter();
+  
+  const { email } = useUserEmail();
+  const [profile, setProfile] = useState<Partial<Profile> | null>(null);
 
+  // Load the user's full name and grade for display
+  useEffect(() => {
+    const loadProfile = async () => {
+      if (email) {
+        const userProfile = await getMyProfile();
+        setProfile(userProfile);
+      } else {
+        setProfile(null);
+      }
+    };
+    loadProfile();
+  }, [email]);
+
+  /**
+   * Resets the chat history and navigates to the home page.
+   */
   const handleNewChat = () => {
     onClose();
     // Use a unique key to force a state reset on the home page
     router.push(`/?new-chat=${Date.now()}`);
+  };
+  
+  /**
+   * Signs the user out of the application.
+   */
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    onClose();
+    // Redirect to home page after signing out to reset app state
+    router.push("/"); 
   };
 
   const menuItems = [
@@ -30,15 +64,18 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     { href: "/settings/feedback", label: "Send Feedback" },
   ];
 
+  // Only show auth-gated links if the user is logged in
   const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || userEmail);
 
   return (
     <>
+      {/* Dark overlay that closes the sidebar when clicked outside */}
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
       <div className={`sidebar ${isOpen ? "is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="sidebar-header">
           <h3 className="text-lg font-semibold">Navigation</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+          <button onClick={onClose} className="menu-button">
+            {/* Close icon */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -74,7 +111,24 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           ))}
         </nav>
         
-        {/* --- Dark Mode Toggle --- */}
+        {/* START: Footer Section - User Profile and Settings */}
+        {userEmail && profile && (
+            <div style={{ padding: '16px 0', borderTop: '1px solid var(--umbil-divider)', marginTop: '20px' }}>
+                <div className="profile-info-sidebar">
+                    <span className="user-name">{profile.full_name || email}</span>
+                    {profile.grade && <span className="user-role">{profile.grade}</span>}
+                </div>
+                <button 
+                    className="btn btn--outline" 
+                    onClick={handleSignOut}
+                    style={{ marginTop: '12px', width: '100%' }}
+                >
+                    Sign out
+                </button>
+            </div>
+        )}
+
+        {/* Dark Mode Toggle is placed at the bottom for accessibility and neatness */}
         <div style={{ marginTop: 'auto', padding: '12px 16px', borderTop: '1px solid var(--umbil-divider)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 500 }}>
               {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
@@ -84,11 +138,29 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
               <span className="slider round"></span>
             </label>
         </div>
-        {/* --- End Dark Mode Toggle --- */}
+        {/* END: Footer Section */}
       </div>
       
-      {/* --- Add CSS for the Toggle Switch (Embedded for simplicity) --- */}
+      {/* Styling for the new profile display and switch (kept here for global access) */}
       <style jsx global>{`
+        /* Custom styles for profile in sidebar */
+        .profile-info-sidebar {
+            display: flex;
+            flex-direction: column;
+            padding: 0 16px;
+            margin-bottom: 8px;
+        }
+        .profile-info-sidebar .user-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--umbil-text);
+        }
+        .profile-info-sidebar .user-role {
+            font-size: 0.8rem;
+            color: var(--umbil-muted);
+            margin-top: 4px;
+        }
+
         /* The switch - the box around the slider */
         .switch {
           position: relative;

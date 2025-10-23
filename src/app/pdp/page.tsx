@@ -130,7 +130,8 @@ function PDPInner() {
 
         <h3 style={{ marginBottom: 16 }}>Current Goals</h3> {/* Added section header for existing goals */}
         <div style={{ marginBottom: 40 }}> {/* Added extra bottom spacing to the entire list */}
-          {goals.length === 0 && <div className="card"><div className="card__body">You haven't added any goals yet.</div></div>}
+          {/* FIXED: The unescaped apostrophe causing the build error */}
+          {goals.length === 0 && <div className="card"><div className="card__body">You haven&apos;t added any goals yet.</div></div>}
           {goals.map((g) => (
             <div key={g.id} className="card pdp-goal" style={{ marginBottom: 20 }}> {/* Increased spacing between goals */}
               <div className="card__body" style={{ padding: '20px' }}>
