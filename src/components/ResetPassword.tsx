@@ -40,7 +40,8 @@ export default function ResetPassword() {
   };
 
   return (
-    <div className="card" style={{ marginTop: 24, borderLeft: '4px solid var(--umbil-brand-teal)' }}>
+    // REMOVED: The inline style borderLeft: '4px solid var(--umbil-brand-teal)'
+    <div className="card" style={{ marginTop: 24 }}> 
       <div className="card__body">
         <h3 style={{ marginBottom: 16 }}>Change Password</h3>
         

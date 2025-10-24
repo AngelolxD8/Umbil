@@ -70,8 +70,8 @@ export default function AboutPage() {
           </div>
         </div>
 
-        {/* Privacy and Trust - Keeping the teal border as a nice visual cue */}
-        <div className="card" style={{ marginBottom: 32, borderLeft: '4px solid var(--umbil-brand-teal)' }}>
+        {/* Privacy and Trust - REMOVED the teal border inline style */}
+        <div className="card" style={{ marginBottom: 32 }}> 
           <div className="card__body">
             {/* Removed teal color from header and relied on inherited text color */}
             <h3 style={{marginBottom: 12}}>Privacy and Trust</h3>

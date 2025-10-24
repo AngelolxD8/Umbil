@@ -1,3 +1,4 @@
+// src/app/layout.tsx
 "use client";
 
 import { Geist, Geist_Mono } from "next/font/google";
@@ -5,6 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import "./globals.css";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
+import WelcomeModal from "@/components/WelcomeModal"; // <-- IMPORT NEW MODAL
 import Link from "next/link";
 import { useUserEmail } from "@/hooks/useUser";
 
@@ -13,10 +15,13 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const { email } = useUserEmail();
+  const { email, loading: userLoading } = useUserEmail();
   
   // Dark mode state and setter
   const [isDarkMode, setIsDarkMode] = useState(false);
+  
+  // Welcome Modal state
+  const [isWelcomeModalOpen, setIsWelcomeModalOpen] = useState(false);
 
   // Hook to safely get initial state from localStorage and respect system preference
   useEffect(() => {
@@ -39,6 +44,29 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       return newMode;
     });
   }, []);
+
+  // NEW HOOK: Control Welcome Modal Display
+  useEffect(() => {
+    // Only run this logic once the user loading status is known
+    if (!userLoading) {
+      const dismissed = localStorage.getItem('welcome_modal_dismissed');
+      
+      // Show the modal if:
+      // 1. The user is NOT logged in (email is null)
+      // 2. The user has NOT previously dismissed the modal
+      if (!email && dismissed !== 'true') {
+        setIsWelcomeModalOpen(true);
+      } else {
+        setIsWelcomeModalOpen(false);
+      }
+    }
+  }, [email, userLoading]);
+
+  // Function to dismiss the modal and set the flag in local storage
+  const handleDismissWelcomeModal = () => {
+    localStorage.setItem('welcome_modal_dismissed', 'true');
+    setIsWelcomeModalOpen(false);
+  }
 
   // Determine the body class based on dark mode state
   const bodyClassName = `${geistSans.variable} ${geistMono.variable} antialiased ${isDarkMode ? 'dark' : ''}`;
@@ -78,8 +106,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             isOpen={isMobileNavOpen} 
             onClose={() => setIsMobileNavOpen(false)} 
             userEmail={email} 
-            isDarkMode={isDarkMode} // <-- Pass dark mode state
-            toggleDarkMode={toggleDarkMode} // <-- Pass toggle function
+            isDarkMode={isDarkMode} 
+            toggleDarkMode={toggleDarkMode} 
+          />
+          {/* NEW WELCOME MODAL */}
+          <WelcomeModal
+            isOpen={isWelcomeModalOpen}
+            onClose={handleDismissWelcomeModal}
+            onContinueAnonymously={handleDismissWelcomeModal} // Same action: dismisses the modal
           />
         </div>
       </body>
