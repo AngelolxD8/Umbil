@@ -10,7 +10,8 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [mode, setMode] = useState<"signIn" | "signUp" | "forgotPassword">("signIn"); // Added 'forgotPassword' mode
+  // State to manage the view: signIn, signUp, or forgotPassword
+  const [mode, setMode] = useState<"signIn" | "signUp" | "forgotPassword">("signIn"); 
   const router = useRouter();
 
   // If user signs in successfully, bounce them home
@@ -18,6 +19,7 @@ export default function AuthPage() {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") router.push("/");
     });
+    // Unsubscribe from the listener when the component unmounts
     return () => sub?.subscription.unsubscribe();
   }, [router]);
 
@@ -51,12 +53,13 @@ export default function AuthPage() {
     if (error) {
       setMsg(`⚠️ ${error.message}`);
     } else if (mode === "signUp") {
+      // Prompt user to check email if confirmation is ON in Supabase settings
       setMsg("✅ Success! Check your inbox to confirm your account.");
       setMode("signIn"); 
     }
   };
   
-  // New handler for Forgot Password
+  // Handler for Forgot Password (sends email link)
   const handleForgotPassword = async () => {
     if (!email.trim()) {
       setMsg("Please enter your email address above.");
@@ -70,7 +73,8 @@ export default function AuthPage() {
       process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${baseUrl}/auth/callback?type=password-reset`,
+        // Redirect to the callback page, where we check the 'type' to send them to /profile
+        redirectTo: `${baseUrl}/auth/callback`, 
     });
 
     setSending(false);
@@ -80,39 +84,36 @@ export default function AuthPage() {
           : "✅ Password reset link sent! Check your email inbox."
       );
   }
-
-  // Keep Google Sign-in as a separate option
-  const signInWithGoogle = async () => {
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
-
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google",
-      options: { redirectTo: `${baseUrl}/auth/callback` },
-    });
-
-    if (error) setMsg(`⚠️ ${error.message}`);
-  };
+  
+  // OAuth Sign-in Handlers removed as requested.
 
   const isSignInMode = mode === "signIn";
   const isSignUpMode = mode === "signUp";
   const isForgotPasswordMode = mode === "forgotPassword";
   
+  const currentTitle = 
+    (isSignInMode && "Sign in to Umbil") ||
+    (isSignUpMode && "Create Account") ||
+    (isForgotPasswordMode && "Reset Password");
+
   const buttonText = isSignInMode ? "Sign In" : "Sign Up";
 
   return (
     <section className="main-content">
       <div className="container">
-        <h2>
-            {isSignInMode && "Sign in to Umbil"}
-            {isSignUpMode && "Create Account"}
-            {isForgotPasswordMode && "Reset Password"}
-        </h2>
+        <h2>{currentTitle}</h2>
 
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card__body">
             
-            {/* EMAIL FIELD - Always visible */}
+            {/* The only remaining authentication method is email/password */}
+            {!isForgotPasswordMode && (
+                <div style={{ margin: "12px 0", opacity: 0.8, textAlign: 'center' }}>
+                    Continue with your email and password
+                </div>
+            )}
+            
+            {/* Email Field */}
             <div className="form-group">
               <label className="form-label">Email Address</label>
               <input
@@ -210,18 +211,6 @@ export default function AuthPage() {
                 </>
               )}
             </p>
-
-            {/* GOOGLE AND MESSAGE */}
-            <div style={{ margin: "12px 0", opacity: 0.6, textAlign: 'center' }}>— or —</div>
-
-            <button
-              className="btn btn--outline"
-              onClick={signInWithGoogle}
-              style={{ width: '100%' }}
-              disabled={isForgotPasswordMode}
-            >
-              Continue with Google
-            </button>
 
             {msg && <p style={{ marginTop: 12, color: msg.startsWith('⚠️') ? 'red' : 'var(--umbil-brand-teal)' }}>{msg}</p>}
           </div>

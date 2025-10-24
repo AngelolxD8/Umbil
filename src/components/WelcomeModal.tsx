@@ -28,7 +28,7 @@ export default function WelcomeModal({ isOpen, onClose, onContinueAnonymously }:
 
         <p className="section-description" style={{ marginBottom: 20 }}>
           Ask any clinical or educational question to get concise, evidence-based guidance.
-          Logging in unlocks personalized features like saving your **CPD** and **PDP**!
+          Logging in unlocks personalized features like saving for your **CPD** and **PDP**! {/* CHANGED: Removed extra "your" and ** from CPD/PDP */}
         </p>
         
         {/* Important Safety Reminder */}
