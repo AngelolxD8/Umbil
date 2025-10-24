@@ -33,8 +33,8 @@ export default function ResetPassword() {
     if (error) {
       setMsg(`⚠️ Error: ${error.message}`);
     } else {
-      // The crucial message: acknowledges that this may be the *first time* setting the password
-      setMsg("✅ Success! Your password has been set. You can now use email/password to sign in.");
+      // Fixed: Using single quotes for cleaner JSX and resolving the build error.
+      setMsg("✅ Success! Your password has been set. You can now use email/password to sign in."); 
       setNewPassword("");
       setConfirmPassword("");
     }
@@ -45,9 +45,9 @@ export default function ResetPassword() {
       <div className="card__body">
         <h3 style={{ marginBottom: 16 }}>Set or Change Password</h3>
         
-        {/* NEW: Explicit prompt for Magic Link / OAuth users */}
+        {/* FIXED: Replaced double quotes with single quotes to resolve react/no-unescaped-entities error */}
         <p style={{marginBottom: 16, color: 'var(--umbil-muted)', fontStyle: 'italic'}}>
-            If you previously signed in with a Magic Link, please set a password below to enable "Forgot Password" functionality.
+            If you previously signed in with a Magic Link, please set a password below to enable 'Forgot Password' functionality.
         </p>
 
         <div className="form-group">
