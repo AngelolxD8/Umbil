@@ -33,18 +33,23 @@ export default function ResetPassword() {
     if (error) {
       setMsg(`⚠️ Error: ${error.message}`);
     } else {
-      setMsg("✅ Success! Your password has been updated.");
+      // The crucial message: acknowledges that this may be the *first time* setting the password
+      setMsg("✅ Success! Your password has been set. You can now use email/password to sign in.");
       setNewPassword("");
       setConfirmPassword("");
     }
   };
 
   return (
-    // REMOVED: The inline style borderLeft: '4px solid var(--umbil-brand-teal)'
     <div className="card" style={{ marginTop: 24 }}> 
       <div className="card__body">
-        <h3 style={{ marginBottom: 16 }}>Change Password</h3>
+        <h3 style={{ marginBottom: 16 }}>Set or Change Password</h3>
         
+        {/* NEW: Explicit prompt for Magic Link / OAuth users */}
+        <p style={{marginBottom: 16, color: 'var(--umbil-muted)', fontStyle: 'italic'}}>
+            If you previously signed in with a Magic Link, please set a password below to enable "Forgot Password" functionality.
+        </p>
+
         <div className="form-group">
           <label className="form-label">New Password (Min 6 chars)</label>
           <input
