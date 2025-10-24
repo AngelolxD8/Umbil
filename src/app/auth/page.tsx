@@ -10,7 +10,7 @@ export default function AuthPage() {
   const [password, setPassword] = useState("");
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
-  const [mode, setMode] = useState<"signIn" | "signUp">("signIn"); // Added state for mode
+  const [mode, setMode] = useState<"signIn" | "signUp" | "forgotPassword">("signIn"); // Added 'forgotPassword' mode
   const router = useRouter();
 
   // If user signs in successfully, bounce them home
@@ -21,7 +21,7 @@ export default function AuthPage() {
     return () => sub?.subscription.unsubscribe();
   }, [router]);
 
-  // Unified handler for both Sign In and Sign Up
+  // Unified handler for Sign In and Sign Up
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
       setMsg("Please enter both email and password.");
@@ -38,7 +38,7 @@ export default function AuthPage() {
         email,
         password,
       }));
-    } else {
+    } else if (mode === "signUp") {
       // Sign Up with email and password
       ({ error } = await supabase.auth.signUp({
         email,
@@ -52,12 +52,35 @@ export default function AuthPage() {
       setMsg(`⚠️ ${error.message}`);
     } else if (mode === "signUp") {
       setMsg("✅ Success! Check your inbox to confirm your account.");
-      // Automatically switch to sign-in mode after successful sign-up
       setMode("signIn"); 
     }
-    // No explicit message for successful sign-in, as it auto-redirects
   };
   
+  // New handler for Forgot Password
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setMsg("Please enter your email address above.");
+      return;
+    }
+    setSending(true);
+    setMsg(null);
+    
+    // Use NEXT_PUBLIC_SITE_URL for correct redirect (Vercel & local)
+    const baseUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${baseUrl}/auth/callback?type=password-reset`,
+    });
+
+    setSending(false);
+    setMsg(
+        error
+          ? `⚠️ ${error.message}`
+          : "✅ Password reset link sent! Check your email inbox."
+      );
+  }
+
   // Keep Google Sign-in as a separate option
   const signInWithGoogle = async () => {
     const baseUrl =
@@ -72,17 +95,24 @@ export default function AuthPage() {
   };
 
   const isSignInMode = mode === "signIn";
+  const isSignUpMode = mode === "signUp";
+  const isForgotPasswordMode = mode === "forgotPassword";
+  
   const buttonText = isSignInMode ? "Sign In" : "Sign Up";
 
   return (
     <section className="main-content">
       <div className="container">
-        <h2>{isSignInMode ? "Sign in to Umbil" : "Create Account"}</h2>
+        <h2>
+            {isSignInMode && "Sign in to Umbil"}
+            {isSignUpMode && "Create Account"}
+            {isForgotPasswordMode && "Reset Password"}
+        </h2>
 
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card__body">
             
-            {/* Email Field */}
+            {/* EMAIL FIELD - Always visible */}
             <div className="form-group">
               <label className="form-label">Email Address</label>
               <input
@@ -91,49 +121,104 @@ export default function AuthPage() {
                 placeholder="you@nhs.net"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={sending}
               />
             </div>
 
-            {/* Password Field */}
-            <div className="form-group">
-              <label className="form-label">Password</label>
-              <input
-                className="form-control"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAuth()}
-              />
-            </div>
-
-            <button
-              className="btn btn--primary"
-              onClick={handleAuth}
-              disabled={sending || !email.trim() || !password.trim()}
-            >
-              {sending ? (isSignInMode ? "Signing In..." : "Signing Up...") : buttonText}
-            </button>
+            {/* PASSWORD FIELD - Hidden in Forgot Password Mode */}
+            {!isForgotPasswordMode && (
+                <div className="form-group">
+                    <label className="form-label">Password</label>
+                    <input
+                        className="form-control"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleAuth()}
+                        disabled={sending}
+                    />
+                </div>
+            )}
             
-            {/* Toggle between Sign In and Sign Up */}
-            <p style={{ marginTop: 16, textAlign: 'center' }}>
-              {isSignInMode ? "New to Umbil?" : "Already have an account?"}
-              <a 
-                href="#" 
-                onClick={(e) => { e.preventDefault(); setMode(isSignInMode ? "signUp" : "signIn"); setMsg(null); }}
-                className="link"
-                style={{ marginLeft: 8 }}
-              >
-                {isSignInMode ? "Create an account" : "Sign in here"}
-              </a>
+            {/* PRIMARY ACTION BUTTONS */}
+            <div className="flex justify-end mt-4" style={{ marginBottom: isForgotPasswordMode ? 0 : 16 }}>
+                {isForgotPasswordMode ? (
+                    <button
+                        className="btn btn--primary"
+                        onClick={handleForgotPassword}
+                        disabled={sending || !email.trim()}
+                    >
+                        {sending ? "Sending Link..." : "Send Reset Link"}
+                    </button>
+                ) : (
+                    <button
+                        className="btn btn--primary"
+                        onClick={handleAuth}
+                        disabled={sending || !email.trim() || !password.trim()}
+                    >
+                        {sending ? (isSignInMode ? "Signing In..." : "Signing Up...") : buttonText}
+                    </button>
+                )}
+            </div>
+
+            {/* FOOTER LINKS */}
+            <p style={{ marginTop: isForgotPasswordMode ? 16 : 0, textAlign: 'center', fontSize: '0.9rem' }}>
+              {isSignInMode && (
+                <>
+                  New to Umbil?
+                  <a 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setMode("signUp"); setMsg(null); }}
+                    className="link"
+                    style={{ marginLeft: 8 }}
+                  >
+                    Create an account
+                  </a>
+                  <span style={{ margin: '0 8px', color: 'var(--umbil-muted)' }}>|</span>
+                  <a 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setMode("forgotPassword"); setMsg(null); }}
+                    className="link"
+                  >
+                    Forgot Password?
+                  </a>
+                </>
+              )}
+              {isSignUpMode && (
+                <>
+                  Already have an account?
+                  <a 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setMode("signIn"); setMsg(null); }}
+                    className="link"
+                    style={{ marginLeft: 8 }}
+                  >
+                    Sign in here
+                  </a>
+                </>
+              )}
+              {isForgotPasswordMode && (
+                <>
+                  <a 
+                    href="#" 
+                    onClick={(e) => { e.preventDefault(); setMode("signIn"); setMsg(null); }}
+                    className="link"
+                  >
+                    ← Back to Sign In
+                  </a>
+                </>
+              )}
             </p>
 
+            {/* GOOGLE AND MESSAGE */}
             <div style={{ margin: "12px 0", opacity: 0.6, textAlign: 'center' }}>— or —</div>
 
             <button
               className="btn btn--outline"
               onClick={signInWithGoogle}
               style={{ width: '100%' }}
+              disabled={isForgotPasswordMode}
             >
               Continue with Google
             </button>

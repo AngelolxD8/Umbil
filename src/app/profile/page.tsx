@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
+import ResetPassword from "@/components/ResetPassword"; // <-- IMPORT NEW COMPONENT
 
 /**
  * Utility function to get a user-friendly error message from an unknown error object.
@@ -108,6 +109,10 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
+        
+        {/* Added the new password reset component */}
+        <ResetPassword /> 
+
       </div>
     </section>
   );
