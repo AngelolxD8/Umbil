@@ -45,9 +45,10 @@ export default function ResetPassword() {
       <div className="card__body">
         <h3 style={{ marginBottom: 16 }}>Set or Change Password</h3>
         
-        {/* FIXED: Replaced double quotes with single quotes to resolve react/no-unescaped-entities error */}
+        {/* CRITICAL FIX: Replaced single quotes (') with the HTML entity (&apos;) 
+           to resolve the react/no-unescaped-entities compilation error. */}
         <p style={{marginBottom: 16, color: 'var(--umbil-muted)', fontStyle: 'italic'}}>
-            If you previously signed in with a Magic Link, please set a password below to enable 'Forgot Password' functionality.
+            If you previously signed in with a Magic Link, please set a password below to enable &apos;Forgot Password&apos; functionality.
         </p>
 
         <div className="form-group">
