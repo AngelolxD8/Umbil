@@ -54,14 +54,20 @@ function sanitizeQuery(query: string): string {
     return sanitized;
 }
 
-// Updated TONE_PROMPTS for Tighter Prompt (Added "highly concise")
+// New constant for the core, high-priority instructions.
+// This structure saves tokens by avoiding repetition across the tone prompts.
+// Incorporated full list of trusted sources for comprehensive guidance.
+const CORE_INSTRUCTIONS =
+  "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **DO NOT generate names, identifiers, or PHI.**";
+
+// The tone prompts now only contain the specific style instructions, saving prompt tokens.
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
-    "You are Umbil — a friendly, concise clinical assistant for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide highly concise, structured, and evidence-focused guidance. Reference trusted sources such as NICE, SIGN, CKS and BNF concisely where relevant. **DO NOT generate names or identifiers in your response.** For non-clinical queries, use a conversational style. Start with a very short, conversational one-line overview. Follow with structured, evidence-based guidance (bullets or short paragraphs). Conclude with a clear, relevant follow-up suggestion.",
+    "For clinical queries, start with a friendly one-line overview and conclude with a relevant follow-up suggestion. For non-clinical, use a conversational style.",
   formal:
-    "You are Umbil — a formal and precise clinical summariser for UK doctors. Use UK English spelling and phrasing. For all clinical questions, provide highly concise, structured, and evidence-focused guidance. Reference trusted sources such as NICE, SIGN, CKS and BNF concisely where relevant. **DO NOT generate names or identifiers in your response.** Avoid chattiness. End with a short signpost for further reading. For non-clinical questions, provide direct and factual answers.",
+    "Adhere strictly to clinical format, avoid chattiness. End with a short signpost for further reading.",
   reflective:
-    "You are Umbil — a supportive clinical coach for UK doctors. Use UK English spelling and phrasing. For clinical questions, provide highly concise, evidence-based guidance based on trusted UK sources like NICE, SIGN, CKS and BNF, and close with a fitting suggestion for a similar, relevant follow-up question or related action. **DO NOT generate names or identifiers in your response.** Use a warm, mentoring tone. For non-clinical queries, you may respond in a broader, more conversational style."
+    "Use a warm, mentoring tone, and close with a fitting suggestion for a similar, relevant follow-up question or related action."
 };
 
 export async function POST(req: NextRequest) {
@@ -84,13 +90,14 @@ export async function POST(req: NextRequest) {
     }
     
     // Use const for the base prompt as it is not reassigned
-    const basePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
+    const baseToneInstruction = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
 
     // START: Contextual Prompt Enhancement and PHI Security
-    // Construct the system prompt. If grade exists, add it for context.
-    const systemPromptContent = profile?.grade
-      ? `You are Umbil, a clinical assistant providing guidance to a user who is a ${profile.grade}. ${basePrompt}`
-      : basePrompt;
+    // Construct the final system prompt: CORE + Grade (if present) + Tone-specific style.
+    const gradeContext = profile?.grade ? ` The user's grade is ${profile.grade}.` : '';
+    
+    // Combine the core, grade, and tone instructions.
+    const systemPromptContent = `${CORE_INSTRUCTIONS}${gradeContext} ${baseToneInstruction}`;
 
     // 1. SANITIZE ALL INCOMING MESSAGES FOR PHI
     const sanitizedMessages: ClientMessage[] = messages.map(msg => ({
@@ -123,7 +130,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: "gpt-4o-mini",
         messages: fullMessages,
-        max_tokens: 800,
+        max_tokens: 400, // <-- REDUCED MAX TOKEN LIMIT
       }),
     });
 

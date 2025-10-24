@@ -6,7 +6,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ReflectionModal from "@/components/ReflectionModal";
 import Toast from "@/components/Toast";
-import { addCPD, CPDEntry } from "@/lib/store";
+// Updated addCPD will now be the remote save function
+import { addCPD, CPDEntry } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
@@ -20,7 +21,6 @@ type ClientMessage = {
   content: string;
 };
 
-// Use a const arrow function for a cleaner utility structure, and more robust error checking
 const getErrorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
   // Handle objects that might have an error message property, common in API responses
@@ -48,7 +48,8 @@ export default function HomeContent() {
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentCpdEntry, setCurrentCpdEntry] = useState<Omit<CPDEntry, "reflection" | "tags"> | null>(null);
+  // Using Omit to ensure we only collect the client-side fields needed before database insertion
+  const [currentCpdEntry, setCurrentCpdEntry] = useState<Omit<CPDEntry, "reflection" | "tags" | "id" | "user_id"> | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { email } = useUserEmail();
@@ -66,6 +67,7 @@ export default function HomeContent() {
   }, [email]);
 
   useEffect(() => {
+    // Clear chat history if the 'new-chat' parameter is present
     if (searchParams.get("new-chat")) {
       setConversation([]);
     }
@@ -119,7 +121,6 @@ export default function HomeContent() {
       const allMessages = [...historyForApi, { role: "user", content: newQuestion }];
       
       // TRUNCATION: Keep the last 5 turns (10 messages total for history + current) to balance context and tokens.
-      // This is the core efficiency fix for context.
       const MAX_HISTORY_MESSAGES = 10;
       const messagesToSend = allMessages.slice(-MAX_HISTORY_MESSAGES);
       // END: Lightweight Session Memory Implementation
@@ -150,20 +151,36 @@ export default function HomeContent() {
       setToastMessage("Please sign in to add CPD entries.");
       return;
     }
+    // Prepare the core data to be passed to the modal and eventually the DB
     setCurrentCpdEntry({
       timestamp: new Date().toISOString(),
-      question: entry.question || "",
-      answer: entry.content,
+      question: entry.question || "", // Use the original sanitized question
+      answer: entry.content, // Use the AI's response content
     });
     setIsModalOpen(true);
   };
 
-  const handleSaveCpd = (reflection: string, tags: string[]) => {
-    if (currentCpdEntry) {
-      const cpdEntry = { ...currentCpdEntry, reflection, tags };
-      addCPD(cpdEntry);
-      setToastMessage("✅ CPD entry saved!");
+  /**
+   * Handles saving the reflection and tags to the CPD entry in the remote database.
+   * This is now an asynchronous operation.
+   */
+  const handleSaveCpd = async (reflection: string, tags: string[]) => {
+    if (!currentCpdEntry) return;
+    
+    // Combine the captured message with the new reflection/tags for the DB insertion
+    const cpdEntry = { ...currentCpdEntry, reflection, tags };
+    
+    // Asynchronously save to the remote Supabase database and handle the response
+    const { error } = await addCPD(cpdEntry);
+
+    if (error) {
+      console.error("Failed to save CPD entry:", error);
+      setToastMessage("❌ Failed to save CPD entry. Please check the console for details.");
+    } else {
+      setToastMessage("✅ CPD entry saved remotely!");
     }
+    
+    setIsModalOpen(false);
   };
 
   const renderMessage = (entry: ConversationEntry, index: number) => {

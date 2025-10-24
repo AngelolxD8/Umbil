@@ -2,18 +2,29 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { PDPGoal, getPDP, savePDP, getCPD } from "@/lib/store";
+// We still use getCPD to read entries, which now fetches from the DB
+import { PDPGoal, getPDP, savePDP, getCPD, CPDEntry } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 
 // Inner component for the main PDP logic, displayed only when authenticated
 function PDPInner() {
   const [goals, setGoals] = useState<PDPGoal[]>([]);
+  const [cpdEntries, setCpdEntries] = useState<CPDEntry[]>([]); // New state for remote CPD data
   const [title, setTitle] = useState("");
   const [timeline, setTimeline] = useState("3 months");
   const [activities, setActivities] = useState("");
 
-  // Load saved goals on component mount
+  // 1. Load saved PDP goals (local) on mount
   useEffect(() => setGoals(getPDP()), []);
+  
+  // 2. Fetch CPD entries (remote) asynchronously for suggestions logic
+  useEffect(() => {
+    const fetchCpd = async () => {
+      const entries = await getCPD();
+      setCpdEntries(entries);
+    }
+    fetchCpd();
+  }, []);
 
   /**
    * Adds a new goal to the list and saves it to local storage.
@@ -47,9 +58,6 @@ function PDPInner() {
     savePDP(next);
   };
 
-  // Get CPD entries to analyze for goal suggestions
-  const cpdEntries = getCPD();
-  
   // Memoize suggested goals to prevent unnecessary recalculations
   const suggestedGoals = useMemo(() => {
     // 1. Count how many times each tag has been used in CPD reflections

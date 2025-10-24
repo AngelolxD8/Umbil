@@ -2,16 +2,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CPDEntry, getCPD } from "@/lib/store";
+import { CPDEntry, getCPD } from "@/lib/store"; // Import the remote getCPD now
 import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 /**
  * Converts the CPD log array into a CSV string for easy export.
- * It carefully handles special characters (like commas and quotes) 
- * by wrapping fields in double quotes and escaping existing double quotes.
- * * @param rows - The array of CPD entries to convert.
+ * @param rows - The array of CPD entries to convert.
  * @returns A string representing the CSV content.
  */
 function toCSV(rows: CPDEntry[]) {
@@ -32,11 +30,21 @@ function toCSV(rows: CPDEntry[]) {
 
 function CPDInner() {
   const [list, setList] = useState<CPDEntry[]>([]);
+  const [loading, setLoading] = useState(true); // Added loading state
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
 
-  // Load the full CPD log from local storage when the component mounts
-  useEffect(() => setList(getCPD()), []);
+  // Fetch the CPD log from the remote database when the component mounts
+  useEffect(() => {
+    const fetchCPD = async () => {
+      setLoading(true);
+      // This calls the updated function in src/lib/store.ts which hits Supabase
+      const remoteList = await getCPD(); 
+      setList(remoteList);
+      setLoading(false);
+    };
+    fetchCPD();
+  }, []); // Empty dependency array ensures this runs once
 
   // Filter the CPD entries based on the current search text and selected tag
   const filtered = useMemo(() => {
@@ -60,7 +68,10 @@ function CPDInner() {
   }, [list, q, tag]);
 
   // Generate a sorted list of all unique tags for the dropdown filter
-  const allTags = Array.from(new Set(list.flatMap((e) => e.tags || []))).sort();
+  const allTags = useMemo(() => {
+      return Array.from(new Set(list.flatMap((e) => e.tags || []))).sort();
+  }, [list]);
+
 
   /**
    * Generates a CSV file from the filtered entries and triggers a browser download.
@@ -68,19 +79,30 @@ function CPDInner() {
   const download = () => {
     const csvContent = toCSV(filtered);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
     
     // Create an invisible link element and click it to trigger download
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "cpd_log.csv";
-    document.body.appendChild(a); // Append to DOM before click (needed for Firefox)
+    document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a); // Clean up the element
+    document.body.removeChild(a);
     
     // Revoke the temporary URL after the download starts
     URL.revokeObjectURL(url);
   };
+
+  // Display a friendly message while data is loading
+  if (loading) {
+    return (
+        <section className="main-content">
+            <div className="container">
+                <p>Loading your professional learning log...</p>
+            </div>
+        </section>
+    );
+  }
 
   return (
     <section className="main-content">
@@ -88,7 +110,8 @@ function CPDInner() {
         {/* Increased bottom margin for better spacing from filters */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2>My CPD Learning Log</h2>
-          <button className="btn btn--outline" onClick={download}>📥 Download CSV</button>
+          {/* Only show download if there are entries */}
+          {list.length > 0 && <button className="btn btn--outline" onClick={download}>📥 Download CSV</button>}
         </div>
 
         <div className="filters" style={{ marginBottom: 32 }}> {/* Increased spacing under filters */}
@@ -109,11 +132,14 @@ function CPDInner() {
         </div>
 
         <div className="cpd-entries">
-          {filtered.length === 0 && (
-            <div className="card"><div className="card__body">No entries yet. Log something on the Ask page.</div></div>
+          {list.length === 0 && (
+            <div className="card"><div className="card__body">No entries found. Log something new on the Ask page!</div></div>
+          )}
+          {filtered.length === 0 && list.length > 0 && (
+            <div className="card"><div className="card__body">No entries matched your search criteria.</div></div>
           )}
           {filtered.map((e, idx) => (
-            <div key={idx} className="card" style={{ marginBottom: 24 }}> {/* Increased spacing between entries */}
+            <div key={e.id || idx} className="card" style={{ marginBottom: 24 }}> {/* Increased spacing between entries */}
               <div className="card__body" style={{ padding: '20px' }}> {/* Added explicit padding for a slightly larger card feel */}
                 <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16 }}>
                   <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>
