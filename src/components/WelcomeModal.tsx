@@ -26,9 +26,10 @@ export default function WelcomeModal({ isOpen, onClose, onContinueAnonymously }:
             </p>
         </div>
 
+        {/* CORRECTED TEXT: Removed ** asterisks for cleaner look */}
         <p className="section-description" style={{ marginBottom: 20 }}>
           Ask any clinical or educational question to get concise, evidence-based guidance.
-          Logging in unlocks personalized features like saving for your **CPD** and **PDP**! {/* CHANGED: Removed extra "your" and ** from CPD/PDP */}
+          Logging in unlocks personalized features like saving for your CPD and PDP! 
         </p>
         
         {/* Important Safety Reminder */}

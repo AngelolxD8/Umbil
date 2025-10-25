@@ -109,26 +109,15 @@ export default function HomeContent() {
     setConversation(updatedConversation);
 
     try {
-      // START: Lightweight Session Memory Implementation
-      // Map internal conversation history to OpenAI format ({ role, content })
-      const historyForApi: ClientMessage[] = conversation.map(entry => ({
-        role: entry.type === "umbil" ? "assistant" : "user",
-        // For conversational history, we use the full content for context
-        content: entry.content
-      }));
-
-      // Add the new user question to the history
-      const allMessages = [...historyForApi, { role: "user", content: newQuestion }];
-      
-      // TRUNCATION: Keep the last 5 turns (10 messages total for history + current) to balance context and tokens.
-      const MAX_HISTORY_MESSAGES = 10;
-      const messagesToSend = allMessages.slice(-MAX_HISTORY_MESSAGES);
-      // END: Lightweight Session Memory Implementation
+      // START: Token Saving Implementation - Send ONLY the current question.
+      // Conversation history is explicitly excluded to save on prompt tokens.
+      const messagesToSend: ClientMessage[] = [{ role: "user", content: newQuestion }];
+      // END: Token Saving Implementation
       
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Pass the truncated message history for context
+        // Pass only the current question
         body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
 
