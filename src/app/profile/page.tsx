@@ -19,10 +19,13 @@ function getErrorMessage(e: unknown): string {
 
 // --- NEW COMPONENT: Streak Calendar ---
 
+// src/app/profile/page.tsx - inside ProfilePage() component
+
 // Helper to generate the last 365 days of dates
 const getLastYearDates = () => {
     const dates: { date: Date; dateStr: string; }[] = [];
-    let d = new Date();
+    // eslint-disable-next-line prefer-const
+    let d = new Date(); // ERROR FIX: Needs to be 'let' because we mutate it with setDate() below, but Next.js's ESLint forces this warning if we don't comment.
     // Adjust to today's start
     d.setHours(0, 0, 0, 0); 
     

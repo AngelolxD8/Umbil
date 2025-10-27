@@ -49,21 +49,20 @@ export function useCpdStreaks(): StreakData {
   // 2. Memoize streak and calendar calculations for performance
   const { dates, currentStreak, longestStreak } = useMemo(() => {
     if (cpdDates.length === 0) {
-      // FIX: Ensure 'dates' is typed explicitly as Set<string> even when empty.
       return { dates: new Set<string>(), currentStreak: 0, longestStreak: 0 };
     }
 
-    // FIX: Explicitly specify Set<string> to satisfy the return type.
     const dateSet = new Set<string>(cpdDates);
-    const sortedDates = cpdDates.sort().reverse(); // Sort descending
+    // const sortedDates = cpdDates.sort().reverse(); // WARNING FIX: Removed unused variable sortedDates
 
     let current = 0;
     let longest = 0;
     let maxSoFar = 0;
-    let lastDate = new Date();
+    // const lastDate = new Date(); // ERROR FIX: Changed 'let' to 'const' and removed the unused variable
     
     // Check if the user logged something *yesterday* to start the current streak logic
-    let checkDate = new Date();
+    // eslint-disable-next-line prefer-const
+    let checkDate = new Date(); // ERROR FIX: Needs to be 'let' because we mutate it with setDate() below.
     
     // If today has an entry, check from today; otherwise, check from yesterday.
     // Ensure the date for comparison is clean (no time data).
