@@ -27,17 +27,19 @@ type ClientMessage = {
   content: string;
 };
 
-// --- API CONFIGURATION ---
-// Sticking to 120B as requested in earlier steps
-const TOGETHER_API_URL = "https://api.together.xyz/v1/chat/completions";
-const MODEL_NAME = "openai/gpt-oss-120b";
-const API_KEY = process.env.TOGETHER_API_KEY;
-// -------------------------
+// --- RESTORED API CONFIGURATION (GPT-4o-mini) ---
+const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
+const MODEL_NAME = "gpt-4o-mini"; // Reverted to the original model
+const API_KEY = process.env.OPENAI_API_KEY; // Reverted to original environment variable
+// --------------------------------------------------
 
 // Conceptual In-Memory Cache (Non-persistent across lambda cold starts, but catches immediate repeats)
 const cache = new Map<string, string>();
 
-// Helper function to handle PHI removal (omitted for brevity, assume contents are the same as before)
+/**
+ * Strips common patient identifiers (PHI) from a query string.
+ * This is a preventative measure to reduce risk from accidental PHI entry.
+ */
 function sanitizeQuery(query: string): string {
     let sanitized = query;
     sanitized = sanitized.replace(/\b(john|jane|smith|doctore|nurse|patient\s+x|mr\.|ms\.|mrs\.)\s+\w+/gi, 'patient');
@@ -48,8 +50,10 @@ function sanitizeQuery(query: string): string {
     return sanitized;
 }
 
+// --- CORRECTED CORE INSTRUCTIONS (Restoring mandatory source list) ---
 const CORE_INSTRUCTIONS =
-  "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **DO NOT generate names, identifiers, or PHI.**";
+  "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **MANDATORY: Conclude your answer with a section titled 'Trusted Sources' followed by a bulleted list of 3-5 key sources used to formulate the advice.** **DO NOT generate names, identifiers, or PHI.**";
+// ----------------------------------------------------------------------
 
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
@@ -81,7 +85,7 @@ function handleRateLimit(request: NextRequest): { isLimited: boolean, nextCookie
         currentCount = data.count;
         resetTime = data.resetTime;
       }
-    } catch (_e: unknown) { // FIX: Renamed 'e' to '_e: unknown' to silence the unused variable warning.
+    } catch (_e: unknown) {
       // Ignore parsing errors, reset data
     }
   }
@@ -110,9 +114,10 @@ function handleRateLimit(request: NextRequest): { isLimited: boolean, nextCookie
 
 
 export async function POST(req: NextRequest) {
+  // Check against the OPENAI_API_KEY
   if (!API_KEY) {
       return NextResponse.json(
-          { error: "Server configuration error: TOGETHER_API_KEY is not set." },
+          { error: "Server configuration error: OPENAI_API_KEY is not set." },
           { status: 500 }
       );
   }
@@ -128,7 +133,6 @@ export async function POST(req: NextRequest) {
         },
         { status: 402 } // 402 Payment Required status for limit
     );
-    // Still send the cookie to ensure the client-side logic can calculate the time remaining
     response.headers.set("Set-Cookie", nextCookie); 
     return response;
   }
@@ -173,49 +177,60 @@ export async function POST(req: NextRequest) {
     const systemMessage = { role: "system", content: systemPromptContent };
     const fullMessages = [systemMessage, ...sanitizedMessages];
 
-    const r = await fetch(TOGETHER_API_URL, {
+    // --- RESTORED FETCH CALL TO OPENAI ---
+    const r = await fetch(OPENAI_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL_NAME,
+        model: MODEL_NAME, // "gpt-4o-mini"
         messages: fullMessages,
-        max_tokens: 400,
-        reasoning_effort: "high" 
+        max_tokens: 400, 
       }),
     });
 
     if (!r.ok) {
       const errorData = await r.json();
-      const errorMsg = errorData.error?.message || "Sorry, an unexpected error occurred with the AI service. Please try again.";
       
+      if (errorData.error?.code === "rate_limit_exceeded" || r.status === 429) {
+         // RESTORING ORIGINAL OPENAI RATE LIMIT ERROR MESSAGE
+         const response = NextResponse.json(
+             { error: "Umbil’s taking a short pause to catch up with demand. Please check back later — your lifeline will be ready soon." },
+             { status: 429 }
+         );
+         response.headers.set("Set-Cookie", nextCookie);
+         return response;
+      }
+      
+      const errorMsg = errorData.error?.message || "Sorry, an unexpected error occurred. Please try again.";
       const response = NextResponse.json({ error: errorMsg }, { status: r.status });
-      // On API failure, still set the cookie, as the request was sent and counted.
-      response.headers.set("Set-Cookie", nextCookie); 
+      response.headers.set("Set-Cookie", nextCookie);
       return response;
     }
 
     const data: OpenAIResponse = await r.json();
     const answer = data.choices?.[0]?.message?.content;
     
+    // START: Token Logging Implementation
     if (data.usage) {
         console.log(`[UMBL-API] Tokens Used: Total: ${data.usage.total_tokens}, Prompt: ${data.usage.prompt_tokens}, Completion: ${data.usage.completion_tokens}`);
     } else {
         console.log(`[UMBL-API] Tokens Used: Usage information not available in response.`);
     }
+    // END: Token Logging Implementation
 
+    // 3. Set Cache using the SANITIZED key
     if (answer) {
         cache.set(cacheKey, answer);
     }
-    
+
     const response = NextResponse.json({ answer: answer ?? "" });
-    response.headers.set("Set-Cookie", nextCookie); // Set the updated cookie
+    response.headers.set("Set-Cookie", nextCookie);
     return response;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
-    // If the error occurred before a cookie could be generated/set, we send a clean error.
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
