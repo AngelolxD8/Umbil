@@ -14,7 +14,7 @@ export default function ProPage() {
               Thank you for your interest in Umbil Pro! For early adopters, access to Umbil remains entirely free for now.
             </p>
             <p style={{ marginBottom: 30 }}>
-              In the future, this is where you'll manage your subscription to unlock **unlimited daily queries**, advanced features, and priority support.
+              In the future, this is where you&apos;ll manage your subscription to unlock **unlimited daily queries**, advanced features, and priority support.
             </p>
             <Link href="/" className="btn btn--primary">
               ← Continue to Free Umbil

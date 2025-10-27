@@ -81,7 +81,7 @@ function handleRateLimit(request: NextRequest): { isLimited: boolean, nextCookie
         currentCount = data.count;
         resetTime = data.resetTime;
       }
-    } catch (e) {
+    } catch (_e: unknown) { // FIX: Renamed 'e' to '_e: unknown' to silence the unused variable warning.
       // Ignore parsing errors, reset data
     }
   }
