@@ -663,3 +663,98 @@ a {
   border-color: var(--umbil-brand-teal);
   box-shadow: 0 0 0 3px var(--umbil-focus-ring);
 }
+
+/* --- NEW STYLES FOR CPD STREAK CALENDAR --- */
+
+.calendar-grid {
+    display: grid;
+    /* 7 days of the week, plus one column for the labels */
+    grid-template-columns: auto repeat(53, 1fr); 
+    grid-template-rows: repeat(7, 1fr); /* 7 days of the week */
+    gap: 3px;
+    padding: 5px;
+    overflow-x: auto; /* Allow scrolling for wide calendar view */
+    /* Ensure the grid wraps nicely in smaller spaces */
+    max-width: 100%;
+}
+
+.day-label {
+    grid-column: 1; /* Always in the first column */
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--umbil-muted);
+    text-align: right;
+    padding-right: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    /* Manually position Mon, Wed, Fri rows (1-indexed for the grid rows) */
+}
+
+/* Day labels placement (Mon=row 2, Wed=row 4, Fri=row 6) */
+.day-label:nth-of-type(1) { grid-row: 2; }
+.day-label:nth-of-type(2) { grid-row: 4; }
+.day-label:nth-of-type(3) { grid-row: 6; }
+
+
+.calendar-square {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    background-color: var(--umbil-hover-bg); /* Base color (no CPD) */
+    transition: all 0.2s;
+    position: relative;
+    
+    /* Calculate position in grid: date.getDay() returns 0 (Sun) to 6 (Sat)
+       CSS Grid rows are 1-indexed (1 to 7) */
+    grid-row: auto;
+    grid-column: auto;
+}
+
+/* Style for days with CPD (using teal brand color for "green") */
+.calendar-square.has-cpd {
+    background-color: var(--umbil-brand-teal); /* Darker teal for presence */
+    opacity: 0.8;
+}
+/* ... rest of your CSS ... */
+
+/* Light mode hover/focus effect */
+.calendar-square:hover:not(.has-cpd) {
+    background-color: var(--umbil-card-border);
+    cursor: pointer;
+}
+
+/* Indicator for today's square */
+.calendar-square.is-today {
+    box-shadow: 0 0 0 1px var(--umbil-text); /* Highlight with a thin border */
+}
+.calendar-square.is-today.has-cpd {
+    box-shadow: 0 0 0 2px var(--umbil-text), 0 0 0 3px var(--umbil-brand-teal);
+}
+
+/* Dark Mode Overrides */
+:root .dark .calendar-square.has-cpd {
+    background-color: var(--umbil-brand-teal);
+    opacity: 0.9;
+}
+:root .dark .calendar-square.is-today {
+    box-shadow: 0 0 0 1px var(--umbil-surface);
+}
+:root .dark .calendar-square.is-today.has-cpd {
+    box-shadow: 0 0 0 2px var(--umbil-surface), 0 0 0 3px var(--umbil-brand-teal);
+}
+
+/* Legend Styles */
+.color-legend {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    display: inline-block;
+    margin: 0 3px;
+    background-color: var(--umbil-hover-bg);
+}
+.color-legend.has-cpd {
+    background-color: var(--umbil-brand-teal);
+}
+
+/* End NEW STYLES FOR CPD STREAK CALENDAR */

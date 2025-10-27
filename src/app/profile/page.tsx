@@ -1,11 +1,12 @@
 // src/app/profile/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
-import ResetPassword from "@/components/ResetPassword"; // <-- IMPORT NEW COMPONENT
+import ResetPassword from "@/components/ResetPassword"; 
+import { useCpdStreaks } from "@/hooks/useCpdStreaks"; // <-- NEW IMPORT
 
 /**
  * Utility function to get a user-friendly error message from an unknown error object.
@@ -16,6 +17,96 @@ function getErrorMessage(e: unknown): string {
   return e instanceof Error ? e.message : "An unknown error occurred.";
 }
 
+// --- NEW COMPONENT: Streak Calendar ---
+
+// Helper to generate the last 365 days of dates
+const getLastYearDates = () => {
+    const dates: { date: Date; dateStr: string; }[] = [];
+    let d = new Date();
+    // Adjust to today's start
+    d.setHours(0, 0, 0, 0); 
+    
+    // Start with the Sunday of the current week (day 0)
+    const dayOfWeek = d.getDay(); 
+    d.setDate(d.getDate() - dayOfWeek);
+    
+    // Go back ~52 weeks (365 days)
+    for (let i = 0; i < 53 * 7; i++) {
+        const current = new Date(d);
+        const dateStr = current.toISOString().split('T')[0];
+        dates.unshift({ date: current, dateStr }); // Add to the front
+        d.setDate(d.getDate() - 1);
+    }
+    
+    // Filter to only include the last ~365 days to avoid too many squares
+    return dates.filter((_, i) => i < 365); 
+};
+
+type StreakCalendarProps = {
+    loggedDates: Set<string>;
+    currentStreak: number;
+    longestStreak: number;
+    loading: boolean;
+}
+
+const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: StreakCalendarProps) => {
+    // Memoize the dates array to prevent recalculation on every render
+    const calendarDates = useMemo(getLastYearDates, []);
+    const todayStr = new Date().toISOString().split('T')[0];
+    
+    if (loading) {
+        return <p>Loading streak data...</p>;
+    }
+    
+    return (
+        <div className="card" style={{ marginTop: 24, padding: 20 }}>
+            <h3 style={{ marginBottom: 16 }}>CPD Learning History</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, fontSize: '1rem' }}>
+                <div style={{ fontWeight: 600 }}>
+                    Current Streak: <span style={{ color: 'var(--umbil-brand-teal)' }}>{currentStreak} {currentStreak === 1 ? 'day' : 'days'} 🔥</span>
+                </div>
+                <div style={{ color: 'var(--umbil-muted)' }}>
+                    Longest Streak: {longestStreak} days
+                </div>
+            </div>
+
+            <div className="calendar-grid">
+                {/* Day of the week labels (Mon, Wed, Fri) - simplified view */}
+                <div className="day-label" style={{ gridRow: 2 }}>M</div>
+                <div className="day-label" style={{ gridRow: 4 }}>W</div>
+                <div className="day-label" style={{ gridRow: 6 }}>F</div>
+                
+                {/* Calendar Squares */}
+                {calendarDates.map(({ dateStr }, index) => {
+                    const hasCpd = loggedDates.has(dateStr);
+                    const isToday = dateStr === todayStr;
+                    
+                    // Column is the week number (0-52), Row is the day of the week (0-6)
+                    // We render backwards (latest day first) but arrange left-to-right.
+                    // The CSS handles the layout based on flex/grid.
+                    return (
+                        <div
+                            key={index}
+                            className={`calendar-square ${hasCpd ? 'has-cpd' : ''} ${isToday ? 'is-today' : ''}`}
+                            data-date={dateStr}
+                            title={`${dateStr}: ${hasCpd ? 'Logged' : 'No Log'}`}
+                        />
+                    );
+                })}
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.8rem', marginTop: 12 }}>
+                <span style={{ color: 'var(--umbil-muted)', marginRight: 4 }}>Less</span>
+                <span className="color-legend color-0"></span>
+                <span className="color-legend has-cpd"></span>
+                <span style={{ color: 'var(--umbil-muted)', marginLeft: 4 }}>More</span>
+            </div>
+        </div>
+    );
+}
+
+// --- END NEW COMPONENT: Streak Calendar ---
+
+
 export default function ProfilePage() {
   const { email, loading: userLoading } = useUserEmail();
   const router = useRouter();
@@ -25,6 +116,9 @@ export default function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   // Assume a new user if no profile data is loaded initially
   const [isNewUser, setIsNewUser] = useState(true);
+  
+  // <-- NEW: Fetch streak data
+  const { dates: loggedDates, currentStreak, longestStreak, loading: streaksLoading } = useCpdStreaks();
 
   // Redirect unauthenticated users to the sign-in page
   useEffect(() => {
@@ -70,9 +164,19 @@ export default function ProfilePage() {
     <section className="main-content">
       <div className="container">
         <h2>{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h2>
-        <div className="card" style={{ marginTop: 16 }}>
+        
+        {/* NEW: Streak Calendar Display */}
+        <StreakCalendar 
+            loggedDates={loggedDates} 
+            currentStreak={currentStreak} 
+            longestStreak={longestStreak} 
+            loading={streaksLoading}
+        />
+        
+        <div className="card" style={{ marginTop: 24 }}> {/* Adjusted margin-top */}
           <div className="card__body">
-            <div className="form-group">
+            <h3>Contact and Clinical Details</h3> {/* Added sub-heading for clarity */}
+            <div className="form-group" style={{marginTop: 16}}>
               <label className="form-label">Full Name</label>
               <input
                 className="form-control"

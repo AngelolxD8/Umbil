@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase"; // Import supabase for sign out
 import { useUserEmail } from "@/hooks/useUser";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
+import { useCpdStreaks } from "@/hooks/useCpdStreaks"; // <-- NEW IMPORT
 
 type MobileNavProps = {
   isOpen: boolean;
@@ -22,6 +23,9 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   
   const { email } = useUserEmail();
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
+  
+  // <-- NEW: Fetch streak data
+  const { currentStreak, loading: streaksLoading } = useCpdStreaks();
 
   // Load the user's full name and grade for display
   useEffect(() => {
@@ -98,6 +102,13 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           New Chat
         </button>
 
+        {/* NEW: Streak Display */}
+        {userEmail && !streaksLoading && currentStreak > 0 && (
+            <div className="streak-display-sidebar">
+                🔥 **CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}**
+            </div>
+        )}
+        
         <nav className="sidebar-nav">
           {filteredMenuItems.map((item) => (
             <Link
@@ -160,6 +171,19 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             color: var(--umbil-muted);
             margin-top: 4px;
         }
+        
+        /* NEW STREAK DISPLAY STYLE */
+        .streak-display-sidebar {
+            padding: 12px 16px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--umbil-brand-teal);
+            background-color: var(--umbil-hover-bg);
+            border-radius: var(--umbil-radius-sm);
+            margin: 0 0 16px 0;
+            text-align: center;
+        }
+        /* End NEW STREAK DISPLAY STYLE */
 
         /* The switch - the box around the slider */
         .switch {
