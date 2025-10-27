@@ -1,6 +1,11 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
+// --- RATE LIMIT CONFIGURATION ---
+const MAX_REQUESTS_PER_HOUR = 10;
+const PRO_UPGRADE_URL = "/pro"; 
+// --------------------------------
+
 // Define a more specific type for the API response to improve type safety
 type OpenAIResponse = {
   choices: Array<{
@@ -22,45 +27,30 @@ type ClientMessage = {
   content: string;
 };
 
+// --- API CONFIGURATION ---
+// Sticking to 120B as requested in earlier steps
+const TOGETHER_API_URL = "https://api.together.xyz/v1/chat/completions";
+const MODEL_NAME = "openai/gpt-oss-120b";
+const API_KEY = process.env.TOGETHER_API_KEY;
+// -------------------------
+
 // Conceptual In-Memory Cache (Non-persistent across lambda cold starts, but catches immediate repeats)
 const cache = new Map<string, string>();
 
-/**
- * Strips common patient identifiers (PHI) from a query string.
- * This is a preventative measure to reduce risk from accidental PHI entry.
- */
+// Helper function to handle PHI removal (omitted for brevity, assume contents are the same as before)
 function sanitizeQuery(query: string): string {
-    // Regex for:
-    // 1. Common names (Dr. Smith, John, Jane, Patient X) -> replaced with 'patient'
-    // 2. Specific dates (DD/MM/YY, DD-MM-YYYY) -> replaced with 'a specific date'
-    // 3. Numbers that look like MRNs/DOBs (6-10 digit numbers) -> replaced with 'a number'
     let sanitized = query;
-
-    // 1. Remove names (simple heuristic - avoid overly aggressive stripping)
-    // Replaces 'Mr. Smith', 'John Smith', or just 'Smith' if surrounded by spaces/punctuation
     sanitized = sanitized.replace(/\b(john|jane|smith|doctore|nurse|patient\s+x|mr\.|ms\.|mrs\.)\s+\w+/gi, 'patient');
     sanitized = sanitized.replace(/\b(john|jane|smith|david|sarah|patient\s+x|mr\.|ms\.|mrs\.)\b/gi, 'patient');
-
-
-    // 2. Remove specific dates (DD/MM/YYYY or DD-MM-YYYY)
     sanitized = sanitized.replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, 'a specific date');
-
-    // 3. Remove long number sequences (potential MRN/NHS number)
     sanitized = sanitized.replace(/\b\d{6,10}\b/g, 'a long identifier number');
-    
-    // 4. Update the patient's age and gender to a generic format if found
     sanitized = sanitized.replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, '$1-year-old patient');
-
     return sanitized;
 }
 
-// New constant for the core, high-priority instructions.
-// This structure saves tokens by avoiding repetition across the tone prompts.
-// Incorporated full list of trusted sources for comprehensive guidance.
 const CORE_INSTRUCTIONS =
   "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **DO NOT generate names, identifiers, or PHI.**";
 
-// The tone prompts now only contain the specific style instructions, saving prompt tokens.
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
     "For clinical queries, start with a friendly one-line overview and conclude with a relevant follow-up suggestion. For non-clinical, use a conversational style.",
@@ -70,10 +60,81 @@ const TONE_PROMPTS: Record<string, string> = {
     "Use a warm, mentoring tone, and close with a fitting suggestion for a similar, relevant follow-up question or related action."
 };
 
+/**
+ * Reads the rate limit cookie, checks usage, and returns an updated cookie header.
+ */
+function handleRateLimit(request: NextRequest): { isLimited: boolean, nextCookie: string } {
+  const cookieName = "umbil_rate_limit";
+  const cookie = request.cookies.get(cookieName);
+  const now = Date.now();
+  const oneHour = 60 * 60 * 1000;
+  
+  let currentCount = 0;
+  let resetTime = now + oneHour; 
+
+  if (cookie) {
+    try {
+      const data = JSON.parse(cookie.value);
+      const isExpired = now > data.resetTime;
+
+      if (!isExpired) {
+        currentCount = data.count;
+        resetTime = data.resetTime;
+      }
+    } catch (e) {
+      // Ignore parsing errors, reset data
+    }
+  }
+
+  // --- CHECK LIMIT ---
+  const isLimited = currentCount >= MAX_REQUESTS_PER_HOUR;
+  
+  if (isLimited) {
+      // Do not increment, keep the current reset time
+  } else {
+      // Increment count for the successful request
+      currentCount++;
+  }
+  
+  // --- PREPARE NEXT COOKIE ---
+  const nextData = {
+      count: currentCount,
+      resetTime: resetTime,
+  };
+
+  // Securely set the new cookie data. Expires in 1 hour.
+  const nextCookie = `${cookieName}=${JSON.stringify(nextData)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${oneHour / 1000};`;
+
+  return { isLimited, nextCookie };
+}
+
+
 export async function POST(req: NextRequest) {
+  if (!API_KEY) {
+      return NextResponse.json(
+          { error: "Server configuration error: TOGETHER_API_KEY is not set." },
+          { status: 500 }
+      );
+  }
+  
+  // --- 1. RATE LIMIT CHECK ---
+  const { isLimited, nextCookie } = handleRateLimit(req);
+  
+  if (isLimited) {
+    const response = NextResponse.json(
+        { 
+            error: `You've reached the limit of ${MAX_REQUESTS_PER_HOUR} questions per hour on the free tier. Time to upgrade!`,
+            pro_url: PRO_UPGRADE_URL
+        },
+        { status: 402 } // 402 Payment Required status for limit
+    );
+    // Still send the cookie to ensure the client-side logic can calculate the time remaining
+    response.headers.set("Set-Cookie", nextCookie); 
+    return response;
+  }
+
   try {
     const body: { messages?: ClientMessage[]; profile?: { full_name?: string | null; grade?: string | null }; tone?: unknown } = await req.json();
-    // Using object destructuring with default values for cleaner code
     const { messages, profile, tone: toneRaw } = body;
 
     const tone =
@@ -89,83 +150,72 @@ export async function POST(req: NextRequest) {
       );
     }
     
-    // Use const for the base prompt as it is not reassigned
     const baseToneInstruction = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
-
-    // START: Contextual Prompt Enhancement and PHI Security
-    // Construct the final system prompt: CORE + Grade (if present) + Tone-specific style.
     const gradeContext = profile?.grade ? ` The user's grade is ${profile.grade}.` : '';
-    
-    // Combine the core, grade, and tone instructions.
     const systemPromptContent = `${CORE_INSTRUCTIONS}${gradeContext} ${baseToneInstruction}`;
 
-    // 1. SANITIZE ALL INCOMING MESSAGES FOR PHI
     const sanitizedMessages: ClientMessage[] = messages.map(msg => ({
         ...msg,
         content: msg.role === 'user' ? sanitizeQuery(msg.content) : msg.content
     }));
 
-    // 2. Construct Cache Key from the SANITIZED request
     const cacheKey = JSON.stringify({ messages: sanitizedMessages, systemPromptContent });
     
-    // END: PRIVACY ENHANCEMENT / ANONYMIZATION
-
-    // 3. Check Cache
+    // --- 2. CACHE CHECK ---
     if (cache.has(cacheKey)) {
         console.log(`[UMBL-API] Cache HIT!`);
-        console.log(`[UMBL-API] Tokens Used: Total: 0, (Cache Hit)`);
-        return NextResponse.json({ answer: cache.get(cacheKey) ?? "" });
+        const response = NextResponse.json({ answer: cache.get(cacheKey) ?? "" });
+        response.headers.set("Set-Cookie", nextCookie); // Set the cookie even on cache hit
+        return response;
     }
 
     // Prepare messages array: System prompt + SANITIZED Conversation History
     const systemMessage = { role: "system", content: systemPromptContent };
     const fullMessages = [systemMessage, ...sanitizedMessages];
 
-    const r = await fetch("https://api.openai.com/v1/chat/completions", {
+    const r = await fetch(TOGETHER_API_URL, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        Authorization: `Bearer ${API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
+        model: MODEL_NAME,
         messages: fullMessages,
-        max_tokens: 400, // <-- REDUCED MAX TOKEN LIMIT
+        max_tokens: 400,
+        reasoning_effort: "high" 
       }),
     });
 
     if (!r.ok) {
       const errorData = await r.json();
+      const errorMsg = errorData.error?.message || "Sorry, an unexpected error occurred with the AI service. Please try again.";
       
-      if (errorData.error?.code === "rate_limit_exceeded" || r.status === 429) {
-         return NextResponse.json(
-             { error: "Umbil’s taking a short pause to catch up with demand. Please check back later — your lifeline will be ready soon." },
-             { status: 429 }
-         );
-      }
-      
-      return NextResponse.json({ error: errorData.error?.message || "Sorry, an unexpected error occurred. Please try again." }, { status: r.status });
+      const response = NextResponse.json({ error: errorMsg }, { status: r.status });
+      // On API failure, still set the cookie, as the request was sent and counted.
+      response.headers.set("Set-Cookie", nextCookie); 
+      return response;
     }
 
     const data: OpenAIResponse = await r.json();
     const answer = data.choices?.[0]?.message?.content;
     
-    // START: Token Logging Implementation
     if (data.usage) {
         console.log(`[UMBL-API] Tokens Used: Total: ${data.usage.total_tokens}, Prompt: ${data.usage.prompt_tokens}, Completion: ${data.usage.completion_tokens}`);
     } else {
         console.log(`[UMBL-API] Tokens Used: Usage information not available in response.`);
     }
-    // END: Token Logging Implementation
 
-    // 3. Set Cache using the SANITIZED key
     if (answer) {
         cache.set(cacheKey, answer);
     }
-
-    return NextResponse.json({ answer: answer ?? "" });
+    
+    const response = NextResponse.json({ answer: answer ?? "" });
+    response.headers.set("Set-Cookie", nextCookie); // Set the updated cookie
+    return response;
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
+    // If the error occurred before a cookie could be generated/set, we send a clean error.
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

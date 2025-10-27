@@ -6,14 +6,21 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ReflectionModal from "@/components/ReflectionModal";
 import Toast from "@/components/Toast";
-// Updated addCPD will now be the remote save function
 import { addCPD, CPDEntry } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 
-type AskResponse = { answer?: string; error?: string };
-type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string };
+// --- NEW TYPE FOR RATE LIMIT RESPONSE ---
+type AskResponse = { 
+    answer?: string; 
+    error?: string;
+    // New optional field for rate limit handling
+    pro_url?: string; 
+};
+// ----------------------------------------
+
+type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; pro_url?: string };
 
 // Define a type for a message to be sent to the API
 type ClientMessage = {
@@ -109,25 +116,39 @@ export default function HomeContent() {
     setConversation(updatedConversation);
 
     try {
-      // START: Token Saving Implementation - Send ONLY the current question.
-      // Conversation history is explicitly excluded to save on prompt tokens.
       const messagesToSend: ClientMessage[] = [{ role: "user", content: newQuestion }];
-      // END: Token Saving Implementation
       
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Pass only the current question
         body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();
-      if (!res.ok) throw new Error(data.error || "Request failed");
-
-      setConversation((prev) => [
-        ...prev,
-        { type: "umbil", content: data.answer ?? "", question: newQuestion },
-      ]);
+      
+      if (res.status === 402 && data.pro_url) {
+          // --- NEW RATE LIMIT HANDLING ---
+          const errorContent = `
+          **Free Tier Limit Reached** You've reached the maximum number of questions per hour on our free tier. 
+          
+          To continue your seamless learning, consider upgrading to Umbil Pro for unlimited queries.
+          `;
+          
+          setConversation((prev) => [...prev, { 
+              type: "umbil", 
+              content: errorContent, 
+              pro_url: data.pro_url // Pass the URL to the rendering function
+          }]);
+          // --- END RATE LIMIT HANDLING ---
+      } else if (!res.ok) {
+          throw new Error(data.error || "Request failed");
+      } else {
+          setConversation((prev) => [
+            ...prev,
+            { type: "umbil", content: data.answer ?? "", question: newQuestion },
+          ]);
+      }
+      
     } catch (err: unknown) {
       setConversation((prev) => [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }]);
     } finally {
@@ -151,7 +172,6 @@ export default function HomeContent() {
 
   /**
    * Handles saving the reflection and tags to the CPD entry in the remote database.
-   * This is now an asynchronous operation.
    */
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (!currentCpdEntry) return;
@@ -179,10 +199,19 @@ export default function HomeContent() {
     return (
       <div key={index} className={className}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
-        {isUmbil && (
+        {isUmbil && !entry.pro_url && ( // Only show CPD button if not a Pro limit error
           <div className="umbil-message-actions">
             <button className="action-button" onClick={() => handleOpenAddCpdModal(entry)}>Add to CPD</button>
           </div>
+        )}
+        
+        {/* NEW: Pro Upgrade Button for Limit Error */}
+        {isUmbil && entry.pro_url && (
+            <div style={{ marginTop: '20px', textAlign: 'center' }}>
+                <a href={entry.pro_url} className="btn btn--primary">
+                    Upgrade to Umbil Pro
+                </a>
+            </div>
         )}
       </div>
     );
