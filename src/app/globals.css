@@ -664,11 +664,31 @@ a {
   box-shadow: 0 0 0 3px var(--umbil-focus-ring);
 }
 
+/* --- Global Streak Display Style (for top right header) --- */
+.global-streak {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--umbil-text);
+  margin-right: 12px;
+  padding: 8px 12px;
+  border-radius: var(--umbil-radius-sm);
+  background-color: var(--umbil-hover-bg);
+  cursor: help;
+  transition: opacity 0.3s;
+}
+
+.global-streak.faded {
+  opacity: 0.5; /* Fade the icon and text when today is not logged */
+}
+
 /* --- NEW STYLES FOR CPD STREAK CALENDAR --- */
 
 .calendar-grid-container {
     display: flex;
+    /* FIX: Scroll the calendar content from the right side */
     overflow-x: auto;
+    direction: rtl; /* Start scrolling from the right */
+    
     /* Hide the scrollbar if possible but maintain functionality */
     scrollbar-width: none; /* Firefox */
 }
@@ -682,6 +702,7 @@ a {
     justify-content: space-between;
     margin-right: 5px;
     padding-top: 2px; /* Slight alignment adjustment */
+    direction: ltr; /* Ensure labels are read left-to-right */
 }
 
 .day-label-item {
@@ -695,12 +716,11 @@ a {
 
 .calendar-grid {
     display: grid;
-    /* 7 days of the week for the rows */
     grid-template-rows: repeat(7, 1fr); 
-    /* The auto-flow handles the 52 columns seamlessly */
     grid-auto-flow: column; 
-    grid-auto-columns: 17px; /* Define column width (14px square + 3px gap) */
+    grid-auto-columns: 17px; 
     gap: 3px;
+    direction: ltr; /* Ensure squares are drawn left-to-right inside the RTL container */
 }
 
 .calendar-square {
@@ -710,7 +730,6 @@ a {
     background-color: var(--umbil-hover-bg); /* Base color (no CPD) */
     transition: background-color 0.2s, opacity 0.2s;
     position: relative;
-    /* Now positioned by grid-row inline style in JSX */
 }
 
 /* Style for days with CPD (using teal brand color for "green") */

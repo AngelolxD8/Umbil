@@ -6,12 +6,34 @@ import { useState, useEffect, useCallback } from "react";
 import "./globals.css";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
-import WelcomeModal from "@/components/WelcomeModal"; // <-- IMPORT NEW MODAL
+import WelcomeModal from "@/components/WelcomeModal"; 
 import Link from "next/link";
 import { useUserEmail } from "@/hooks/useUser";
+import { useCpdStreaks } from "@/hooks/useCpdStreaks"; // <-- NEW IMPORT
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+
+// --- NEW Component for Global Streak Display ---
+function GlobalStreakDisplay() {
+    const { email } = useUserEmail();
+    // Fetch only the necessary streak data
+    const { currentStreak, hasLoggedToday, loading } = useCpdStreaks(); 
+    
+    if (loading || !email) return null;
+
+    const streakDisplay = currentStreak > 0 ? currentStreak : 0;
+    
+    // Determine the style based on whether today's log exists
+    const className = `global-streak ${hasLoggedToday ? '' : 'faded'}`;
+    
+    return (
+        <div className={className} title={hasLoggedToday ? "You've logged CPD today!" : "Log CPD today to keep your streak alive!"}>
+            {streakDisplay} 🔥
+        </div>
+    );
+}
+// -----------------------------------------------
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -97,6 +119,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </Link>
             </div>
             <div className="header-right">
+              {/* NEW: Global Streak Display placed before AuthButtons */}
+              <GlobalStreakDisplay />
               <AuthButtons />
             </div>
           </header>
