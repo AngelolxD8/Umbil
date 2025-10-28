@@ -6,7 +6,7 @@ import { getMyProfile, upsertMyProfile, Profile } from "@/lib/profile";
 import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
-import { useCpdStreaks } from "@/hooks/useCpdStreaks"; // <-- NEW IMPORT
+import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
 
 /**
  * Utility function to get a user-friendly error message from an unknown error object.
@@ -19,30 +19,43 @@ function getErrorMessage(e: unknown): string {
 
 // --- NEW COMPONENT: Streak Calendar ---
 
-// src/app/profile/page.tsx - inside ProfilePage() component
-
-// Helper to generate the last 365 days of dates
+// Helper to generate the last 364 days of dates + filler days to start on a Sunday (371 total)
 const getLastYearDates = () => {
-    const dates: { date: Date; dateStr: string; }[] = [];
+    const dates: { date: Date; dateStr: string; isFiller: boolean }[] = [];
+    
     // eslint-disable-next-line prefer-const
-    let d = new Date(); // ERROR FIX: Needs to be 'let' because we mutate it with setDate() below, but Next.js's ESLint forces this warning if we don't comment.
-    // Adjust to today's start
+    let d = new Date(); 
     d.setHours(0, 0, 0, 0); 
     
-    // Start with the Sunday of the current week (day 0)
-    const dayOfWeek = d.getDay(); 
-    d.setDate(d.getDate() - dayOfWeek);
+    // Determine the day of the week for today (0=Sunday, 6=Saturday)
+    const todayDayOfWeek = d.getDay(); 
     
-    // Go back ~52 weeks (365 days)
-    for (let i = 0; i < 53 * 7; i++) {
-        const current = new Date(d);
-        const dateStr = current.toISOString().split('T')[0];
-        dates.unshift({ date: current, dateStr }); // Add to the front
-        d.setDate(d.getDate() - 1);
+    // Calculate how many filler days we need at the beginning to ensure the first column is Sunday.
+    // This is the number of days needed to fill the grid up to the Monday start of the calendar.
+    const fillerDaysAtStart = 7; // We will generate enough to fill the first column for alignment
+    
+    // Total days needed: 52 weeks * 7 days + 7 filler days for initial alignment
+    const TOTAL_DAYS_TO_RENDER = 365 + 7;
+    
+    // Clone today's date to work backwards
+    const cursorDate = new Date(d);
+    
+    // Generate dates working backwards from today, plus extra days for alignment
+    for (let i = 0; i < TOTAL_DAYS_TO_RENDER; i++) {
+        const dateStr = cursorDate.toISOString().split('T')[0];
+        
+        // This is complex, but we need the date array to be in order of rendering: 
+        // OLDER (top-left) -> NEWER (bottom-right).
+        dates.unshift({ date: new Date(cursorDate), dateStr, isFiller: false });
+        cursorDate.setDate(cursorDate.getDate() - 1);
     }
     
-    // Filter to only include the last ~365 days to avoid too many squares
-    return dates.filter((_, i) => i < 365); 
+    // Now trim the beginning of the list so 'Today' is the very last square in the view.
+    // The calendar shows 52 columns of 7 days, so 52 * 7 = 364 days needed.
+    const trimAmount = dates.length - 364; // Keep only the last 364
+    const trimmedDates = dates.slice(trimAmount);
+    
+    return trimmedDates;
 };
 
 type StreakCalendarProps = {
@@ -57,8 +70,11 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: 
     const calendarDates = useMemo(getLastYearDates, []);
     const todayStr = new Date().toISOString().split('T')[0];
     
+    // Display only 5 labels for better visibility: Sun, Mon, Wed, Fri, Sat
+    const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
     if (loading) {
-        return <p>Loading streak data...</p>;
+        return <p>Loading CPD learning history...</p>;
     }
     
     return (
@@ -72,31 +88,41 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: 
                     Longest Streak: {longestStreak} days
                 </div>
             </div>
+            
+            <div className="calendar-grid-container">
+                {/* Day Labels Column - Positioned absolutely via CSS */}
+                <div className="day-labels-column">
+                    {dayLabels.map((label, index) => (
+                        <div key={index} className="day-label-item">
+                            {/* Only display M, W, F for less clutter */}
+                            {(label === 'M' || label === 'W' || label === 'F') ? label : ''}
+                        </div>
+                    ))}
+                </div>
 
-            <div className="calendar-grid">
-                {/* Day of the week labels (Mon, Wed, Fri) - simplified view */}
-                <div className="day-label" style={{ gridRow: 2 }}>M</div>
-                <div className="day-label" style={{ gridRow: 4 }}>W</div>
-                <div className="day-label" style={{ gridRow: 6 }}>F</div>
-                
-                {/* Calendar Squares */}
-                {calendarDates.map(({ dateStr }, index) => {
-                    const hasCpd = loggedDates.has(dateStr);
-                    const isToday = dateStr === todayStr;
-                    
-                    // Column is the week number (0-52), Row is the day of the week (0-6)
-                    // We render backwards (latest day first) but arrange left-to-right.
-                    // The CSS handles the layout based on flex/grid.
-                    return (
-                        <div
-                            key={index}
-                            className={`calendar-square ${hasCpd ? 'has-cpd' : ''} ${isToday ? 'is-today' : ''}`}
-                            data-date={dateStr}
-                            title={`${dateStr}: ${hasCpd ? 'Logged' : 'No Log'}`}
-                        />
-                    );
-                })}
+                {/* Main Grid - Starts from Oldest (left) to Today (right) */}
+                <div className="calendar-grid">
+                    {calendarDates.map(({ date: dateObj, dateStr }, index) => {
+                        const hasCpd = loggedDates.has(dateStr);
+                        const isToday = dateStr === todayStr;
+                        const dayOfWeek = dateObj.getDay(); // 0=Sunday, 6=Saturday
+                        
+                        // The CSS grid is set up to auto-flow, but we use inline styles to force
+                        // the correct row based on the day of the week (0-indexed array = day of week)
+                        return (
+                            <div
+                                key={index}
+                                className={`calendar-square ${hasCpd ? 'has-cpd' : ''} ${isToday ? 'is-today' : ''}`}
+                                // Set grid-row explicitly for perfect alignment
+                                style={{ gridRow: dayOfWeek + 1 }} 
+                                data-date={dateStr}
+                                title={`${dateStr}: ${hasCpd ? 'Logged' : 'No Log'}`}
+                            />
+                        );
+                    })}
+                </div>
             </div>
+
             <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.8rem', marginTop: 12 }}>
                 <span style={{ color: 'var(--umbil-muted)', marginRight: 4 }}>Less</span>
                 <span className="color-legend color-0"></span>

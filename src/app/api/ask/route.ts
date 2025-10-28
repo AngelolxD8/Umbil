@@ -29,8 +29,8 @@ type ClientMessage = {
 
 // --- RESTORED API CONFIGURATION (GPT-4o-mini) ---
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL_NAME = "gpt-4o-mini"; // Reverted to the original model
-const API_KEY = process.env.OPENAI_API_KEY; // Reverted to original environment variable
+const MODEL_NAME = "gpt-4o-mini"; 
+const API_KEY = process.env.OPENAI_API_KEY; 
 // --------------------------------------------------
 
 // Conceptual In-Memory Cache (Non-persistent across lambda cold starts, but catches immediate repeats)
@@ -50,9 +50,9 @@ function sanitizeQuery(query: string): string {
     return sanitized;
 }
 
-// --- CORRECTED CORE INSTRUCTIONS (Restoring mandatory source list) ---
+// --- CORRECTED CORE INSTRUCTIONS (Sources instruction removed) ---
 const CORE_INSTRUCTIONS =
-  "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **MANDATORY: Conclude your answer with a section titled 'Trusted Sources' followed by a bulleted list of 3-5 key sources used to formulate the advice.** **DO NOT generate names, identifiers, or PHI.**";
+  "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **DO NOT generate names, identifiers, or PHI.**";
 // ----------------------------------------------------------------------
 
 const TONE_PROMPTS: Record<string, string> = {

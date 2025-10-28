@@ -666,62 +666,57 @@ a {
 
 /* --- NEW STYLES FOR CPD STREAK CALENDAR --- */
 
-.calendar-grid {
-    display: grid;
-    /* 7 days of the week, plus one column for the labels */
-    grid-template-columns: auto repeat(53, 1fr); 
-    grid-template-rows: repeat(7, 1fr); /* 7 days of the week */
-    gap: 3px;
-    padding: 5px;
-    overflow-x: auto; /* Allow scrolling for wide calendar view */
-    /* Ensure the grid wraps nicely in smaller spaces */
-    max-width: 100%;
+.calendar-grid-container {
+    display: flex;
+    overflow-x: auto;
+    /* Hide the scrollbar if possible but maintain functionality */
+    scrollbar-width: none; /* Firefox */
+}
+.calendar-grid-container::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
 }
 
-.day-label {
-    grid-column: 1; /* Always in the first column */
+.day-labels-column {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    margin-right: 5px;
+    padding-top: 2px; /* Slight alignment adjustment */
+}
+
+.day-label-item {
+    height: 14px; /* Matches square height */
     font-size: 10px;
     font-weight: 500;
     color: var(--umbil-muted);
     text-align: right;
-    padding-right: 5px;
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    /* Manually position Mon, Wed, Fri rows (1-indexed for the grid rows) */
+    line-height: 14px;
 }
 
-/* Day labels placement (Mon=row 2, Wed=row 4, Fri=row 6) */
-.day-label:nth-of-type(1) { grid-row: 2; }
-.day-label:nth-of-type(2) { grid-row: 4; }
-.day-label:nth-of-type(3) { grid-row: 6; }
-
+.calendar-grid {
+    display: grid;
+    /* 7 days of the week for the rows */
+    grid-template-rows: repeat(7, 1fr); 
+    /* The auto-flow handles the 52 columns seamlessly */
+    grid-auto-flow: column; 
+    grid-auto-columns: 17px; /* Define column width (14px square + 3px gap) */
+    gap: 3px;
+}
 
 .calendar-square {
     width: 14px;
     height: 14px;
     border-radius: 2px;
     background-color: var(--umbil-hover-bg); /* Base color (no CPD) */
-    transition: all 0.2s;
+    transition: background-color 0.2s, opacity 0.2s;
     position: relative;
-    
-    /* Calculate position in grid: date.getDay() returns 0 (Sun) to 6 (Sat)
-       CSS Grid rows are 1-indexed (1 to 7) */
-    grid-row: auto;
-    grid-column: auto;
+    /* Now positioned by grid-row inline style in JSX */
 }
 
 /* Style for days with CPD (using teal brand color for "green") */
 .calendar-square.has-cpd {
     background-color: var(--umbil-brand-teal); /* Darker teal for presence */
     opacity: 0.8;
-}
-/* ... rest of your CSS ... */
-
-/* Light mode hover/focus effect */
-.calendar-square:hover:not(.has-cpd) {
-    background-color: var(--umbil-card-border);
-    cursor: pointer;
 }
 
 /* Indicator for today's square */
