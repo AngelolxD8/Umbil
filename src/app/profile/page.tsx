@@ -27,12 +27,6 @@ const getLastYearDates = () => {
     let d = new Date(); 
     d.setHours(0, 0, 0, 0); 
     
-    // Determine the day of the week for today (0=Sunday, 6=Saturday)
-    // const todayDayOfWeek = d.getDay(); // WARNING FIX: Removed unused variable
-    
-    // Calculate how many filler days we need at the beginning to ensure the first column is Sunday.
-    // const fillerDaysAtStart = 7; // WARNING FIX: Removed unused variable
-    
     // Total days needed: 52 weeks * 7 days + 7 filler days for initial alignment
     const TOTAL_DAYS_TO_RENDER = 365 + 7;
     
@@ -43,7 +37,6 @@ const getLastYearDates = () => {
     for (let i = 0; i < TOTAL_DAYS_TO_RENDER; i++) {
         const dateStr = cursorDate.toISOString().split('T')[0];
         
-        // This is complex, but we need the date array to be in order of rendering: 
         // OLDER (top-left) -> NEWER (bottom-right).
         dates.unshift({ date: new Date(cursorDate), dateStr, isFiller: false });
         cursorDate.setDate(cursorDate.getDate() - 1);
@@ -58,7 +51,8 @@ const getLastYearDates = () => {
 };
 
 type StreakCalendarProps = {
-    loggedDates: Set<string>;
+    // Correctly defined as a Map for count/shading feature
+    loggedDates: Map<string, number>; 
     currentStreak: number;
     longestStreak: number;
     loading: boolean;
@@ -69,13 +63,23 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: 
     const calendarDates = useMemo(getLastYearDates, []);
     const todayStr = new Date().toISOString().split('T')[0];
     
-    // Display only 5 labels for better visibility: Sun, Mon, Wed, Fri, Sat
+    // Display only 5 labels for better visibility: S, M, T, W, T, F, S
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
     if (loading) {
         return <p>Loading CPD learning history...</p>;
     }
     
+    // Helper to determine the shading level (1-4)
+    const getShadeLevel = (count: number) => {
+        if (count === 0) return 0;
+        // Simple fixed tiers for visual density: 1, 2-3, 4-5, 6+
+        if (count >= 6) return 4;
+        if (count >= 4) return 3;
+        if (count >= 2) return 2;
+        return 1; // 1 log = level 1
+    }
+
     return (
         <div className="card" style={{ marginTop: 24, padding: 20 }}>
             <h3 style={{ marginBottom: 16 }}>CPD Learning History</h3>
@@ -89,7 +93,7 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: 
             </div>
             
             <div className="calendar-grid-container">
-                {/* Day Labels Column - Positioned absolutely via CSS */}
+                {/* Day Labels Column - Positioned alongside the grid */}
                 <div className="day-labels-column">
                     {dayLabels.map((label, index) => (
                         <div key={index} className="day-label-item">
@@ -102,20 +106,22 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: 
                 {/* Main Grid - Starts from Oldest (left) to Today (right) */}
                 <div className="calendar-grid">
                     {calendarDates.map(({ date: dateObj, dateStr }, index) => {
-                        const hasCpd = loggedDates.has(dateStr);
+                        // Use the Map to get the count for shading/tooltip
+                        const count = loggedDates.get(dateStr) || 0;
                         const isToday = dateStr === todayStr;
-                        const dayOfWeek = dateObj.getDay(); // 0=Sunday, 6=Saturday
-                        
-                        // The CSS grid is set up to auto-flow, but we use inline styles to force
-                        // the correct row based on the day of the week (0-indexed array = day of week)
+                        const dayOfWeek = dateObj.getDay(); 
+                        const level = getShadeLevel(count);
+
                         return (
                             <div
                                 key={index}
-                                className={`calendar-square ${hasCpd ? 'has-cpd' : ''} ${isToday ? 'is-today' : ''}`}
-                                // Set grid-row explicitly for perfect alignment
+                                // NEW CLASS: Use level for shading
+                                className={`calendar-square level-${level} ${isToday ? 'is-today' : ''}`} 
+                                // RESTORED TOOLTIP: Show log count
+                                title={`${dateStr}: ${count} ${count === 1 ? 'log' : 'logs'}`}
+                                // Set grid-row explicitly for perfect alignment (0=Sunday is row 1)
                                 style={{ gridRow: dayOfWeek + 1 }} 
                                 data-date={dateStr}
-                                title={`${dateStr}: ${hasCpd ? 'Logged' : 'No Log'}`}
                             />
                         );
                     })}
@@ -124,8 +130,11 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: 
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.8rem', marginTop: 12 }}>
                 <span style={{ color: 'var(--umbil-muted)', marginRight: 4 }}>Less</span>
-                <span className="color-legend color-0"></span>
-                <span className="color-legend has-cpd"></span>
+                <span className="color-legend level-0"></span>
+                <span className="color-legend level-1"></span>
+                <span className="color-legend level-2"></span>
+                <span className="color-legend level-3"></span>
+                <span className="color-legend level-4"></span>
                 <span style={{ color: 'var(--umbil-muted)', marginLeft: 4 }}>More</span>
             </div>
         </div>
@@ -145,7 +154,7 @@ export default function ProfilePage() {
   // Assume a new user if no profile data is loaded initially
   const [isNewUser, setIsNewUser] = useState(true);
   
-  // <-- NEW: Fetch streak data
+  // Fetch streak data 
   const { dates: loggedDates, currentStreak, longestStreak, loading: streaksLoading } = useCpdStreaks();
 
   // Redirect unauthenticated users to the sign-in page
@@ -193,7 +202,7 @@ export default function ProfilePage() {
       <div className="container">
         <h2>{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h2>
         
-        {/* NEW: Streak Calendar Display */}
+        {/* Streak Calendar Display */}
         <StreakCalendar 
             loggedDates={loggedDates} 
             currentStreak={currentStreak} 
