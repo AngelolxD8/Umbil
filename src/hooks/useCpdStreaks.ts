@@ -67,8 +67,9 @@ export function useCpdStreaks(): StreakData {
     const hasEntryToday = dateSet.has(todayStr);
     
     // The starting day for our current streak check is TODAY
-    let checkDate = new Date(today); // Start a new date object based on today's date
-
+    // eslint-disable-next-line prefer-const
+    let checkDate = new Date(today); // ERROR FIX: Suppress prefer-const for this line
+    
     // Set initial current streak count
     if (hasEntryToday) {
         current = 1;

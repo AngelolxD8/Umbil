@@ -28,11 +28,10 @@ const getLastYearDates = () => {
     d.setHours(0, 0, 0, 0); 
     
     // Determine the day of the week for today (0=Sunday, 6=Saturday)
-    const todayDayOfWeek = d.getDay(); 
+    // const todayDayOfWeek = d.getDay(); // WARNING FIX: Removed unused variable
     
     // Calculate how many filler days we need at the beginning to ensure the first column is Sunday.
-    // This is the number of days needed to fill the grid up to the Monday start of the calendar.
-    const fillerDaysAtStart = 7; // We will generate enough to fill the first column for alignment
+    // const fillerDaysAtStart = 7; // WARNING FIX: Removed unused variable
     
     // Total days needed: 52 weeks * 7 days + 7 filler days for initial alignment
     const TOTAL_DAYS_TO_RENDER = 365 + 7;

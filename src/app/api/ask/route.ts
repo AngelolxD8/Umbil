@@ -29,8 +29,8 @@ type ClientMessage = {
 
 // --- RESTORED API CONFIGURATION (GPT-4o-mini) ---
 const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL_NAME = "gpt-4o-mini"; 
-const API_KEY = process.env.OPENAI_API_KEY; 
+const MODEL_NAME = "gpt-4o-mini"; // Model restored
+const API_KEY = process.env.OPENAI_API_KEY; // API Key variable restored
 // --------------------------------------------------
 
 // Conceptual In-Memory Cache (Non-persistent across lambda cold starts, but catches immediate repeats)
@@ -50,7 +50,7 @@ function sanitizeQuery(query: string): string {
     return sanitized;
 }
 
-// --- CORRECTED CORE INSTRUCTIONS (Sources instruction removed) ---
+// --- CORE INSTRUCTIONS (Sources requirement removed) ---
 const CORE_INSTRUCTIONS =
   "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **DO NOT generate names, identifiers, or PHI.**";
 // ----------------------------------------------------------------------
@@ -85,7 +85,7 @@ function handleRateLimit(request: NextRequest): { isLimited: boolean, nextCookie
         currentCount = data.count;
         resetTime = data.resetTime;
       }
-    } catch (_e: unknown) {
+    } catch (_e: unknown) { // FIX: Using _e to silence the ESLint warning/error
       // Ignore parsing errors, reset data
     }
   }
