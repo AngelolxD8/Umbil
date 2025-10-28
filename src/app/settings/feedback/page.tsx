@@ -7,44 +7,47 @@ import { useState } from "react";
 const EXTERNAL_FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform";
 
 export default function FeedbackPage() {
-  const [hasClicked, setHasClicked] = useState(false); // New state to manage display after click
+  const [hasClicked, setHasClicked] = useState(false); 
 
   const handleClick = () => {
     // In a real application, you might log the click event to Supabase here.
     setHasClicked(true);
-    // Note: The external form will open in a new tab/window via the <a> tag,
-    // so we don't need explicit routing here.
   };
 
   return (
     <section className="main-content">
-      <div className="container">
-        <h2>Send Feedback & Suggestions</h2>
-        <div className="card" style={{ marginTop: 16 }}>
-          <div className="card__body" style={{ textAlign: 'center', padding: '30px' }}>
+      <div className="container" style={{ textAlign: 'center' }}>
+        
+        {/* IMPROVEMENT 1: New Title Text and Center Alignment */}
+        <h2 style={{ marginBottom: 24, marginTop: 40 }}>Your Feedback & Ideas</h2> 
+        
+        <div className="card" style={{ maxWidth: 500, margin: '0 auto', padding: '30px' }}>
+          <div className="card__body" style={{ textAlign: 'center' }}>
             
             {!hasClicked ? (
               <>
-                <p className="section-description" style={{ marginBottom: 20 }}>
-                  Have a suggestion, found a bug, or have an idea for a new feature? We want to hear it!
-                  <br />
-                  Click the button below to submit your feedback via our secure external form.
+                {/* IMPROVEMENT 2: New Flow Text */}
+                <p className="section-description" style={{ marginBottom: 20, fontSize: '1.1rem', fontWeight: 500 }}>
+                  Ready to share your insights? We thrive on suggestions, bug reports, and feature ideas from clinicians like you.
+                </p>
+                <p className="section-description" style={{ marginBottom: 30, color: 'var(--umbil-muted)' }}>
+                  Click below to submit your feedback via our secure external form. It only takes a minute!
                 </p>
 
                 <a 
                   className="btn btn--primary" 
                   href={EXTERNAL_FEEDBACK_FORM_URL}
-                  target="_blank" // Opens the form in a new tab
+                  target="_blank" 
                   rel="noopener noreferrer"
                   onClick={handleClick}
                 >
-                  📝 Open External Feedback Form
+                  📝 Open Feedback Form
                 </a>
               </>
             ) : (
               <div style={{ padding: '20px 0' }}>
-                <h3 style={{color: 'var(--umbil-brand-teal)', marginBottom: 12}}>Thank you!</h3>
-                <p>The feedback form should have opened in a new window.</p>
+                <h3 style={{color: 'var(--umbil-brand-teal)', marginBottom: 12}}>Thank You!</h3>
+                <p>The feedback form should have opened in a new window. We appreciate your input.</p>
                 <button 
                     className="btn btn--outline" 
                     style={{marginTop: 20}}
