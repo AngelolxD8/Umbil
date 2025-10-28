@@ -20,16 +20,12 @@ export default function CallbackHandler() {
       
       // If the URL parameters indicate recovery (type is 'recovery')
       // AND we have successfully exchanged it for a session, 
-      // redirect them to the dedicated password update page.
+      // replace the current URL with the update-password page.
       if (session && recoveryType === 'recovery') {
-        // FIX: Use replace to prevent navigation history issues
         router.replace("/auth/update-password"); 
-      } else if (session) {
-        // For all other successful flows (sign-in, sign-up, OAuth), just go home
-        router.replace("/");
       } else {
-        // Fallback: If no session is found, go to the sign-in page.
-        router.replace("/auth");
+        // For all other flows (sign-in, sign-up, OAuth, or bad link), go home/auth page.
+        router.replace("/");
       }
     };
     handleAuthCallback();
