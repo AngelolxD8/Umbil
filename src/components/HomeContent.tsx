@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ReflectionModal from "@/components/ReflectionModal";
 import Toast from "@/components/Toast";
+// Updated addCPD will now be the remote save function
 import { addCPD, CPDEntry } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
@@ -127,17 +128,19 @@ export default function HomeContent() {
       const data: AskResponse = await res.json();
       
       if (res.status === 402 && data.pro_url) {
-          // --- NEW RATE LIMIT HANDLING ---
+          // --- NEW RATE LIMIT HANDLING (Using Markdown Header for visual consistency) ---
           const errorContent = `
-          **Free Tier Limit Reached** You've reached the maximum number of questions per hour on our free tier. 
-          
-          To continue your seamless learning, consider upgrading to Umbil Pro for unlimited queries.
+### Free Tier Limit Reached! ⚠️
+            
+You've reached the limit of **10 questions per hour** on the free tier.
+
+To continue your seamless learning, consider upgrading to Umbil Pro for unlimited queries.
           `;
           
           setConversation((prev) => [...prev, { 
               type: "umbil", 
               content: errorContent, 
-              pro_url: data.pro_url // Pass the URL to the rendering function
+              pro_url: data.pro_url 
           }]);
           // --- END RATE LIMIT HANDLING ---
       } else if (!res.ok) {
