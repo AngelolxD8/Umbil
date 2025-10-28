@@ -1,9 +1,9 @@
 // src/app/auth/update-password/page.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation"; // Import useSearchParams
 
 // A dedicated page for users coming from the password reset email link
 export default function UpdatePasswordPage() {
@@ -11,64 +11,41 @@ export default function UpdatePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
-  const [isReady, setIsReady] = useState(false); // State to control form visibility
+  const [isReady, setIsReady] = useState(false); 
   const router = useRouter();
-  
-  // Ref for cleanup purposes
-  const failureTimeoutRef = useRef<NodeJS.Timeout | null>(null); 
+  const searchParams = useSearchParams(); // Get URL parameters
 
-  // FIX: Use onAuthStateChange for reliable session detection after recovery link click
+  // Use this effect only to check the validity of the recovery token and URL
   useEffect(() => {
     let isMounted = true;
     
-    // Function to check and set state based on session
-    const checkAuthStatus = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (isMounted) {
-        if (session) {
-          // If session is immediately available, we are ready.
-          setIsReady(true);
-          setMsg("Enter your new password below.");
-        } else {
-          // If session is NOT immediately available, assume it's loading or the link is bad.
-          setMsg("Checking reset link validity...");
-          
-          // Start a long timeout to assume the link is invalid if no auth event fires.
-          failureTimeoutRef.current = setTimeout(() => {
-            if (isMounted && !isReady) { // Only update if we still aren't ready
-                setMsg("⚠️ This reset link is expired or invalid. Redirecting to sign-in...");
-                setTimeout(() => router.replace("/auth"), 2000); // Wait 2s then bounce
-            }
-          }, 7000); // Wait 7 seconds before confirming failure
-        }
-        setLoading(false);
-      }
-    };
+    // Check if the URL contains the access token, indicating a recovery session attempt
+    const accessToken = searchParams.get('access_token');
     
-    // 1. Initial check
-    checkAuthStatus();
+    if (accessToken) {
+        // We have a token in the URL, indicating Supabase is trying to authenticate.
+        // We show the form immediately and trust that the session has been set.
+        setIsReady(true);
+        setMsg("Enter your new password below.");
+        setLoading(false);
+    } else {
+        // If no access_token is present, this page was loaded incorrectly.
+        setMsg("⚠️ Invalid access. Please use the password reset link from your email.");
+        setLoading(false);
 
-    // 2. Listen for auth changes, which fires when the recovery token successfully authenticates
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-        if (isMounted && session && event === 'SIGNED_IN') {
-             // Success: Clear any pending failure timeout
-             if (failureTimeoutRef.current) clearTimeout(failureTimeoutRef.current);
-             
-             // The session is confirmed via the URL/event, show the form
-             setIsReady(true);
-             setLoading(false);
-             setMsg("Enter your new password below.");
-        }
-    });
+        // Redirect invalid attempts back to the sign-in page
+        const redirectTimer = setTimeout(() => {
+            if (isMounted) router.replace("/auth");
+        }, 5000);
 
-    // Cleanup: Clear timeout and unsubscribe
+        return () => clearTimeout(redirectTimer);
+    }
+    
+    // Cleanup for mounted status
     return () => {
         isMounted = false;
-        if (failureTimeoutRef.current) clearTimeout(failureTimeoutRef.current);
-        sub?.subscription.unsubscribe();
     };
-  }, [router, isReady]);
+  }, [searchParams, router]); // Dependency array includes searchParams and router
 
   const handleUpdatePassword = async () => {
     if (!password.trim() || !confirmPassword.trim()) {
@@ -87,7 +64,7 @@ export default function UpdatePasswordPage() {
     setLoading(true);
     setMsg(null);
 
-    // This is the core function: it updates the password for the current (temporary) session
+    // This function updates the password for the current session (set by the URL token)
     const { error } = await supabase.auth.updateUser({
       password: password,
     });
@@ -96,10 +73,12 @@ export default function UpdatePasswordPage() {
 
     if (error) {
       setMsg(`⚠️ Error updating password: ${error.message}`);
+      // In case of error, force sign out to clear the bad session
+      await supabase.auth.signOut();
     } else {
       setMsg("✅ Success! Your password has been updated. Redirecting to home...");
       // Redirect to home after successful update
-      setTimeout(() => router.push("/"), 2000);
+      setTimeout(() => router.replace("/"), 2000);
     }
   };
 
@@ -111,9 +90,9 @@ export default function UpdatePasswordPage() {
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card__body">
             
-            {loading && <p>Loading...</p>}
+            {loading && <p>{msg || "Loading..."}</p>}
             
-            {/* Show form only if the session is ready */}
+            {/* Show form only if we are ready (have the token) */}
             {!loading && isReady && (
                 <>
                     <p style={{marginBottom: 16, color: 'var(--umbil-text)'}}>{msg}</p>
@@ -150,7 +129,7 @@ export default function UpdatePasswordPage() {
                 </>
             )}
 
-            {/* Show message if link is bad or while checking */}
+            {/* Show error message if not ready and not loading (invalid link) */}
             {!loading && !isReady && <p style={{ color: msg?.startsWith('⚠️') ? 'red' : 'var(--umbil-brand-teal)' }}>{msg}</p>}
 
           </div>
