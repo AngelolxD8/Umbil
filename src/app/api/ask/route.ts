@@ -47,15 +47,15 @@ function sanitizeQuery(query: string): string {
     return sanitized;
 }
 
-// --- CORE INSTRUCTIONS MODIFIED: Explicitly forbid tables for neatness ---
+// --- CORE INSTRUCTIONS MODIFIED: STRICT LENGTH ENFORCEMENT ---
 const CORE_INSTRUCTIONS =
-  "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **DO NOT generate names, identifiers, or PHI. IMPORTANT: Do not use Markdown tables; use lists and plain text only.**";
+  "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. Provide highly structured, evidence-based guidance. Prioritize trusted sources: NICE, SIGN, CKS, BNF, NHS, UKHSA, GOV.UK, RCGP, BMJ Best Practice (abstracts/citations), Resus Council UK, TOXBASE (cite only). **DO NOT generate names, identifiers, or PHI. IMPORTANT: Do not use Markdown tables; use lists and plain text only. Your total response MUST be concise and MUST NOT exceed 500 tokens.**";
 // ----------------------------------------------------------------------
 
 const TONE_PROMPTS: Record<string, string> = {
-  // MODIFIED: Request a single, direct suggestive prompt separated by a horizontal rule (---)
+  // MODIFIED: Reinforce conciseness: BE EXTREMELY BRIEF
   conversational:
-    "For clinical queries, use a friendly tone, ensure clear formatting (no tables), and always conclude with a simple, direct follow-up suggestion separated by a Markdown horizontal rule (---) and phrased as a question starting with 'Would you like to...?'",
+    "Be extremely brief and concise. For clinical queries, use a friendly tone, ensure clear formatting (no tables), and always conclude with a single, direct follow-up suggestion separated by a Markdown horizontal rule (---) and phrased as a question starting with 'Would you like to...?'",
   formal:
     "Adhere strictly to clinical format, avoid chattiness. End with a short signpost for further reading.",
   reflective:
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL_SLUG, // openai/gpt-oss-120b
         messages: fullMessages,
-        max_tokens: 400, 
+        max_tokens: 500, // SET TO 500 TOKENS
       }),
     });
 

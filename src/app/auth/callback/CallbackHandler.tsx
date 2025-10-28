@@ -16,17 +16,20 @@ export default function CallbackHandler() {
       const { data: { session } } = await supabase.auth.getSession();
 
       // 2. Check URL parameters
-      // Removed unused 'recoveryToken' to fix the ESLint warning.
       const recoveryType = searchParams.get('type');
       
       // If the URL parameters indicate recovery (type is 'recovery')
       // AND we have successfully exchanged it for a session, 
       // redirect them to the dedicated password update page.
       if (session && recoveryType === 'recovery') {
-        router.push("/auth/update-password"); 
-      } else {
+        // FIX: Use replace to prevent navigation history issues
+        router.replace("/auth/update-password"); 
+      } else if (session) {
         // For all other successful flows (sign-in, sign-up, OAuth), just go home
-        router.push("/");
+        router.replace("/");
+      } else {
+        // Fallback: If no session is found, go to the sign-in page.
+        router.replace("/auth");
       }
     };
     handleAuthCallback();

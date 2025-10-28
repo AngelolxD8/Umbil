@@ -1,7 +1,7 @@
 // src/app/auth/update-password/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
@@ -11,8 +11,11 @@ export default function UpdatePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
-  const [isReady, setIsReady] = useState(false); // New state to control form visibility
+  const [isReady, setIsReady] = useState(false); // State to control form visibility
   const router = useRouter();
+  
+  // Ref for cleanup purposes
+  const failureTimeoutRef = useRef<NodeJS.Timeout | null>(null); 
 
   // FIX: Use onAuthStateChange for reliable session detection after recovery link click
   useEffect(() => {
@@ -24,15 +27,20 @@ export default function UpdatePasswordPage() {
       
       if (isMounted) {
         if (session) {
+          // If session is immediately available, we are ready.
           setIsReady(true);
           setMsg("Enter your new password below.");
         } else {
-          setIsReady(false);
-          setMsg("⚠️ This reset link is expired or invalid. Please request a new one.");
-          // Redirect to sign-in page after a delay if the link is bad
-          setTimeout(() => {
-            if (isMounted) router.push("/auth");
-          }, 5000);
+          // If session is NOT immediately available, assume it's loading or the link is bad.
+          setMsg("Checking reset link validity...");
+          
+          // Start a long timeout to assume the link is invalid if no auth event fires.
+          failureTimeoutRef.current = setTimeout(() => {
+            if (isMounted && !isReady) { // Only update if we still aren't ready
+                setMsg("⚠️ This reset link is expired or invalid. Redirecting to sign-in...");
+                setTimeout(() => router.replace("/auth"), 2000); // Wait 2s then bounce
+            }
+          }, 7000); // Wait 7 seconds before confirming failure
         }
         setLoading(false);
       }
@@ -44,6 +52,9 @@ export default function UpdatePasswordPage() {
     // 2. Listen for auth changes, which fires when the recovery token successfully authenticates
     const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
         if (isMounted && session && event === 'SIGNED_IN') {
+             // Success: Clear any pending failure timeout
+             if (failureTimeoutRef.current) clearTimeout(failureTimeoutRef.current);
+             
              // The session is confirmed via the URL/event, show the form
              setIsReady(true);
              setLoading(false);
@@ -51,12 +62,13 @@ export default function UpdatePasswordPage() {
         }
     });
 
-    // Cleanup
+    // Cleanup: Clear timeout and unsubscribe
     return () => {
         isMounted = false;
+        if (failureTimeoutRef.current) clearTimeout(failureTimeoutRef.current);
         sub?.subscription.unsubscribe();
     };
-  }, [router]);
+  }, [router, isReady]);
 
   const handleUpdatePassword = async () => {
     if (!password.trim() || !confirmPassword.trim()) {
@@ -138,7 +150,7 @@ export default function UpdatePasswordPage() {
                 </>
             )}
 
-            {/* Show message if link is bad or after success */}
+            {/* Show message if link is bad or while checking */}
             {!loading && !isReady && <p style={{ color: msg?.startsWith('⚠️') ? 'red' : 'var(--umbil-brand-teal)' }}>{msg}</p>}
 
           </div>
