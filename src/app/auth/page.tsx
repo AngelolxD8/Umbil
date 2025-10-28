@@ -212,7 +212,6 @@ export default function AuthPage() {
               )}
             </p>
 
-            {/* MESSAGE NOW INSIDE card__body */}
             {msg && <p style={{ marginTop: 12, color: msg.startsWith('⚠️') ? 'red' : 'var(--umbil-brand-teal)' }}>{msg}</p>}
           </div>
         </div>

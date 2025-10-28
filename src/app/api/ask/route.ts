@@ -53,9 +53,9 @@ const CORE_INSTRUCTIONS =
 // ----------------------------------------------------------------------
 
 const TONE_PROMPTS: Record<string, string> = {
-  // MODIFIED: Request a more explicit ChatGPT-style suggestion
+  // MODIFIED: Request a single, direct suggestive prompt separated by a horizontal rule (---)
   conversational:
-    "For clinical queries, use a friendly tone, start with a brief overview, and conclude with two relevant follow-up suggestions or actions, formatted as: 'Would you like me to...?'",
+    "For clinical queries, use a friendly tone, ensure clear formatting (no tables), and always conclude with a simple, direct follow-up suggestion separated by a Markdown horizontal rule (---) and phrased as a question starting with 'Would you like to...?'",
   formal:
     "Adhere strictly to clinical format, avoid chattiness. End with a short signpost for further reading.",
   reflective:

@@ -11,25 +11,51 @@ export default function UpdatePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
-  const [session, setSession] = useState<boolean>(false);
+  const [isReady, setIsReady] = useState(false); // New state to control form visibility
   const router = useRouter();
 
-  // Check if a valid session exists on load (meaning the token worked)
+  // FIX: Use onAuthStateChange for reliable session detection after recovery link click
   useEffect(() => {
-    const checkSession = async () => {
+    let isMounted = true;
+    
+    // Function to check and set state based on session
+    const checkAuthStatus = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      // If we have a session, the recovery token was successfully exchanged.
-      if (session) {
-        setSession(true);
-        setMsg("Enter your new password below.");
-      } else {
-        setMsg("⚠️ This reset link is expired or invalid. Please request a new one.");
-        // Redirect to sign-in page after a delay if the link is bad
-        setTimeout(() => router.push("/auth"), 5000);
+      
+      if (isMounted) {
+        if (session) {
+          setIsReady(true);
+          setMsg("Enter your new password below.");
+        } else {
+          setIsReady(false);
+          setMsg("⚠️ This reset link is expired or invalid. Please request a new one.");
+          // Redirect to sign-in page after a delay if the link is bad
+          setTimeout(() => {
+            if (isMounted) router.push("/auth");
+          }, 5000);
+        }
+        setLoading(false);
       }
-      setLoading(false);
     };
-    checkSession();
+    
+    // 1. Initial check
+    checkAuthStatus();
+
+    // 2. Listen for auth changes, which fires when the recovery token successfully authenticates
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+        if (isMounted && session && event === 'SIGNED_IN') {
+             // The session is confirmed via the URL/event, show the form
+             setIsReady(true);
+             setLoading(false);
+             setMsg("Enter your new password below.");
+        }
+    });
+
+    // Cleanup
+    return () => {
+        isMounted = false;
+        sub?.subscription.unsubscribe();
+    };
   }, [router]);
 
   const handleUpdatePassword = async () => {
@@ -75,8 +101,8 @@ export default function UpdatePasswordPage() {
             
             {loading && <p>Loading...</p>}
             
-            {/* Show form only if a valid session exists from the link */}
-            {!loading && session && (
+            {/* Show form only if the session is ready */}
+            {!loading && isReady && (
                 <>
                     <p style={{marginBottom: 16, color: 'var(--umbil-text)'}}>{msg}</p>
                     <div className="form-group">
@@ -113,7 +139,7 @@ export default function UpdatePasswordPage() {
             )}
 
             {/* Show message if link is bad or after success */}
-            {!loading && !session && <p style={{ color: msg?.startsWith('⚠️') ? 'red' : 'var(--umbil-brand-teal)' }}>{msg}</p>}
+            {!loading && !isReady && <p style={{ color: msg?.startsWith('⚠️') ? 'red' : 'var(--umbil-brand-teal)' }}>{msg}</p>}
 
           </div>
         </div>
