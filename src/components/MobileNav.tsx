@@ -59,6 +59,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     router.push("/"); 
   };
 
+  // --- REVERTED MENU ORDER with Feedback link in the list ---
   const menuItems = [
     { href: "/about", label: "About Umbil" },
     { href: "/cpd", label: "My CPD", requiresAuth: true },
@@ -66,8 +67,11 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     { href: "/profile", label: "My Profile", requiresAuth: true },
     { href: "/pro", label: "Umbil Pro ✨", requiresAuth: false }, 
     { href: "/settings", label: "Settings" },
+    // Reinstated in the list
+    { href: "/settings/feedback", label: "Send Feedback" }, 
   ];
-  
+  // -------------------------------------------------------------
+
   // Only show auth-gated links if the user is logged in
   const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || userEmail);
 
@@ -124,21 +128,12 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           ))}
         </nav>
         
-        {/* NEW: Dedicated Feedback Section at the bottom */}
-        <div className="sidebar-footer-group" style={{ marginTop: '20px', padding: '16px 0', borderTop: '1px solid var(--umbil-divider)'}}>
-            <Link 
-                href="/settings/feedback" 
-                className="btn btn--outline"
-                style={{ width: '100%', marginBottom: '12px' }}
-                onClick={onClose}
-            >
-                ⭐ Send Feedback & Suggestions
-            </Link>
-        </div>
+        {/* Removed: Dedicated Feedback Section footer-group */}
         
         {/* START: User Profile and Sign Out Section */}
         {userEmail && profile && (
-            <div className="sidebar-footer-group" style={{ padding: '0 0 16px 0', borderTop: '1px solid var(--umbil-divider)' }}>
+            // Reinstated padding and top border on the profile section
+            <div style={{ padding: '16px 0', borderTop: '1px solid var(--umbil-divider)', marginTop: 'auto' }}>
                 <div className="profile-info-sidebar">
                     {/* Display Full Name if available, otherwise fallback to email/default */}
                     <span className="user-name">{profile.full_name || email || 'User Profile'}</span> 
@@ -155,7 +150,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         )}
 
         {/* DARK MODE TOGGLE FIX: Restored the exact JSX structure required for the switch CSS */}
-        <div style={{ padding: '12px 16px', borderTop: userEmail ? '1px solid var(--umbil-divider)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--umbil-divider)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 500 }}>
               {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
             </span>
@@ -205,10 +200,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         }
         /* End NEW STREAK DISPLAY STYLE */
         
-        /* New style for the feedback button group to ensure spacing consistency */
-        .sidebar-footer-group {
-            padding: 0 16px;
-        }
+        /* Removed: New style for the feedback button group to ensure spacing consistency */
 
         /* The switch - the box around the slider */
         .switch {

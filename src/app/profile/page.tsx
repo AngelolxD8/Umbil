@@ -19,35 +19,29 @@ function getErrorMessage(e: unknown): string {
 
 // --- NEW COMPONENT: Streak Calendar ---
 
-// Helper to generate the last 364 days of dates + filler days to start on a Sunday (371 total)
+// Helper to generate exactly 364 calendar squares for the last 52 weeks (always ends with today)
 const getLastYearDates = () => {
     const dates: { date: Date; dateStr: string; isFiller: boolean }[] = [];
     
-    // eslint-disable-next-line prefer-const
-    let d = new Date(); 
-    d.setHours(0, 0, 0, 0); 
+    // Start with today's date, normalized to midnight
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); 
     
-    // Total days needed: 52 weeks * 7 days + 7 filler days for initial alignment
-    const TOTAL_DAYS_TO_RENDER = 365 + 7;
+    const cursorDate = new Date(today);
     
-    // Clone today's date to work backwards
-    const cursorDate = new Date(d);
-    
-    // Generate dates working backwards from today, plus extra days for alignment
-    for (let i = 0; i < TOTAL_DAYS_TO_RENDER; i++) {
+    // We want 52 weeks of squares, so 7 * 52 = 364 days.
+    // The loop iterates 364 times, creating 364 dates, with the newest date added last.
+    for (let i = 0; i < 364; i++) {
         const dateStr = cursorDate.toISOString().split('T')[0];
         
-        // OLDER (top-left) -> NEWER (bottom-right).
+        // Add to the front so the array goes [Oldest...Today]
         dates.unshift({ date: new Date(cursorDate), dateStr, isFiller: false });
+        
+        // Move to the previous day
         cursorDate.setDate(cursorDate.getDate() - 1);
     }
     
-    // Now trim the beginning of the list so 'Today' is the very last square in the view.
-    // The calendar shows 52 columns of 7 days, so 52 * 7 = 364 days needed.
-    const trimAmount = dates.length - 364; // Keep only the last 364
-    const trimmedDates = dates.slice(trimAmount);
-    
-    return trimmedDates;
+    return dates;
 };
 
 type StreakCalendarProps = {

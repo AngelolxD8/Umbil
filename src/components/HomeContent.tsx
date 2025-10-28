@@ -53,6 +53,7 @@ export default function HomeContent() {
   const [loadingMsg, setLoadingMsg] = useState(loadingMessages[0]);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null); // NEW: Reference to the main content container
   const [isModalOpen, setIsModalOpen] = useState(false);
   // Using Omit to ensure we only collect the client-side fields needed before database insertion
   const [currentCpdEntry, setCurrentCpdEntry] = useState<Omit<CPDEntry, "reflection" | "tags" | "id" | "user_id"> | null>(null);
@@ -79,12 +80,30 @@ export default function HomeContent() {
     }
   }, [searchParams]);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  // IMPROVED SCROLL LOGIC
+  const scrollToBottom = (instant = false) => {
+    // Get the main content container (the viewport/window that is scrolling)
+    const container = document.querySelector('.main-content'); 
+    
+    if (container) {
+        // Check if the user is already near the bottom (within 200px)
+        const isNearBottom = container.scrollHeight - container.scrollTop < container.clientHeight + 200; 
+        
+        // Only scroll if it's an instant scroll (user just submitted a question) OR 
+        // if the user was already near the bottom (new message arrival)
+        if (isNearBottom || instant) {
+            messagesEndRef.current?.scrollIntoView({ behavior: instant ? "auto" : "smooth" });
+        }
+    }
   };
 
-  useEffect(scrollToBottom, [conversation]);
-
+  // Trigger scroll only when conversation updates
+  useEffect(() => {
+      // Small delay to ensure the new DOM element has rendered before measuring scroll height
+      const timeoutId = setTimeout(() => scrollToBottom(), 50); 
+      return () => clearTimeout(timeoutId);
+  }, [conversation]);
+  
   // Handle dynamic loading message
   useEffect(() => {
     if (loading) {
@@ -112,17 +131,16 @@ export default function HomeContent() {
       ...conversation,
       { type: "user", content: newQuestion, question: newQuestion }
     ];
+    // Use the instant scroll on user submission
     setConversation(updatedConversation);
+    scrollToBottom(true); 
 
     try {
-      // --- START: CONVERSATION HISTORY LOGIC ---
       // 1. Map the current conversation state to the API's expected format (role/content)
-      // This sends the full history for context, enabling memory.
       const messagesToSend: ClientMessage[] = updatedConversation.map(entry => ({
           role: entry.type === "user" ? "user" : "assistant",
           content: entry.content
       }));
-      // --- END: CONVERSATION HISTORY LOGIC ---
       
       const res = await fetch("/api/ask", {
         method: "POST",
@@ -133,7 +151,6 @@ export default function HomeContent() {
 
       const data: AskResponse = await res.json();
       
-      // The rate limit check is removed from the server, simplifying client logic.
       if (!res.ok) {
           throw new Error(data.error || "Request failed");
       } else {
@@ -193,7 +210,7 @@ export default function HomeContent() {
     return (
       <div key={index} className={className}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
-        {isUmbil && ( // Show CPD button for all Umbil messages (since pro_url check is removed)
+        {isUmbil && ( // Show CPD button for all Umbil messages
           <div className="umbil-message-actions">
             <button className="action-button" onClick={() => handleOpenAddCpdModal(entry)}>Add to CPD</button>
           </div>
@@ -204,58 +221,62 @@ export default function HomeContent() {
 
   return (
     <>
-      {conversation.length > 0 ? (
-        // Conversation Mode
-        <div className="conversation-container">
-          <div className="message-thread">
-            {conversation.map(renderMessage)}
-            {loading && (
-              <div className="loading-indicator">
-                {loadingMsg}
-                <span>•</span>
-                <span>•</span>
-                <span>•</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
+      {/* Assigning a class to the container element */}
+      <div ref={scrollContainerRef} className="main-content-scroll-container" style={{ flexGrow: 1 }}>
+          
+        {conversation.length > 0 ? (
+          // Conversation Mode
+          <div className="conversation-container">
+            <div className="message-thread">
+              {conversation.map(renderMessage)}
+              {loading && (
+                <div className="loading-indicator">
+                  {loadingMsg}
+                  <span>•</span>
+                  <span>•</span>
+                  <span>•</span>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+            <div className="ask-bar-container sticky">
+              <input
+                className="ask-bar-input"
+                placeholder="Ask a follow-up question..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && ask()}
+              />
+              <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
           </div>
-          <div className="ask-bar-container sticky">
-            <input
-              className="ask-bar-input"
-              placeholder="Ask a follow-up question..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && ask()}
-            />
-            <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-            </button>
-          </div>
-        </div>
-      ) : (
-        // Home Screen
-        <div className="hero">
-          <h1 className="hero-headline">Smarter medicine starts here.</h1>
+        ) : (
+          // Home Screen
+          <div className="hero">
+            <h1 className="hero-headline">Smarter medicine starts here.</h1>
 
-          <div className="ask-bar-container">
-            <input
-              className="ask-bar-input"
-              placeholder="Ask anything — clinical, reflective, or educational..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && ask()}
-            />
-            <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-            </button>
-          </div>
+            <div className="ask-bar-container">
+              <input
+                className="ask-bar-input"
+                placeholder="Ask anything — clinical, reflective, or educational..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && ask()}
+              />
+              <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </button>
+            </div>
 
-          <p className="disclaimer" style={{ marginTop: '36px' }}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
-            Please don’t enter any patient-identifiable information.
-          </p>
-        </div>
-      )}
+            <p className="disclaimer" style={{ marginTop: '36px' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+              Please don’t enter any patient-identifiable information.
+            </p>
+          </div>
+        )}
+      </div>
       <ReflectionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
