@@ -1,10 +1,7 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-// --- RATE LIMIT CONFIGURATION ---
-const MAX_REQUESTS_PER_HOUR = 10;
-const PRO_UPGRADE_URL = "/pro"; 
-// --------------------------------
+// Removed: RATE LIMIT CONFIGURATION
 
 // Define a more specific type for the API response to improve type safety
 type OpenAIResponse = {
@@ -27,11 +24,13 @@ type ClientMessage = {
   content: string;
 };
 
-// --- RESTORED API CONFIGURATION (GPT-4o-mini) ---
-const OPENAI_API_URL = "https://api.openai.com/v1/chat/completions";
-const MODEL_NAME = "gpt-4o-mini"; // Model restored
-const API_KEY = process.env.OPENAI_API_KEY; // API Key variable restored
-// --------------------------------------------------
+// --- UPDATED API CONFIGURATION (Together AI Sync Chat Completions) ---
+// Model: GPT-OSS 120B (togethercomputer/gpt-oss-120b)
+const TOGETHER_API_BASE_URL = "https://api.together.xyz/v1";
+const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
+const API_KEY = process.env.TOGETHER_API_KEY; // Using TOGETHER_API_KEY from environment
+const MODEL_SLUG = "togethercomputer/gpt-oss-120b"; 
+// ----------------------------------------------------------------------
 
 // Conceptual In-Memory Cache (Non-persistent across lambda cold starts, but catches immediate repeats)
 const cache = new Map<string, string>();
@@ -64,79 +63,19 @@ const TONE_PROMPTS: Record<string, string> = {
     "Use a warm, mentoring tone, and close with a fitting suggestion for a similar, relevant follow-up question or related action."
 };
 
-/**
- * Reads the rate limit cookie, checks usage, and returns an updated cookie header.
- */
-function handleRateLimit(request: NextRequest): { isLimited: boolean, nextCookie: string } {
-  const cookieName = "umbil_rate_limit";
-  const cookie = request.cookies.get(cookieName);
-  const now = Date.now();
-  const oneHour = 60 * 60 * 1000;
-  
-  let currentCount = 0;
-  let resetTime = now + oneHour; 
-
-  if (cookie) {
-    try {
-      const data = JSON.parse(cookie.value);
-      const isExpired = now > data.resetTime;
-
-      if (!isExpired) {
-        currentCount = data.count;
-        resetTime = data.resetTime;
-      }
-    } catch (_e: unknown) { // FIX: Using _e to silence the ESLint warning/error
-      // Ignore parsing errors, reset data
-    }
-  }
-
-  // --- CHECK LIMIT ---
-  const isLimited = currentCount >= MAX_REQUESTS_PER_HOUR;
-  
-  if (isLimited) {
-      // Do not increment, keep the current reset time
-  } else {
-      // Increment count for the successful request
-      currentCount++;
-  }
-  
-  // --- PREPARE NEXT COOKIE ---
-  const nextData = {
-      count: currentCount,
-      resetTime: resetTime,
-  };
-
-  // Securely set the new cookie data. Expires in 1 hour.
-  const nextCookie = `${cookieName}=${JSON.stringify(nextData)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${oneHour / 1000};`;
-
-  return { isLimited, nextCookie };
-}
-
+// Removed: handleRateLimit function
 
 export async function POST(req: NextRequest) {
-  // Check against the OPENAI_API_KEY
+  // Check against the TOGETHER_API_KEY
   if (!API_KEY) {
       return NextResponse.json(
-          { error: "Server configuration error: OPENAI_API_KEY is not set." },
+          { error: "Server configuration error: TOGETHER_API_KEY is not set." },
           { status: 500 }
       );
   }
   
-  // --- 1. RATE LIMIT CHECK ---
-  const { isLimited, nextCookie } = handleRateLimit(req);
+  // Removed: Rate Limit Check
   
-  if (isLimited) {
-    const response = NextResponse.json(
-        { 
-            error: `You've reached the limit of ${MAX_REQUESTS_PER_HOUR} questions per hour on the free tier. Time to upgrade!`,
-            pro_url: PRO_UPGRADE_URL
-        },
-        { status: 402 } // 402 Payment Required status for limit
-    );
-    response.headers.set("Set-Cookie", nextCookie); 
-    return response;
-  }
-
   try {
     const body: { messages?: ClientMessage[]; profile?: { full_name?: string | null; grade?: string | null }; tone?: unknown } = await req.json();
     const { messages, profile, tone: toneRaw } = body;
@@ -160,32 +99,34 @@ export async function POST(req: NextRequest) {
 
     const sanitizedMessages: ClientMessage[] = messages.map(msg => ({
         ...msg,
+        // Only sanitize user messages
         content: msg.role === 'user' ? sanitizeQuery(msg.content) : msg.content
     }));
 
-    const cacheKey = JSON.stringify({ messages: sanitizedMessages, systemPromptContent });
+    // Generate a unique key based on the sanitized request and the model being used
+    const cacheKey = JSON.stringify({ messages: sanitizedMessages, systemPromptContent, model: MODEL_SLUG });
     
     // --- 2. CACHE CHECK ---
     if (cache.has(cacheKey)) {
         console.log(`[UMBL-API] Cache HIT!`);
-        const response = NextResponse.json({ answer: cache.get(cacheKey) ?? "" });
-        response.headers.set("Set-Cookie", nextCookie); // Set the cookie even on cache hit
-        return response;
+        // Note: No cookie to set anymore as rate limit is removed
+        return NextResponse.json({ answer: cache.get(cacheKey) ?? "" });
     }
 
     // Prepare messages array: System prompt + SANITIZED Conversation History
     const systemMessage = { role: "system", content: systemPromptContent };
+    // The client sends the full history, so we combine the system prompt with all history messages
     const fullMessages = [systemMessage, ...sanitizedMessages];
 
-    // --- RESTORED FETCH CALL TO OPENAI ---
-    const r = await fetch(OPENAI_API_URL, {
+    // --- UPDATED FETCH CALL TO TOGETHER AI SYNC CHAT COMPLETIONS ---
+    const r = await fetch(CHAT_API_URL, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL_NAME, // "gpt-4o-mini"
+        model: MODEL_SLUG, // togethercomputer/gpt-oss-120b
         messages: fullMessages,
         max_tokens: 400, 
       }),
@@ -194,20 +135,8 @@ export async function POST(req: NextRequest) {
     if (!r.ok) {
       const errorData = await r.json();
       
-      if (errorData.error?.code === "rate_limit_exceeded" || r.status === 429) {
-         // RESTORING ORIGINAL OPENAI RATE LIMIT ERROR MESSAGE
-         const response = NextResponse.json(
-             { error: "Umbil’s taking a short pause to catch up with demand. Please check back later — your lifeline will be ready soon." },
-             { status: 429 }
-         );
-         response.headers.set("Set-Cookie", nextCookie);
-         return response;
-      }
-      
       const errorMsg = errorData.error?.message || "Sorry, an unexpected error occurred. Please try again.";
-      const response = NextResponse.json({ error: errorMsg }, { status: r.status });
-      response.headers.set("Set-Cookie", nextCookie);
-      return response;
+      return NextResponse.json({ error: errorMsg }, { status: r.status });
     }
 
     const data: OpenAIResponse = await r.json();
@@ -226,9 +155,7 @@ export async function POST(req: NextRequest) {
         cache.set(cacheKey, answer);
     }
 
-    const response = NextResponse.json({ answer: answer ?? "" });
-    response.headers.set("Set-Cookie", nextCookie);
-    return response;
+    return NextResponse.json({ answer: answer ?? "" });
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });

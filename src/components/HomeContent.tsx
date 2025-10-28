@@ -12,16 +12,14 @@ import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 
-// --- NEW TYPE FOR RATE LIMIT RESPONSE ---
+// --- UPDATED TYPE FOR RATE LIMIT RESPONSE (pro_url removed) ---
 type AskResponse = { 
     answer?: string; 
     error?: string;
-    // New optional field for rate limit handling
-    pro_url?: string; 
 };
 // ----------------------------------------
 
-type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; pro_url?: string };
+type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; }; // pro_url removed from this type
 
 // Define a type for a message to be sent to the API
 type ClientMessage = {
@@ -117,33 +115,26 @@ export default function HomeContent() {
     setConversation(updatedConversation);
 
     try {
-      const messagesToSend: ClientMessage[] = [{ role: "user", content: newQuestion }];
+      // --- START: CONVERSATION HISTORY LOGIC ---
+      // 1. Map the current conversation state to the API's expected format (role/content)
+      // This sends the full history for context, enabling memory.
+      const messagesToSend: ClientMessage[] = updatedConversation.map(entry => ({
+          role: entry.type === "user" ? "user" : "assistant",
+          content: entry.content
+      }));
+      // --- END: CONVERSATION HISTORY LOGIC ---
       
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        // Send the full conversation history for context
         body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
 
       const data: AskResponse = await res.json();
       
-      if (res.status === 402 && data.pro_url) {
-          // --- NEW RATE LIMIT HANDLING (Using Markdown Header for visual consistency) ---
-          const errorContent = `
-### Free Tier Limit Reached! ⚠️
-            
-You've reached the limit of **10 questions per hour** on the free tier.
-
-To continue your seamless learning, consider upgrading to Umbil Pro for unlimited queries.
-          `;
-          
-          setConversation((prev) => [...prev, { 
-              type: "umbil", 
-              content: errorContent, 
-              pro_url: data.pro_url 
-          }]);
-          // --- END RATE LIMIT HANDLING ---
-      } else if (!res.ok) {
+      // The rate limit check is removed from the server, simplifying client logic.
+      if (!res.ok) {
           throw new Error(data.error || "Request failed");
       } else {
           setConversation((prev) => [
@@ -202,19 +193,10 @@ To continue your seamless learning, consider upgrading to Umbil Pro for unlimite
     return (
       <div key={index} className={className}>
         <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
-        {isUmbil && !entry.pro_url && ( // Only show CPD button if not a Pro limit error
+        {isUmbil && ( // Show CPD button for all Umbil messages (since pro_url check is removed)
           <div className="umbil-message-actions">
             <button className="action-button" onClick={() => handleOpenAddCpdModal(entry)}>Add to CPD</button>
           </div>
-        )}
-        
-        {/* NEW: Pro Upgrade Button for Limit Error */}
-        {isUmbil && entry.pro_url && (
-            <div style={{ marginTop: '20px', textAlign: 'center' }}>
-                <a href={entry.pro_url} className="btn btn--primary">
-                    Upgrade to Umbil Pro
-                </a>
-            </div>
         )}
       </div>
     );
