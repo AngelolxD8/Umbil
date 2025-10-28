@@ -1,8 +1,6 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
-// Removed: RATE LIMIT CONFIGURATION
-
 // Define a more specific type for the API response to improve type safety
 type OpenAIResponse = {
   choices: Array<{
@@ -24,12 +22,12 @@ type ClientMessage = {
   content: string;
 };
 
-// --- UPDATED API CONFIGURATION (Together AI Sync Chat Completions) ---
-// Model: GPT-OSS 120B (togethercomputer/gpt-oss-120b)
+// --- CORRECTED API CONFIGURATION (Together AI Sync Chat Completions) ---
+// Model: GPT-OSS 120B - Corrected slug format
 const TOGETHER_API_BASE_URL = "https://api.together.xyz/v1";
 const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
 const API_KEY = process.env.TOGETHER_API_KEY; // Using TOGETHER_API_KEY from environment
-const MODEL_SLUG = "togethercomputer/gpt-oss-120b"; 
+const MODEL_SLUG = "openai/gpt-oss-120b"; 
 // ----------------------------------------------------------------------
 
 // Conceptual In-Memory Cache (Non-persistent across lambda cold starts, but catches immediate repeats)
@@ -63,8 +61,6 @@ const TONE_PROMPTS: Record<string, string> = {
     "Use a warm, mentoring tone, and close with a fitting suggestion for a similar, relevant follow-up question or related action."
 };
 
-// Removed: handleRateLimit function
-
 export async function POST(req: NextRequest) {
   // Check against the TOGETHER_API_KEY
   if (!API_KEY) {
@@ -73,8 +69,6 @@ export async function POST(req: NextRequest) {
           { status: 500 }
       );
   }
-  
-  // Removed: Rate Limit Check
   
   try {
     const body: { messages?: ClientMessage[]; profile?: { full_name?: string | null; grade?: string | null }; tone?: unknown } = await req.json();
@@ -109,7 +103,6 @@ export async function POST(req: NextRequest) {
     // --- 2. CACHE CHECK ---
     if (cache.has(cacheKey)) {
         console.log(`[UMBL-API] Cache HIT!`);
-        // Note: No cookie to set anymore as rate limit is removed
         return NextResponse.json({ answer: cache.get(cacheKey) ?? "" });
     }
 
@@ -126,7 +119,7 @@ export async function POST(req: NextRequest) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL_SLUG, // togethercomputer/gpt-oss-120b
+        model: MODEL_SLUG, // openai/gpt-oss-120b
         messages: fullMessages,
         max_tokens: 400, 
       }),
