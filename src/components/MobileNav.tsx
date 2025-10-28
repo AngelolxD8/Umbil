@@ -59,19 +59,15 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     router.push("/"); 
   };
 
-  // --- RESTORED MENU ORDER with Umbil Pro inserted correctly ---
   const menuItems = [
     { href: "/about", label: "About Umbil" },
     { href: "/cpd", label: "My CPD", requiresAuth: true },
     { href: "/pdp", label: "My PDP", requiresAuth: true },
     { href: "/profile", label: "My Profile", requiresAuth: true },
-    { href: "/settings", label: "Settings" },
-    // NEW: Inserted Umbil Pro here, visible to everyone
     { href: "/pro", label: "Umbil Pro ✨", requiresAuth: false }, 
-    { href: "/settings/feedback", label: "Send Feedback" },
+    { href: "/settings", label: "Settings" },
   ];
-  // -------------------------------------------------------------
-
+  
   // Only show auth-gated links if the user is logged in
   const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || userEmail);
 
@@ -106,7 +102,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           New Chat
         </button>
 
-        {/* NEW: Streak Display */}
+        {/* Streak Display */}
         {userEmail && !streaksLoading && currentStreak > 0 && (
             <div className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`}>
                 <span style={{fontWeight: 700}}>
@@ -128,11 +124,24 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           ))}
         </nav>
         
-        {/* START: Footer Section - User Profile and Settings */}
+        {/* NEW: Dedicated Feedback Section at the bottom */}
+        <div className="sidebar-footer-group" style={{ marginTop: '20px', padding: '16px 0', borderTop: '1px solid var(--umbil-divider)'}}>
+            <Link 
+                href="/settings/feedback" 
+                className="btn btn--outline"
+                style={{ width: '100%', marginBottom: '12px' }}
+                onClick={onClose}
+            >
+                ⭐ Send Feedback & Suggestions
+            </Link>
+        </div>
+        
+        {/* START: User Profile and Sign Out Section */}
         {userEmail && profile && (
-            <div style={{ padding: '16px 0', borderTop: '1px solid var(--umbil-divider)', marginTop: '20px' }}>
+            <div className="sidebar-footer-group" style={{ padding: '0 0 16px 0', borderTop: '1px solid var(--umbil-divider)' }}>
                 <div className="profile-info-sidebar">
-                    <span className="user-name">{profile.full_name || email}</span>
+                    {/* Display Full Name if available, otherwise fallback to email/default */}
+                    <span className="user-name">{profile.full_name || email || 'User Profile'}</span> 
                     {profile.grade && <span className="user-role">{profile.grade}</span>}
                 </div>
                 <button 
@@ -146,7 +155,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         )}
 
         {/* DARK MODE TOGGLE FIX: Restored the exact JSX structure required for the switch CSS */}
-        <div style={{ marginTop: 'auto', padding: '12px 16px', borderTop: '1px solid var(--umbil-divider)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '12px 16px', borderTop: userEmail ? '1px solid var(--umbil-divider)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 500 }}>
               {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
             </span>
@@ -195,6 +204,11 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
              opacity: 0.5; /* Fades the streak if today's log is missing */
         }
         /* End NEW STREAK DISPLAY STYLE */
+        
+        /* New style for the feedback button group to ensure spacing consistency */
+        .sidebar-footer-group {
+            padding: 0 16px;
+        }
 
         /* The switch - the box around the slider */
         .switch {

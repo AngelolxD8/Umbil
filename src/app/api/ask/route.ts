@@ -23,7 +23,7 @@ type ClientMessage = {
 };
 
 // --- CORRECTED API CONFIGURATION (Together AI Sync Chat Completions) ---
-// Model: GPT-OSS 120B - Corrected slug format
+// Model: GPT-OSS 120B
 const TOGETHER_API_BASE_URL = "https://api.together.xyz/v1";
 const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
 const API_KEY = process.env.TOGETHER_API_KEY; // Using TOGETHER_API_KEY from environment
@@ -53,8 +53,9 @@ const CORE_INSTRUCTIONS =
 // ----------------------------------------------------------------------
 
 const TONE_PROMPTS: Record<string, string> = {
+  // CORRECTED: Explicitly ask the model to provide a follow-up question.
   conversational:
-    "For clinical queries, start with a friendly one-line overview and conclude with a relevant follow-up suggestion. For non-clinical, use a conversational style.",
+    "For clinical queries, start with a friendly one-line overview and conclude with a relevant follow-up suggestion/question to encourage further learning.",
   formal:
     "Adhere strictly to clinical format, avoid chattiness. End with a short signpost for further reading.",
   reflective:
