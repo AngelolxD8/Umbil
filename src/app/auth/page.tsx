@@ -68,9 +68,9 @@ export default function AuthPage() {
     setSending(true);
     setMsg(null);
     
-    // Use NEXT_PUBLIC_SITE_URL for correct redirect (Vercel & local)
-    const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+    // FIX: Ensure correct baseUrl is used, preferring window.location.origin on client-side
+    // This is safer than relying on a potentially unset NEXT_PUBLIC_SITE_URL in the browser.
+    const baseUrl = window.location.origin;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
         // Redirect to the callback page, where we check the 'type' to send them to /profile
