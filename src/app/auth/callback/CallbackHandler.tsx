@@ -4,6 +4,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
+import type { AuthSession, AuthTokenResponse } from '@supabase/supabase-js';
 
 /**
  * CallbackHandler
@@ -21,53 +22,41 @@ export default function CallbackHandler() {
 
     const handleAuthCallback = async () => {
       try {
-        // Combine query params and hash fragment params (some providers / Supabase use the fragment)
         const qs = new URLSearchParams(window.location.search);
         const hash = new URLSearchParams(window.location.hash.replace(/^#/, "?"));
 
-        // collect any relevant token-like params
-        const pick = (name: string) => qs.get(name) ?? hash.get(name) ?? null;
-        const access_token =
-          pick("access_token") ?? pick("accessToken") ?? pick("token");
-        const refresh_token =
-          pick("refresh_token") ?? pick("refreshToken") ?? pick("refresh");
+        const pick = (name: string): string | null => qs.get(name) ?? hash.get(name) ?? null;
+        const access_token = pick("access_token") ?? pick("accessToken") ?? pick("token");
+        const refresh_token = pick("refresh_token") ?? pick("refreshToken") ?? pick("refresh");
         const recoveryType = pick("type") ?? pick("action") ?? null;
 
-        // small debug logging
-        // eslint-disable-next-line no-console
         console.info("Auth callback params:", {
-          access_token,
-          refresh_token,
+          access_token: !!access_token,
+          refresh_token: !!refresh_token,
           recoveryType,
         });
+        
         setDebugMsg(
           `Params: access_token=${!!access_token}, refresh_token=${!!refresh_token}, type=${recoveryType}`
         );
 
         if (access_token) {
-          // call setSession even if refresh_token is missing; cast to any to satisfy typings
-          // Supabase will accept access_token alone in many flows
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await supabase.auth.setSession({
+          const sessionPayload = {
             access_token,
-            refresh_token: (refresh_token ?? undefined),
-          } as any);
+            ...(refresh_token ? { refresh_token } : {})
+          } as Parameters<typeof supabase.auth.setSession>[0];
+          await supabase.auth.setSession(sessionPayload);
         }
 
-        // poll for session briefly (helpful if client needs a moment to persist tokens)
-        let session = null;
+        let session: AuthSession | null = null;
         for (let i = 0; i < 6; i++) {
-          // small delay between attempts
           await wait(500);
-          // fetch session
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { data: sessionData } = await supabase.auth.getSession();
           session = sessionData?.session ?? null;
           if (session) break;
         }
 
         if (session && recoveryType === "recovery") {
-          // User has a valid session from the recovery link — send them to update-password
           router.replace("/auth/update-password");
           return;
         }
@@ -77,23 +66,19 @@ export default function CallbackHandler() {
           return;
         }
 
-        // If we get here no session was established — keep user on a debug page so they can retry / inspect
-        // eslint-disable-next-line no-console
         console.warn("No session established after callback.", {
-          access_token,
-          refresh_token,
+          hasAccessToken: !!access_token,
+          hasRefreshToken: !!refresh_token,
           recoveryType,
         });
+        
         setDebugMsg(
-          "No session found after callback. If you used a password reset link, ensure the redirect URL exactly matches the one registered in Supabase and that your app origin is allowed. See console for params."
+          "No session found after callback. Ensure the redirect URL registered in Supabase exactly matches your app origin."
         );
 
-        // After showing debug info for a moment, navigate to home (unsigned)
         await wait(2500);
         router.replace("/");
       } catch (err) {
-        // On any unexpected error, log (dev) and redirect home
-        // eslint-disable-next-line no-console
         console.error("Auth callback handling failed:", err);
         setDebugMsg("Unexpected error handling callback. See console.");
         await wait(1200);
@@ -109,15 +94,7 @@ export default function CallbackHandler() {
       <div className="container" style={{ textAlign: "center" }}>
         <p>Finalizing sign-in...</p>
         {debugMsg && (
-          <div
-            style={{
-              marginTop: 12,
-              color: "#666",
-              fontSize: 14,
-              maxWidth: 720,
-              margin: "12px auto",
-            }}
-          >
+          <div style={{ marginTop: 12, color: "#666", fontSize: 14, maxWidth: 720, margin: "12px auto" }}>
             {debugMsg}
           </div>
         )}
