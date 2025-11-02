@@ -73,8 +73,9 @@ export default function AuthPage() {
     const baseUrl = window.location.origin;
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        // Redirect to the callback page, where we check the 'type' to send them to /profile
-        redirectTo: `${baseUrl}/auth/callback`, 
+        // FIX: Redirect directly to the update-password page.
+        // Supabase will append the session tokens (access_token, type=recovery) as a URL fragment to this page.
+        redirectTo: `${baseUrl}/auth/update-password`, 
     });
 
     setSending(false);

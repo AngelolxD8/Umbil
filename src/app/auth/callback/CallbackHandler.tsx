@@ -4,14 +4,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import type { AuthSession, AuthTokenResponse } from '@supabase/supabase-js';
+import type { AuthSession } from '@supabase/supabase-js';
 
 /**
  * CallbackHandler
- * - Parses both query string and URL hash (fragment) because Supabase sometimes returns tokens in the fragment.
- * - If access_token is present in the URL, call supabase.auth.setSession(...) to establish the session.
- * - If a session exists and the flow is a password recovery, redirect to /auth/update-password.
- * - Otherwise redirect to home.
+ * - Parses both query string and URL hash (fragment) for access/refresh tokens.
+ * - If tokens are present, calls supabase.auth.setSession(...) to establish the session.
+ * - Redirects to home (/) once a session is established.
+ * * NOTE: The password recovery flow no longer passes through here, as it now
+ * redirects directly to /auth/update-password.
  */
 export default function CallbackHandler() {
   const router = useRouter();
@@ -28,16 +29,15 @@ export default function CallbackHandler() {
         const pick = (name: string): string | null => qs.get(name) ?? hash.get(name) ?? null;
         const access_token = pick("access_token") ?? pick("accessToken") ?? pick("token");
         const refresh_token = pick("refresh_token") ?? pick("refreshToken") ?? pick("refresh");
-        const recoveryType = pick("type") ?? pick("action") ?? null;
+        // Removed recoveryType from here as the password recovery flow is now handled directly.
 
         console.info("Auth callback params:", {
           access_token: !!access_token,
           refresh_token: !!refresh_token,
-          recoveryType,
         });
         
         setDebugMsg(
-          `Params: access_token=${!!access_token}, refresh_token=${!!refresh_token}, type=${recoveryType}`
+          `Params: access_token=${!!access_token}, refresh_token=${!!refresh_token}`
         );
 
         if (access_token) {
@@ -49,6 +49,7 @@ export default function CallbackHandler() {
         }
 
         let session: AuthSession | null = null;
+        // Keep the loop for general sign-in reliability (e.g., waiting for cookie)
         for (let i = 0; i < 6; i++) {
           await wait(500);
           const { data: sessionData } = await supabase.auth.getSession();
@@ -56,11 +57,7 @@ export default function CallbackHandler() {
           if (session) break;
         }
 
-        if (session && recoveryType === "recovery") {
-          router.replace("/auth/update-password");
-          return;
-        }
-
+        // Always redirect to home if a session is found after any sign-in method
         if (session) {
           router.replace("/");
           return;
@@ -69,7 +66,6 @@ export default function CallbackHandler() {
         console.warn("No session established after callback.", {
           hasAccessToken: !!access_token,
           hasRefreshToken: !!refresh_token,
-          recoveryType,
         });
         
         setDebugMsg(
