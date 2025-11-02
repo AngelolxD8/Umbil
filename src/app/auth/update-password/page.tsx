@@ -6,14 +6,14 @@ import { useRouter } from "next/navigation";
 
 /**
  * Handles password reset flow for Supabase.
- * Fix: Explicitly parses the URL hash and exchanges tokens manually.
+ * Fix: Parses URL hash and restores session with setSession() instead of exchangeCodeForSession().
  */
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
-  const [session, setSession] = useState(false);
+  const [session, setSessionActive] = useState(false);
   const router = useRouter();
 
   useEffect(() => {
@@ -23,42 +23,54 @@ export default function UpdatePasswordPage() {
       console.log("🔍 Checking for Supabase session...");
 
       // STEP 1: Check existing session
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      const {
+        data: { session: currentSession },
+      } = await supabase.auth.getSession();
 
       if (currentSession) {
         console.log("✅ Found active session");
         if (!mounted) return;
-        setSession(true);
+        setSessionActive(true);
         setMsg("Enter your new password below.");
         setLoading(false);
         return;
       }
 
-      // STEP 2: Attempt manual session exchange
-      const hash = window.location.hash;
+      // STEP 2: Attempt to restore session from hash tokens
+      const hash = window.location.hash.substring(1);
       console.log("⚙️ No session found, checking hash:", hash);
 
-      if (hash && hash.includes("access_token")) {
+      const params = new URLSearchParams(hash);
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+
+      if (access_token && refresh_token) {
+        console.log("🔑 Found tokens in URL fragment, setting session...");
         try {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(hash);
+          const { data, error } = await supabase.auth.setSession({
+            access_token,
+            refresh_token,
+          });
+
           if (error) throw error;
+
           if (data.session) {
-            console.log("✅ Manual session exchange success");
+            console.log("✅ Session successfully established");
             if (!mounted) return;
-            setSession(true);
+            setSessionActive(true);
             setMsg("Enter your new password below.");
           } else {
-            console.log("⚠️ Exchange did not return a session");
-            setMsg("⚠️ This reset link is invalid or expired.");
+            console.warn("⚠️ setSession() returned no session object");
+            setMsg("⚠️ Invalid or expired reset link. Please request a new one.");
             setTimeout(() => router.replace("/auth"), 5000);
           }
         } catch (err) {
-          console.error("❌ Error exchanging session:", err);
+          console.error("❌ Error setting session:", err);
           setMsg("⚠️ Error reading reset link. Please request a new one.");
           setTimeout(() => router.replace("/auth"), 5000);
         }
       } else {
-        console.warn("⚠️ No hash fragment found in URL");
+        console.warn("⚠️ No tokens found in URL hash");
         setMsg("⚠️ This reset link is expired or invalid. Please request a new one.");
         setTimeout(() => router.replace("/auth"), 5000);
       }
@@ -72,7 +84,7 @@ export default function UpdatePasswordPage() {
     };
   }, [router]);
 
-  // STEP 3: Update password
+  // STEP 3: Handle password update
   const handleUpdatePassword = async () => {
     if (!password.trim() || !confirmPassword.trim()) {
       setMsg("Please enter and confirm your new password.");
@@ -100,7 +112,7 @@ export default function UpdatePasswordPage() {
       setMsg(`⚠️ Error updating password: ${error.message}`);
     } else {
       setMsg("✅ Success! Your password has been updated. Redirecting...");
-      setTimeout(() => router.replace("/"), 2000);
+      setTimeout(() => router.replace("/auth/success"), 2000);
     }
   };
 
