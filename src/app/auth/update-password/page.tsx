@@ -11,15 +11,17 @@ export default function UpdatePasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
-  const [session, setSession] = useState<boolean>(false); // Tracks if a valid session exists
+  const [session, setSession] = useState(false); // Tracks if a valid session exists
   const router = useRouter();
 
-  // FIX: Use a brief delay to ensure the session is properly loaded from cookies/storage
+  // Use a brief delay to ensure the session is properly loaded from cookies/storage
   useEffect(() => {
     let isMounted = true; 
     
     // Use a delay to ensure the Supabase client has initialized and loaded the session
     const delayCheck = setTimeout(async () => {
+        // The URL fragments (tokens) from the reset email link are automatically read and stored 
+        // by the Supabase client on page load. We just need to wait a moment for that to happen.
         const { data: { session: currentSession } } = await supabase.auth.getSession();
         
         if (isMounted) {
@@ -28,7 +30,7 @@ export default function UpdatePasswordPage() {
                 setMsg("Enter your new password below.");
             } else {
                 setMsg("⚠️ This reset link is expired or invalid. Please request a new one.");
-                // Use replace to prevent navigation history problems
+                // Redirect to the auth page after a delay
                 setTimeout(() => router.replace("/auth"), 5000); 
             }
             setLoading(false);
