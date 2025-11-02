@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import type { AuthError } from "@supabase/supabase-js";
 
 export default function AuthPage() {
   const [email, setEmail] = useState("");
@@ -26,15 +27,24 @@ export default function AuthPage() {
       setMsg("Please enter both email and password.");
       return;
     }
+
     setSending(true);
     setMsg(null);
 
-    let error: any;
+    let error: AuthError | null = null;
 
     if (mode === "signIn") {
-      ({ error } = await supabase.auth.signInWithPassword({ email, password }));
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+      error = signInError;
     } else if (mode === "signUp") {
-      ({ error } = await supabase.auth.signUp({ email, password }));
+      const { error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+      });
+      error = signUpError;
     }
 
     setSending(false);
