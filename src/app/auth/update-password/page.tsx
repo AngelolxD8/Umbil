@@ -1,49 +1,78 @@
-// src/app/auth/update-password/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 
-// A dedicated page for users coming from the password reset email link
+/**
+ * Handles password reset flow for Supabase.
+ * Fix: Explicitly parses the URL hash and exchanges tokens manually.
+ */
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState<string | null>(null);
-  const [session, setSession] = useState(false); // Tracks if a valid session exists
+  const [session, setSession] = useState(false);
   const router = useRouter();
 
-  // Use a brief delay to ensure the session is properly loaded from cookies/storage
   useEffect(() => {
-    let isMounted = true; 
-    
-    // Use a delay to ensure the Supabase client has initialized and loaded the session
-    const delayCheck = setTimeout(async () => {
-        // The URL fragments (tokens) from the reset email link are automatically read and stored 
-        // by the Supabase client on page load. We just need to wait a moment for that to happen.
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (isMounted) {
-            if (currentSession) {
-                setSession(true);
-                setMsg("Enter your new password below.");
-            } else {
-                setMsg("⚠️ This reset link is expired or invalid. Please request a new one.");
-                // Redirect to the auth page after a delay
-                setTimeout(() => router.replace("/auth"), 5000); 
-            }
-            setLoading(false);
+    let mounted = true;
+
+    async function handleSessionCheck() {
+      console.log("🔍 Checking for Supabase session...");
+
+      // STEP 1: Check existing session
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+
+      if (currentSession) {
+        console.log("✅ Found active session");
+        if (!mounted) return;
+        setSession(true);
+        setMsg("Enter your new password below.");
+        setLoading(false);
+        return;
+      }
+
+      // STEP 2: Attempt manual session exchange
+      const hash = window.location.hash;
+      console.log("⚙️ No session found, checking hash:", hash);
+
+      if (hash && hash.includes("access_token")) {
+        try {
+          const { data, error } = await supabase.auth.exchangeCodeForSession(hash);
+          if (error) throw error;
+          if (data.session) {
+            console.log("✅ Manual session exchange success");
+            if (!mounted) return;
+            setSession(true);
+            setMsg("Enter your new password below.");
+          } else {
+            console.log("⚠️ Exchange did not return a session");
+            setMsg("⚠️ This reset link is invalid or expired.");
+            setTimeout(() => router.replace("/auth"), 5000);
+          }
+        } catch (err) {
+          console.error("❌ Error exchanging session:", err);
+          setMsg("⚠️ Error reading reset link. Please request a new one.");
+          setTimeout(() => router.replace("/auth"), 5000);
         }
-    }, 500); // 500ms delay to let session cookies settle
+      } else {
+        console.warn("⚠️ No hash fragment found in URL");
+        setMsg("⚠️ This reset link is expired or invalid. Please request a new one.");
+        setTimeout(() => router.replace("/auth"), 5000);
+      }
 
-    // Cleanup function: Clear the timeout and set the flag
+      setLoading(false);
+    }
+
+    handleSessionCheck();
     return () => {
-      isMounted = false;
-      clearTimeout(delayCheck);
+      mounted = false;
     };
-  }, [router]); // Only re-run when router changes
+  }, [router]);
 
+  // STEP 3: Update password
   const handleUpdatePassword = async () => {
     if (!password.trim() || !confirmPassword.trim()) {
       setMsg("Please enter and confirm your new password.");
@@ -61,18 +90,16 @@ export default function UpdatePasswordPage() {
     setLoading(true);
     setMsg(null);
 
-    // This is the core function: it updates the password for the current (temporary) session
-    const { error } = await supabase.auth.updateUser({
-      password: password,
-    });
+    console.log("🔄 Updating password...");
+    const { error } = await supabase.auth.updateUser({ password });
 
     setLoading(false);
 
     if (error) {
+      console.error("❌ Password update error:", error);
       setMsg(`⚠️ Error updating password: ${error.message}`);
     } else {
-      setMsg("✅ Success! Your password has been updated. Redirecting to home...");
-      // Use replace for the final push home
+      setMsg("✅ Success! Your password has been updated. Redirecting...");
       setTimeout(() => router.replace("/"), 2000);
     }
   };
@@ -84,49 +111,60 @@ export default function UpdatePasswordPage() {
 
         <div className="card" style={{ marginTop: 16 }}>
           <div className="card__body">
-            
             {loading && <p>Loading...</p>}
-            
-            {/* Show form only if a valid session exists from the link */}
+
             {!loading && session && (
-                <>
-                    <p style={{marginBottom: 16, color: 'var(--umbil-text)'}}>{msg}</p>
-                    <div className="form-group">
-                        <label className="form-label">New Password (Min 6 chars)</label>
-                        <input
-                            className="form-control"
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            disabled={loading}
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label className="form-label">Confirm New Password</label>
-                        <input
-                            className="form-control"
-                            type="password"
-                            value={confirmPassword}
-                            onChange={(e) => setConfirmPassword(e.target.value)}
-                            placeholder="••••••••"
-                            disabled={loading}
-                            onKeyDown={(e) => e.key === "Enter" && handleUpdatePassword()}
-                        />
-                    </div>
-                    <button 
-                        className="btn btn--primary" 
-                        onClick={handleUpdatePassword} 
-                        disabled={loading || !password || !confirmPassword}
-                    >
-                        Update Password
-                    </button>
-                </>
+              <>
+                <p style={{ marginBottom: 16, color: "var(--umbil-text)" }}>
+                  {msg}
+                </p>
+
+                <div className="form-group">
+                  <label className="form-label">New Password (min 6 chars)</label>
+                  <input
+                    className="form-control"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Confirm New Password</label>
+                  <input
+                    className="form-control"
+                    type="password"
+                    placeholder="••••••••"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    disabled={loading}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleUpdatePassword();
+                    }}
+                  />
+                </div>
+
+                <button
+                  className="btn btn--primary"
+                  onClick={handleUpdatePassword}
+                  disabled={loading || !password || !confirmPassword}
+                >
+                  {loading ? "Updating..." : "Update Password"}
+                </button>
+              </>
             )}
 
-            {/* Show message if link is bad or after success */}
-            {!loading && !session && <p style={{ color: msg?.startsWith('⚠️') ? 'red' : 'var(--umbil-brand-teal)' }}>{msg}</p>}
-
+            {!loading && !session && (
+              <p
+                style={{
+                  color: msg?.startsWith("⚠️") ? "red" : "var(--umbil-brand-teal)",
+                }}
+              >
+                {msg}
+              </p>
+            )}
           </div>
         </div>
       </div>
