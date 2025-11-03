@@ -34,16 +34,12 @@ function sanitizeQuery(q: string) {
     );
 }
 
-function cleanCutoff(text: string): string {
-  if (!text) return "";
-  const idx = Math.max(text.lastIndexOf(". "), text.lastIndexOf("\n"));
-  return idx > 0 ? text.slice(0, idx + 1).trim() : text.trim();
-}
+// REMOVED: The unnecessary cleanCutoff function that caused truncation when the AI hit the token limit.
 
 // ---------- Prompts ----------
 const CORE_INSTRUCTIONS =
   "You are Umbil, a concise UK clinical assistant. Use NICE, SIGN, CKS, BNF, NHS, GOV.UK, RCGP, BMJ Best Practice, Resus Council UK, TOXBASE (cite only). " +
-  "Do not output names or PHI. Use plain lists (no tables). Keep within about 400 tokens and finish naturally.";
+  "Do not output names or PHI. Use plain lists (no tables). Keep within about 400 tokens and finish naturally. If the response hits the token limit, it may stop mid-sentence.";
 
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
@@ -104,10 +100,10 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL_SLUG,
         messages: fullMessages,
+        // Using max_tokens of 500 as requested, forcing the AI to handle its own end-of-text naturally
         max_tokens: 500,
         temperature: 0.25,
         top_p: 0.8,
-        // ❌ stop removed (was suppressing output)
       }),
     });
 
@@ -121,7 +117,8 @@ export async function POST(req: NextRequest) {
 
     const data: OpenAIResponse = await r.json();
     let answer = data.choices?.[0]?.message?.content ?? "";
-    answer = cleanCutoff(answer);
+    
+    // The previous call to cleanCutoff(answer) is removed here.
 
     if (data.usage)
       console.log(
@@ -130,9 +127,10 @@ export async function POST(req: NextRequest) {
 
     cache.set(cacheKey, answer);
     return NextResponse.json({ answer });
-  } catch (err: any) {
+  } catch (err: unknown) { // FIX 1: Corrected type from 'any' to 'unknown' to fix ESLint error
+    const errorMessage = (err as { message?: string })?.message ?? "Server error";
     return NextResponse.json(
-      { error: err?.message ?? "Server error" },
+      { error: errorMessage },
       { status: 500 }
     );
   }
