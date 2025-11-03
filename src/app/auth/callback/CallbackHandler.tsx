@@ -1,106 +1,139 @@
-// src/app/auth/callback/CallbackHandler.tsx
-"use client";
+// src/app/api/ask/route.ts
+import { NextRequest, NextResponse } from "next/server";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import type { AuthSession } from '@supabase/supabase-js';
+// ---------- Types ----------
+type OpenAIResponse = {
+  choices: Array<{ message: { content: string } }>;
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
+};
 
-/**
- * CallbackHandler
- * - Parses both query string and URL hash (fragment) for access/refresh tokens.
- * - If tokens are present, calls supabase.auth.setSession(...) to establish the session.
- * - Redirects to /profile if 'flow=profile_redirect' is detected, otherwise redirects home (/).
- */
-export default function CallbackHandler() {
-  const router = useRouter();
-  const [debugMsg, setDebugMsg] = useState<string | null>(null);
+type ClientMessage = { role: "user" | "assistant"; content: string };
 
-  useEffect(() => {
-    const wait = (ms: number) => new Promise((res) => setTimeout(res, ms));
+// ---------- Config ----------
+const TOGETHER_API_BASE_URL = "https://api.together.xyz/v1";
+const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
+const MODEL_SLUG = "openai/gpt-oss-120b";
+const API_KEY = process.env.TOGETHER_API_KEY;
 
-    const handleAuthCallback = async () => {
-      try {
-        const qs = new URLSearchParams(window.location.search);
-        const hash = new URLSearchParams(window.location.hash.replace(/^#/, "?"));
+// ---------- Cache ----------
+const cache = new Map<string, string>();
 
-        const pick = (name: string): string | null => qs.get(name) ?? hash.get(name) ?? null;
-        const access_token = pick("access_token") ?? pick("accessToken") ?? pick("token");
-        const refresh_token = pick("refresh_token") ?? pick("refreshToken") ?? pick("refresh");
-        
-        // NEW: Check for a custom query parameter to trigger redirection to the profile page
-        const customFlow = pick("flow"); 
+// ---------- Helpers ----------
+function sanitizeQuery(q: string) {
+  return q
+    .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
+    .replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, "a specific date")
+    .replace(/\b\d{6,10}\b/g, "a long identifier number")
+    .replace(
+      /\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi,
+      "$1-year-old patient"
+    );
+}
 
-        console.info("Auth callback params:", {
-          access_token: !!access_token,
-          refresh_token: !!refresh_token,
-          customFlow, // Log the new parameter
-        });
-        
-        setDebugMsg(
-          `Params: access_token=${!!access_token}, refresh_token=${!!refresh_token}`
-        );
+function cleanCutoff(text: string): string {
+  if (!text) return "";
+  const idx = Math.max(text.lastIndexOf(". "), text.lastIndexOf("\n"));
+  return idx > 0 ? text.slice(0, idx + 1).trim() : text.trim();
+}
 
-        if (access_token) {
-          const sessionPayload = {
-            access_token,
-            ...(refresh_token ? { refresh_token } : {})
-          } as Parameters<typeof supabase.auth.setSession>[0];
-          await supabase.auth.setSession(sessionPayload);
-        }
+// ---------- Prompts ----------
+const CORE_INSTRUCTIONS =
+  "You are Umbil, a concise UK clinical assistant. Use NICE, SIGN, CKS, BNF, NHS, GOV.UK, RCGP, BMJ Best Practice, Resus Council UK, TOXBASE (cite only). " +
+  "Do not output names or PHI. Use plain lists (no tables). Keep within about 400 tokens and finish naturally.";
 
-        let session: AuthSession | null = null;
-        for (let i = 0; i < 6; i++) {
-          await wait(500);
-          const { data: sessionData } = await supabase.auth.getSession();
-          session = sessionData?.session ?? null;
-          if (session) break;
-        }
+const TONE_PROMPTS: Record<string, string> = {
+  conversational:
+    "Be clear, friendly, and very concise. End with one helpful follow-up question.",
+  formal:
+    "Write in professional clinical style and close with a one-line signpost for further reading.",
+  reflective:
+    "Use a warm mentoring tone and end with one related reflective question.",
+};
 
-        if (session) {
-          // CHECK 1: If custom flow is present (Magic Link for password reset)
-          if (customFlow === "profile_redirect") {
-            router.replace("/profile"); // <-- Redirect directly to the profile page
-            return;
-          }
-          
-          // CHECK 2: Default redirect for standard sign-ins
-          router.replace("/");
-          return;
-        }
+// ---------- Route ----------
+export async function POST(req: NextRequest) {
+  if (!API_KEY)
+    return NextResponse.json(
+      { error: "Server configuration error: TOGETHER_API_KEY not set." },
+      { status: 500 }
+    );
 
-        console.warn("No session established after callback.", {
-          hasAccessToken: !!access_token,
-          hasRefreshToken: !!refresh_token,
-        });
-        
-        setDebugMsg(
-          "No session found after callback. Ensure the redirect URL registered in Supabase exactly matches your app origin."
-        );
+  try {
+    const body: {
+      messages?: ClientMessage[];
+      profile?: { full_name?: string | null; grade?: string | null };
+      tone?: string;
+    } = await req.json();
 
-        await wait(2500);
-        router.replace("/");
-      } catch (err) {
-        console.error("Auth callback handling failed:", err);
-        setDebugMsg("Unexpected error handling callback. See console.");
-        await wait(1200);
-        router.replace("/");
-      }
-    };
+    const { messages, profile, tone = "conversational" } = body;
+    if (!messages?.length)
+      return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
-    handleAuthCallback();
-  }, [router]);
+    const tonePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
+    const grade = profile?.grade ? ` User grade: ${profile.grade}.` : "";
+    const systemPrompt = `${CORE_INSTRUCTIONS} ${grade} ${tonePrompt}`;
 
-  return (
-    <div className="main-content">
-      <div className="container" style={{ textAlign: "center" }}>
-        <p>Finalizing sign-in...</p>
-        {debugMsg && (
-          <div style={{ marginTop: 12, color: "#666", fontSize: 14, maxWidth: 720, margin: "12px auto" }}>
-            {debugMsg}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+    const sanitizedMessages = messages.map((m) => ({
+      ...m,
+      content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
+    }));
+
+    const cacheKey = JSON.stringify({
+      model: MODEL_SLUG,
+      systemPrompt,
+      sanitizedMessages,
+    });
+    if (cache.has(cacheKey))
+      return NextResponse.json({ answer: cache.get(cacheKey) });
+
+    const fullMessages = [
+      { role: "system", content: systemPrompt },
+      ...sanitizedMessages,
+    ];
+
+    const r = await fetch(CHAT_API_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: MODEL_SLUG,
+        messages: fullMessages,
+        max_tokens: 500,
+        temperature: 0.25,
+        top_p: 0.8,
+        // ❌ stop removed (was suppressing output)
+      }),
+    });
+
+    if (!r.ok) {
+      const err = await r.text();
+      return NextResponse.json(
+        { error: `Together API error: ${err}` },
+        { status: r.status }
+      );
+    }
+
+    const data: OpenAIResponse = await r.json();
+    let answer = data.choices?.[0]?.message?.content ?? "";
+    answer = cleanCutoff(answer);
+
+    if (data.usage)
+      console.log(
+        `[UMBL-API] Tokens → total:${data.usage.total_tokens} prompt:${data.usage.prompt_tokens} completion:${data.usage.completion_tokens}`
+      );
+
+    cache.set(cacheKey, answer);
+    return NextResponse.json({ answer });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message ?? "Server error" },
+      { status: 500 }
+    );
+  }
 }

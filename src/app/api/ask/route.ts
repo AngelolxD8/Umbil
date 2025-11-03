@@ -1,12 +1,9 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
 
+// ---------- Types ----------
 type OpenAIResponse = {
-  choices: Array<{
-    message: {
-      content: string;
-    };
-  }>;
+  choices: Array<{ message: { content: string } }>;
   usage?: {
     prompt_tokens: number;
     completion_tokens: number;
@@ -14,110 +11,89 @@ type OpenAIResponse = {
   };
 };
 
-type ClientMessage = {
-  role: "user" | "assistant";
-  content: string;
-};
+type ClientMessage = { role: "user" | "assistant"; content: string };
 
-// --- Together AI GPT-OSS Config ---
+// ---------- Config ----------
 const TOGETHER_API_BASE_URL = "https://api.together.xyz/v1";
 const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
-const API_KEY = process.env.TOGETHER_API_KEY;
 const MODEL_SLUG = "openai/gpt-oss-120b";
+const API_KEY = process.env.TOGETHER_API_KEY;
 
-// --- In-Memory Cache (temporary) ---
+// ---------- Cache ----------
 const cache = new Map<string, string>();
 
-// --- Sanitization ---
-function sanitizeQuery(query: string): string {
-  let sanitized = query;
-  sanitized = sanitized.replace(/\b(john|jane|smith|doctore|nurse|patient\s+x|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient");
-  sanitized = sanitized.replace(/\b(john|jane|smith|david|sarah|patient\s+x|mr\.|ms\.|mrs\.)\b/gi, "patient");
-  sanitized = sanitized.replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, "a specific date");
-  sanitized = sanitized.replace(/\b\d{6,10}\b/g, "a long identifier number");
-  sanitized = sanitized.replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
-  return sanitized;
+// ---------- Helpers ----------
+function sanitizeQuery(q: string) {
+  return q
+    .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
+    .replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, "a specific date")
+    .replace(/\b\d{6,10}\b/g, "a long identifier number")
+    .replace(
+      /\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi,
+      "$1-year-old patient"
+    );
 }
 
-// --- Core instructions (with soft limit tag) ---
-const CORE_INSTRUCTIONS =
-  "You are Umbil, a concise clinical assistant for UK professionals. Use UK English. " +
-  "Provide structured, evidence-based guidance using NICE, SIGN, CKS, BNF, NHS, GOV.UK, RCGP, BMJ Best Practice, Resus Council UK, TOXBASE (cite only). " +
-  "Do not include names, identifiers, or PHI. Avoid markdown tables. Keep within 400–500 tokens. " +
-  "End every valid response with the marker '---END---' so truncation can be detected.";
-
-// --- Tone prompts ---
-const TONE_PROMPTS: Record<string, string> = {
-  conversational:
-    "Be extremely concise and friendly. End with a short follow-up question separated by a horizontal rule ('---').",
-  formal:
-    "Be clinical and structured. End with a short signpost for further reading and '---END---'.",
-  reflective:
-    "Use a mentoring tone and finish with one actionable follow-up prompt, then '---END---'.",
-};
-
-// --- Helper: Trim incomplete endings ---
 function cleanCutoff(text: string): string {
   if (!text) return "";
-  // Trim after the explicit END marker if found
-  const markerIndex = text.indexOf("---END---");
-  if (markerIndex !== -1) {
-    return text.slice(0, markerIndex).trim();
-  }
-  // Otherwise trim to the last full sentence or newline
   const idx = Math.max(text.lastIndexOf(". "), text.lastIndexOf("\n"));
   return idx > 0 ? text.slice(0, idx + 1).trim() : text.trim();
 }
 
+// ---------- Prompts ----------
+const CORE_INSTRUCTIONS =
+  "You are Umbil, a concise UK clinical assistant. Use NICE, SIGN, CKS, BNF, NHS, GOV.UK, RCGP, BMJ Best Practice, Resus Council UK, TOXBASE (cite only). " +
+  "Do not output names or PHI. Use plain lists (no tables). Keep within about 400 tokens and finish naturally.";
+
+const TONE_PROMPTS: Record<string, string> = {
+  conversational:
+    "Be clear, friendly, and very concise. End with one helpful follow-up question.",
+  formal:
+    "Write in professional clinical style and close with a one-line signpost for further reading.",
+  reflective:
+    "Use a warm mentoring tone and end with one related reflective question.",
+};
+
+// ---------- Route ----------
 export async function POST(req: NextRequest) {
-  if (!API_KEY) {
+  if (!API_KEY)
     return NextResponse.json(
-      { error: "Server configuration error: TOGETHER_API_KEY is not set." },
+      { error: "Server configuration error: TOGETHER_API_KEY not set." },
       { status: 500 }
     );
-  }
 
   try {
     const body: {
       messages?: ClientMessage[];
       profile?: { full_name?: string | null; grade?: string | null };
-      tone?: unknown;
+      tone?: string;
     } = await req.json();
 
-    const { messages, profile, tone: toneRaw } = body;
+    const { messages, profile, tone = "conversational" } = body;
+    if (!messages?.length)
+      return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
-    const tone =
-      typeof toneRaw === "string" &&
-      ["conversational", "formal", "reflective"].includes(toneRaw)
-        ? toneRaw
-        : "conversational";
+    const tonePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
+    const grade = profile?.grade ? ` User grade: ${profile.grade}.` : "";
+    const systemPrompt = `${CORE_INSTRUCTIONS} ${grade} ${tonePrompt}`;
 
-    if (!Array.isArray(messages) || messages.length === 0) {
-      return NextResponse.json({ error: "Missing 'messages' array" }, { status: 400 });
-    }
-
-    const baseToneInstruction = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
-    const gradeContext = profile?.grade ? ` The user's grade is ${profile.grade}.` : "";
-    const systemPromptContent = `${CORE_INSTRUCTIONS}${gradeContext} ${baseToneInstruction}`;
-
-    const sanitizedMessages: ClientMessage[] = messages.map((msg) => ({
-      ...msg,
-      content: msg.role === "user" ? sanitizeQuery(msg.content) : msg.content,
+    const sanitizedMessages = messages.map((m) => ({
+      ...m,
+      content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
     }));
 
     const cacheKey = JSON.stringify({
-      messages: sanitizedMessages,
-      systemPromptContent,
       model: MODEL_SLUG,
+      systemPrompt,
+      sanitizedMessages,
     });
+    if (cache.has(cacheKey))
+      return NextResponse.json({ answer: cache.get(cacheKey) });
 
-    if (cache.has(cacheKey)) {
-      console.log(`[UMBL-API] Cache HIT`);
-      return NextResponse.json({ answer: cache.get(cacheKey) ?? "" });
-    }
-
-    const systemMessage = { role: "system", content: systemPromptContent };
-    const fullMessages = [systemMessage, ...sanitizedMessages];
+    const fullMessages = [
+      { role: "system", content: systemPrompt },
+      ...sanitizedMessages,
+    ];
 
     const r = await fetch(CHAT_API_URL, {
       method: "POST",
@@ -128,40 +104,36 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL_SLUG,
         messages: fullMessages,
-        max_tokens: 500, // still capped
-        temperature: 0.2,
+        max_tokens: 500,
+        temperature: 0.25,
         top_p: 0.8,
-        stop: ["---END---", "\n\n", "\n- "], // prevents awkward cutoff
+        // ❌ stop removed (was suppressing output)
       }),
     });
 
     if (!r.ok) {
-      const errorData = await r.json().catch(() => ({}));
-      const errorMsg = errorData.error?.message || "Unexpected error from Together API";
-      return NextResponse.json({ error: errorMsg }, { status: r.status });
+      const err = await r.text();
+      return NextResponse.json(
+        { error: `Together API error: ${err}` },
+        { status: r.status }
+      );
     }
 
     const data: OpenAIResponse = await r.json();
     let answer = data.choices?.[0]?.message?.content ?? "";
-
-    // --- Post-process cleanup ---
     answer = cleanCutoff(answer);
 
-    if (data.usage) {
+    if (data.usage)
       console.log(
-        `[UMBL-API] Tokens Used: total=${data.usage.total_tokens}, prompt=${data.usage.prompt_tokens}, completion=${data.usage.completion_tokens}`
+        `[UMBL-API] Tokens → total:${data.usage.total_tokens} prompt:${data.usage.prompt_tokens} completion:${data.usage.completion_tokens}`
       );
-    } else {
-      console.log(`[UMBL-API] Tokens Used: not reported`);
-    }
 
-    if (answer) {
-      cache.set(cacheKey, answer);
-    }
-
+    cache.set(cacheKey, answer);
     return NextResponse.json({ answer });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : "Server error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+  } catch (err: any) {
+    return NextResponse.json(
+      { error: err?.message ?? "Server error" },
+      { status: 500 }
+    );
   }
 }
