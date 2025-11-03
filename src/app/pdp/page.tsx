@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 // We still use getCPD to read entries, which now fetches from the DB
-import { PDPGoal, getPDP, savePDP, getCPD, CPDEntry } from "@/lib/store"; 
+import { PDPGoal, getPDP, savePDP, getCPD, CPDEntry } from "@/lib/store"; // <-- CHECK THIS LINE
 import { useUserEmail } from "@/hooks/useUser";
 
 // Inner component for the main PDP logic, displayed only when authenticated
@@ -43,7 +43,7 @@ function PDPInner() {
     const next: PDPGoal[] = [newGoal, ...goals];
     
     setGoals(next);
-    savePDP(next);
+    savePDP(next); // This function is what Vercel couldn't find
     // Reset form fields after successful save
     setTitle(""); setTimeline("3 months"); setActivities("");
   };
@@ -55,7 +55,7 @@ function PDPInner() {
   const remove = (id: string) => {
     const next = goals.filter((g) => g.id !== id);
     setGoals(next);
-    savePDP(next);
+    savePDP(next); // This function is what Vercel couldn't find
   };
 
   // Memoize suggested goals to prevent unnecessary recalculations
