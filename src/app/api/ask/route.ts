@@ -50,20 +50,12 @@ function sanitizeQuery(q: string): string {
     .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
+// --- CORE PROMPT UPDATED AS REQUESTED ---
 const CORE_INSTRUCTIONS = `
-You are Umbil — a concise UK clinical assistant.
-... (your existing prompt)
+You are Umbil, a concise UK clinical assistant. Use UK English. Give structured, evidence-based answers (NICE, SIGN, CKS, BNF, BMJ or other UK sources). Start with a short summary, then bullets. End with a helpful follow-up (another differential)
 `;
 
-const TONE_PROMPTS: Record<string, string> = {
-  // ... (your existing tones)
-  conversational:
-    "Be clear, friendly, and concise. End with one helpful follow-up question.",
-  formal:
-    "Use a professional clinical tone. End with a one-line signpost for further reading.",
-  reflective:
-    "Adopt a warm, mentoring tone. End with one short reflective question.",
-};
+// --- TONE_PROMPTS REMOVED ---
 
 // --- HELPER: Get User ID from request ---
 async function getUserId(req: NextRequest): Promise<string | null> {
@@ -117,22 +109,24 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { messages, profile, tone = "conversational" } = body;
+    // --- 'tone' REMOVED from destructuring ---
+    const { messages, profile } = body;
     if (!messages?.length)
       return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
-    const tonePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
+    // --- 'tonePrompt' logic REMOVED ---
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
 
-    const systemPrompt = `${CORE_INSTRUCTIONS.trim()} ${gradeNote} ${tonePrompt}`;
+    // --- 'systemPrompt' logic SIMPLIFIED ---
+    const systemPrompt = `${CORE_INSTRUCTIONS.trim()} ${gradeNote}`;
 
     // ----- CACHE KEY -----
     const latestUserMessage = messages[messages.length - 1];
     const normalizedUser = sanitizeAndNormalizeQuery(latestUserMessage.content);
 
+    // --- 'tone' REMOVED from cache key ---
     const cacheKeyContent = JSON.stringify({
       model: MODEL_SLUG,
-      tone,
       query: normalizedUser,
     });
 
@@ -183,7 +177,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL_SLUG,
         messages: fullMessages,
-        max_tokens: 800,
+        max_tokens: 4096, // Kept fix for long answers
         temperature: 0.25,
         top_p: 0.8,
       }),

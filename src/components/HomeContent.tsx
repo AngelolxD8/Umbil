@@ -158,7 +158,8 @@ export default function HomeContent() {
           ...(token && { 'Authorization': `Bearer ${token}` })
         },
         // Send the full conversation history for context
-        body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
+        // --- 'tone' REMOVED from the request body ---
+        body: JSON.stringify({ messages: messagesToSend, profile }),
       });
 
       const data: AskResponse = await res.json();
