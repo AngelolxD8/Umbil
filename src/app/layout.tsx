@@ -37,7 +37,8 @@ function GlobalStreakDisplay() {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const { email, loading: userLoading } = useUserEmail();
+  // FIX 2: Removed 'loading: userLoading' as it was unused.
+  const { email } = useUserEmail(); 
   
   // Dark mode state and setter
   const [isDarkMode, setIsDarkMode] = useState(false);

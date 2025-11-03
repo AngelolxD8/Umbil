@@ -34,8 +34,6 @@ function sanitizeQuery(q: string) {
     );
 }
 
-// REMOVED: The unnecessary cleanCutoff function that caused truncation when the AI hit the token limit.
-
 // ---------- Prompts ----------
 const CORE_INSTRUCTIONS =
   "You are Umbil, a concise UK clinical assistant. Use NICE, SIGN, CKS, BNF, NHS, GOV.UK, RCGP, BMJ Best Practice, Resus Council UK, TOXBASE (cite only). " +
@@ -100,7 +98,6 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL_SLUG,
         messages: fullMessages,
-        // Using max_tokens of 500 as requested, forcing the AI to handle its own end-of-text naturally
         max_tokens: 500,
         temperature: 0.25,
         top_p: 0.8,
@@ -116,9 +113,9 @@ export async function POST(req: NextRequest) {
     }
 
     const data: OpenAIResponse = await r.json();
-    let answer = data.choices?.[0]?.message?.content ?? "";
+    // FIX 1: Changed 'let' to 'const' as 'answer' is no longer reassigned.
+    const answer = data.choices?.[0]?.message?.content ?? "";
     
-    // The previous call to cleanCutoff(answer) is removed here.
 
     if (data.usage)
       console.log(
@@ -127,7 +124,7 @@ export async function POST(req: NextRequest) {
 
     cache.set(cacheKey, answer);
     return NextResponse.json({ answer });
-  } catch (err: unknown) { // FIX 1: Corrected type from 'any' to 'unknown' to fix ESLint error
+  } catch (err: unknown) {
     const errorMessage = (err as { message?: string })?.message ?? "Server error";
     return NextResponse.json(
       { error: errorMessage },
