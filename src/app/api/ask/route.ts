@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { createHash } from 'crypto'; 
-import { URLSearchParams } from 'url';
 
 // ---------- Types ----------
 type OpenAIResponse = {
@@ -31,6 +30,7 @@ const CACHE_TABLE = "api_cache";
  * @returns A SHA-256 hash string.
  */
 function sha256(str: string): string {
+  // CORRECTED FIX: Reverting to the existing, known-working SHA-256 implementation.
   return createHash('sha256').update(str).digest('hex');
 }
 
@@ -52,11 +52,22 @@ function sanitizeAndNormalizeQuery(q: string): string {
   return sanitized.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
+// NOTE: This version is only used to send to the LLM and needs to be less aggressive than the cache key version
+function sanitizeQuery(q: string) {
+  return q
+    .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
+    .replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, "a specific date")
+    .replace(/\b\d{6,10}\b/g, "a long identifier number")
+    .replace(
+      /\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi,
+      "$1-year-old patient"
+    );
+}
+
 // ---------- Prompts ----------
-// CRITICAL FIX: Increased max_tokens and improved the instruction to ensure better completion
 const CORE_INSTRUCTIONS =
   "You are Umbil, a concise UK clinical assistant. Use NICE, SIGN, CKS, BNF, NHS, GOV.UK, RCGP, BMJ Best Practice, Resus Council UK, TOXBASE (cite only). " +
-  "You must always complete your response, even if the token limit is approached. Do not output names or PHI. Use plain lists (no tables). Keep within about 700 tokens for thoroughness.";
+  "You must always complete your response, even if the token limit is approached. Do not output names or PHI. Use plain lists (no tables). Keep within about 800 tokens for thoroughness.";
 
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
@@ -88,12 +99,9 @@ export async function POST(req: NextRequest) {
 
     const tonePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
     
-    // NOTE: Profile grade is now only included in the prompt, NOT the cache key, 
-    // to improve cache hit rates for common questions.
     const grade = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const systemPrompt = `${CORE_INSTRUCTIONS} ${grade} ${tonePrompt}`;
     
-    // The latest message is the user's current question
     const latestUserMessage = messages[messages.length - 1];
 
     // 1. Generate CRITICAL CACHE KEY CONTENT (uses normalized text & tone)
@@ -101,13 +109,12 @@ export async function POST(req: NextRequest) {
 
     const cacheKeyContent = JSON.stringify({
       model: MODEL_SLUG,
-      // For caching, we only rely on the Tone (static part of prompt)
       tone: tone, 
       latestUserMessage: normalizedLatestUserMessage,
     });
     
     // 2. Generate stable hash for the cache key
-    const cacheHash = sha256(cacheKeyContent);
+    const cacheHash = sha256(cacheKeyContent); // Using the correct sha256 function
     
     // 3. Check Supabase cache
     const { data: cachedData, error: cacheReadError } = await supabase
@@ -129,12 +136,10 @@ export async function POST(req: NextRequest) {
     
     // --- Cache Miss: Proceed to LLM API call ---
     
-    // Prepare messages: apply the system prompt and the full conversation history
     const fullMessages = [
       { role: "system", content: systemPrompt },
       ...messages.map((m) => ({
           ...m,
-          // Use the more permissive PHI sanitizer here
           content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
       })),
     ];
@@ -148,8 +153,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL_SLUG,
         messages: fullMessages,
-        // FIX: Increased token limit for better response quality and length
-        max_tokens: 600, 
+        max_tokens: 800, 
         temperature: 0.25,
         top_p: 0.8,
       }),
@@ -173,11 +177,9 @@ export async function POST(req: NextRequest) {
       );
       
     // 4. Post-processing: Remove excessive inline citations from the answer
-    // We target citations like ' - NICE NG59' or ' - SIGN 136; BNF' at the end of lines
-    answer = answer.replace(/ - (?:[A-Z\s\d;]+|[^.\n\r]+?)(?=(?:\s*\n)|$)/g, '');
+    answer = answer.replace(/ - (?:[A-Z\s\d;.]+?)(?=(?:\s*\n)|$)/g, '');
       
     // 5. Write new response to Supabase cache (Fire and forget: we don't await)
-    // Only cache if the answer is meaningful (e.g., more than 50 characters)
     if (answer.length > 50) { 
         const cachePayload = {
           query_hash: cacheHash,
@@ -204,8 +206,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-function sanitizeQuery(content: string): any {
-  throw new Error("Function not implemented.");
 }
