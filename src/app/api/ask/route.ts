@@ -1,6 +1,7 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase"; // Keep this for cache reads
+import { supabaseService } from "@/lib/supabaseService"; // <-- IMPORT NEW CLIENT
 import { createHash } from "crypto";
 
 // ---------- Types ----------
@@ -21,16 +22,15 @@ const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
 const MODEL_SLUG = "openai/gpt-oss-120b";
 const API_KEY = process.env.TOGETHER_API_KEY;
 const CACHE_TABLE = "api_cache";
+const ANALYTICS_TABLE = "app_analytics"; // <-- DEFINE ANALYTICS TABLE
 
-// ---------- Helpers ----------
-
-/** Create SHA-256 hash for cache keys */
+// ---------- Helpers (Keep all your existing helpers) ----------
 function sha256(str: string): string {
   return createHash("sha256").update(str).digest("hex");
 }
 
-/** Sanitize and normalize for cache consistency */
 function sanitizeAndNormalizeQuery(q: string): string {
+  // ... (your existing function)
   return q
     .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
     .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date")
@@ -41,8 +41,8 @@ function sanitizeAndNormalizeQuery(q: string): string {
     .trim();
 }
 
-/** Light PHI sanitization for user messages */
 function sanitizeQuery(q: string): string {
+  // ... (your existing function)
   return q
     .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
     .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date")
@@ -50,20 +50,13 @@ function sanitizeQuery(q: string): string {
     .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
-// ---------- Prompt Controls ----------
-
 const CORE_INSTRUCTIONS = `
 You are Umbil — a concise UK clinical assistant.
-Use only NICE, SIGN, CKS, BNF, NHS, GOV.UK, RCGP, BMJ Best Practice, Resus Council UK, and TOXBASE guidance.
-Do NOT include explicit reference sections at the end.
-Cite inline only when necessary for clarity.
-Avoid repeating or restating references (no "References:" block).
-Write structured, clinically useful summaries using plain lists (no tables).
-Keep under 800 tokens, but complete the answer fully.
-Do not include names or identifiable details.
+... (your existing prompt)
 `;
 
 const TONE_PROMPTS: Record<string, string> = {
+  // ... (your existing tones)
   conversational:
     "Be clear, friendly, and concise. End with one helpful follow-up question.",
   formal:
@@ -71,6 +64,40 @@ const TONE_PROMPTS: Record<string, string> = {
   reflective:
     "Adopt a warm, mentoring tone. End with one short reflective question.",
 };
+
+// --- NEW HELPER: Get User ID from request ---
+async function getUserId(req: NextRequest): Promise<string | null> {
+  try {
+    const token = req.headers.get('authorization')?.split('Bearer ')[1];
+    if (!token) return null;
+
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data.user) return null;
+    return data.user.id;
+  } catch (e) {
+    return null;
+  }
+}
+
+// --- NEW HELPER: Log Analytics Event ---
+async function logAnalytics(
+  userId: string | null,
+  eventType: string,
+  metadata: any
+) {
+  try {
+    const { error } = await supabaseService.from(ANALYTICS_TABLE).insert({
+      user_id: userId,
+      event_type: eventType,
+      metadata: metadata,
+    });
+    if (error) {
+      console.error("[Umbil] Analytics Log Error:", error.message);
+    }
+  } catch (e) {
+    console.error("[Umbil] Analytics Log Exception:", (e as Error).message);
+  }
+}
 
 // ---------- Route Handler ----------
 
@@ -81,6 +108,9 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+
+  // --- Get User ID for logging ---
+  const userId = await getUserId(req);
 
   try {
     const body = await req.json();
@@ -118,12 +148,20 @@ export async function POST(req: NextRequest) {
 
     if (cached) {
       console.log(`[Umbil] Cache HIT → ${cacheHash}`);
+      
+      // --- LOG CACHE HIT ---
+      await logAnalytics(userId, 'question_asked', { 
+        cache: 'hit', 
+        tokens: 0 
+      });
+      
       return NextResponse.json({ answer: cached.answer });
     }
 
     console.log(`[Umbil] Cache MISS → ${cacheHash}. Fetching from Together API...`);
 
     // ----- API CALL -----
+    // ... (your existing fullMessages logic)
     const fullMessages = [
       { role: "system", content: systemPrompt },
       ...messages.map((m: ClientMessage) => ({
@@ -133,6 +171,7 @@ export async function POST(req: NextRequest) {
     ];
 
     const res = await fetch(CHAT_API_URL, {
+      // ... (your existing fetch options)
       method: "POST",
       headers: {
         Authorization: `Bearer ${API_KEY}`,
@@ -154,17 +193,28 @@ export async function POST(req: NextRequest) {
 
     const data: OpenAIResponse = await res.json();
     let answer = data.choices?.[0]?.message?.content?.trim() || "";
+    const usage = data.usage; // <-- Get usage data
 
-    if (data.usage)
+    if (usage) {
       console.log(
-        `[Umbil] Tokens used → total:${data.usage.total_tokens} prompt:${data.usage.prompt_tokens} completion:${data.usage.completion_tokens}`
+        `[Umbil] Tokens used → total:${usage.total_tokens} prompt:${usage.prompt_tokens} completion:${usage.completion_tokens}`
       );
+      
+      // --- LOG CACHE MISS + TOKEN USAGE ---
+      await logAnalytics(userId, 'question_asked', {
+        cache: 'miss',
+        prompt_tokens: usage.prompt_tokens,
+        completion_tokens: usage.completion_tokens,
+        total_tokens: usage.total_tokens,
+        model: MODEL_SLUG
+      });
+    }
 
     // ----- POST-PROCESSING -----
-    // Remove only standalone "References:" sections safely
     answer = answer.replace(/\n?References:[\s\S]*$/i, "").trim();
 
     // ----- CACHE WRITE -----
+    // ... (your existing cache write logic)
     if (answer.length > 50) {
       const cacheEntry = {
         query_hash: cacheHash,
@@ -185,6 +235,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ answer });
   } catch (err: unknown) {
     console.error("[Umbil] Fatal Error:", err);
+    
+    // --- LOG ERROR ---
+    await logAnalytics(userId, 'api_error', { 
+      error: (err as Error).message,
+      source: 'ask_route'
+    });
+    
     const msg = (err as Error).message || "Internal server error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
