@@ -1,7 +1,7 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase"; // Keep this for cache reads
-import { supabaseService } from "@/lib/supabaseService"; // <-- IMPORT NEW CLIENT
+import { supabase } from "@/lib/supabase";
+import { supabaseService } from "@/lib/supabaseService"; 
 import { createHash } from "crypto";
 
 // ---------- Types ----------
@@ -22,7 +22,7 @@ const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
 const MODEL_SLUG = "openai/gpt-oss-120b";
 const API_KEY = process.env.TOGETHER_API_KEY;
 const CACHE_TABLE = "api_cache";
-const ANALYTICS_TABLE = "app_analytics"; // <-- DEFINE ANALYTICS TABLE
+const ANALYTICS_TABLE = "app_analytics"; 
 
 // ---------- Helpers (Keep all your existing helpers) ----------
 function sha256(str: string): string {
@@ -65,7 +65,7 @@ const TONE_PROMPTS: Record<string, string> = {
     "Adopt a warm, mentoring tone. End with one short reflective question.",
 };
 
-// --- NEW HELPER: Get User ID from request ---
+// --- HELPER: Get User ID from request ---
 async function getUserId(req: NextRequest): Promise<string | null> {
   try {
     const token = req.headers.get('authorization')?.split('Bearer ')[1];
@@ -75,15 +75,18 @@ async function getUserId(req: NextRequest): Promise<string | null> {
     if (error || !data.user) return null;
     return data.user.id;
   } catch (e) {
+    // --- FIX 1: Use the 'e' variable to fix the ESLint warning ---
+    console.error("getUserId error:", (e as Error).message);
     return null;
   }
 }
 
-// --- NEW HELPER: Log Analytics Event ---
+// --- HELPER: Log Analytics Event ---
 async function logAnalytics(
   userId: string | null,
   eventType: string,
-  metadata: any
+  // --- FIX 2: Replaced 'any' with a specific type to fix the ESLint error ---
+  metadata: Record<string, unknown>
 ) {
   try {
     const { error } = await supabaseService.from(ANALYTICS_TABLE).insert({
@@ -152,7 +155,9 @@ export async function POST(req: NextRequest) {
       // --- LOG CACHE HIT ---
       await logAnalytics(userId, 'question_asked', { 
         cache: 'hit', 
-        tokens: 0 
+        prompt_tokens: 0,
+        completion_tokens: 0,
+        total_tokens: 0 
       });
       
       return NextResponse.json({ answer: cached.answer });
@@ -161,7 +166,6 @@ export async function POST(req: NextRequest) {
     console.log(`[Umbil] Cache MISS → ${cacheHash}. Fetching from Together API...`);
 
     // ----- API CALL -----
-    // ... (your existing fullMessages logic)
     const fullMessages = [
       { role: "system", content: systemPrompt },
       ...messages.map((m: ClientMessage) => ({
@@ -171,7 +175,6 @@ export async function POST(req: NextRequest) {
     ];
 
     const res = await fetch(CHAT_API_URL, {
-      // ... (your existing fetch options)
       method: "POST",
       headers: {
         Authorization: `Bearer ${API_KEY}`,
@@ -193,14 +196,13 @@ export async function POST(req: NextRequest) {
 
     const data: OpenAIResponse = await res.json();
     let answer = data.choices?.[0]?.message?.content?.trim() || "";
-    const usage = data.usage; // <-- Get usage data
+    const usage = data.usage; 
 
     if (usage) {
       console.log(
         `[Umbil] Tokens used → total:${usage.total_tokens} prompt:${usage.prompt_tokens} completion:${usage.completion_tokens}`
       );
       
-      // --- LOG CACHE MISS + TOKEN USAGE ---
       await logAnalytics(userId, 'question_asked', {
         cache: 'miss',
         prompt_tokens: usage.prompt_tokens,
@@ -214,7 +216,6 @@ export async function POST(req: NextRequest) {
     answer = answer.replace(/\n?References:[\s\S]*$/i, "").trim();
 
     // ----- CACHE WRITE -----
-    // ... (your existing cache write logic)
     if (answer.length > 50) {
       const cacheEntry = {
         query_hash: cacheHash,
@@ -236,7 +237,6 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     console.error("[Umbil] Fatal Error:", err);
     
-    // --- LOG ERROR ---
     await logAnalytics(userId, 'api_error', { 
       error: (err as Error).message,
       source: 'ask_route'

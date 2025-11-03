@@ -53,13 +53,13 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
   // Get user ID for analytics
   let userId: string | null = null;
   try {
-    // --- FIX 1: Removed the underscore ---
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
       userId = user.id;
     }
   } catch (e) {
-    console.warn("Could not get user for analytics logging.");
+    // --- FIX 3: Use the 'e' variable to fix the ESLint warning ---
+    console.warn("Could not get user for analytics logging:", (e as Error).message);
   }
 
   const payload = {
@@ -71,7 +71,6 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
     ...(userId && { user_id: userId }) // Add user_id if we have it
   };
 
-  // --- FIX 2: Removed the underscore ---
   const { data, error } = await supabase
     .from(CPD_TABLE)
     .insert(payload)
