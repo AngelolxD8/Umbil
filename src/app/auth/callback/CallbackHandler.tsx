@@ -10,9 +10,7 @@ import type { AuthSession } from '@supabase/supabase-js';
  * CallbackHandler
  * - Parses both query string and URL hash (fragment) for access/refresh tokens.
  * - If tokens are present, calls supabase.auth.setSession(...) to establish the session.
- * - Redirects to home (/) once a session is established.
- * * NOTE: The password recovery flow no longer passes through here, as it now
- * redirects directly to /auth/update-password.
+ * - Redirects to /profile if 'flow=profile_redirect' is detected, otherwise redirects home (/).
  */
 export default function CallbackHandler() {
   const router = useRouter();
@@ -29,11 +27,14 @@ export default function CallbackHandler() {
         const pick = (name: string): string | null => qs.get(name) ?? hash.get(name) ?? null;
         const access_token = pick("access_token") ?? pick("accessToken") ?? pick("token");
         const refresh_token = pick("refresh_token") ?? pick("refreshToken") ?? pick("refresh");
-        // Removed recoveryType from here as the password recovery flow is now handled directly.
+        
+        // NEW: Check for a custom query parameter to trigger redirection to the profile page
+        const customFlow = pick("flow"); 
 
         console.info("Auth callback params:", {
           access_token: !!access_token,
           refresh_token: !!refresh_token,
+          customFlow, // Log the new parameter
         });
         
         setDebugMsg(
@@ -49,7 +50,6 @@ export default function CallbackHandler() {
         }
 
         let session: AuthSession | null = null;
-        // Keep the loop for general sign-in reliability (e.g., waiting for cookie)
         for (let i = 0; i < 6; i++) {
           await wait(500);
           const { data: sessionData } = await supabase.auth.getSession();
@@ -57,8 +57,14 @@ export default function CallbackHandler() {
           if (session) break;
         }
 
-        // Always redirect to home if a session is found after any sign-in method
         if (session) {
+          // CHECK 1: If custom flow is present (Magic Link for password reset)
+          if (customFlow === "profile_redirect") {
+            router.replace("/profile"); // <-- Redirect directly to the profile page
+            return;
+          }
+          
+          // CHECK 2: Default redirect for standard sign-ins
           router.replace("/");
           return;
         }

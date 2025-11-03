@@ -1,3 +1,4 @@
+// src/app/auth/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -57,7 +58,7 @@ export default function AuthPage() {
     }
   };
 
-  // --- Forgot Password Handler
+  // --- FORGOT PASSWORD / MAGIC LINK HANDLER (FIX)
   const handleForgotPassword = async () => {
     if (!email.trim()) {
       setMsg("Please enter your email address above.");
@@ -68,19 +69,21 @@ export default function AuthPage() {
     setMsg(null);
 
     const baseUrl = window.location.origin;
-    const redirectTo = `${baseUrl}/auth/update-password`;
 
-    console.log("🔗 Sending password reset with redirect:", redirectTo);
-
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo,
+    // FIX: Send a Magic Link (Sign In with OTP) instead of a password reset link.
+    // The redirect URL is set to the callback page, which will then push to /profile.
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        emailRedirectTo: `${baseUrl}/auth/callback?flow=profile_redirect`, 
+      },
     });
 
     setSending(false);
     setMsg(
       error
         ? `⚠️ ${error.message}`
-        : "✅ Password reset link sent! Check your email inbox."
+        : "✅ Magic Link sent! Check your email to sign in."
     );
   };
 
@@ -90,7 +93,7 @@ export default function AuthPage() {
       ? "Sign in to Umbil"
       : mode === "signUp"
       ? "Create Account"
-      : "Reset Password";
+      : "Forgot Password (Magic Link)"; // Updated title
 
   return (
     <section className="main-content">
@@ -139,7 +142,7 @@ export default function AuthPage() {
                   onClick={handleForgotPassword}
                   disabled={sending || !email.trim()}
                 >
-                  {sending ? "Sending Link..." : "Send Reset Link"}
+                  {sending ? "Sending Link..." : "Send Magic Link"}
                 </button>
               ) : (
                 <button
