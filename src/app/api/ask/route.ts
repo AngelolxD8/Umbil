@@ -1,7 +1,6 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase"; // Import Supabase
-// Use the native crypto module available in the Next.js/Vercel runtime for hashing
+import { supabase } from "@/lib/supabase";
 import { createHash } from 'crypto'; 
 
 // ---------- Types ----------
@@ -21,7 +20,7 @@ const TOGETHER_API_BASE_URL = "https://api.together.xyz/v1";
 const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
 const MODEL_SLUG = "openai/gpt-oss-120b";
 const API_KEY = process.env.TOGETHER_API_KEY;
-const CACHE_TABLE = "api_cache"; // New table name for cache
+const CACHE_TABLE = "api_cache";
 
 // ---------- Helpers ----------
 
@@ -31,6 +30,10 @@ const CACHE_TABLE = "api_cache"; // New table name for cache
  * @returns A SHA-256 hash string.
  */
 function sha256(str: string): string {
+  // CRITICAL FIX: The 'crypto' module is available in the Next.js Node.js runtime 
+  // on Vercel API routes, but *not* the Edge runtime (which API routes don't use).
+  // If you encounter an error here, check Vercel settings to ensure the route 
+  // is *not* running as an Edge Function.
   return createHash('sha256').update(str).digest('hex');
 }
 
@@ -81,22 +84,22 @@ export async function POST(req: NextRequest) {
     const tonePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
     const grade = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const systemPrompt = `${CORE_INSTRUCTIONS} ${grade} ${tonePrompt}`;
+    
+    // The latest message is the user's current question
+    const latestUserMessage = messages[messages.length - 1];
 
-    // Apply sanitization only to the user's input messages (role: 'user')
-    const sanitizedMessages = messages.map((m) => ({
-      ...m,
-      content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
-    }));
+    // Apply sanitization to the latest user's input
+    const sanitizedLatestUserMessage = sanitizeQuery(latestUserMessage.content);
 
-    // Create a stable key from all factors influencing the response
-    const fullQueryKey = JSON.stringify({
+    // CRITICAL FIX: Base the cache key ONLY on the System Prompt and the Sanitized Latest Question
+    const cacheKeyContent = JSON.stringify({
       model: MODEL_SLUG,
-      systemPrompt,
-      sanitizedMessages,
+      systemPrompt: systemPrompt,
+      latestUserMessage: sanitizedLatestUserMessage,
     });
     
     // 1. Generate stable hash for the cache key
-    const cacheHash = sha256(fullQueryKey);
+    const cacheHash = sha256(cacheKeyContent);
     
     // 2. Check Supabase cache (Query is only based on the hash)
     const { data: cachedData, error: cacheReadError } = await supabase
@@ -119,9 +122,15 @@ export async function POST(req: NextRequest) {
     console.log(`[UMBL-API] Cache Miss for hash: ${cacheHash}. Calling Together API...`);
     
     // --- Cache Miss: Proceed to LLM API call ---
+    
+    // Prepare messages: apply the system prompt and the full conversation history (which is necessary for LLM coherence, even if we don't cache based on it)
     const fullMessages = [
       { role: "system", content: systemPrompt },
-      ...sanitizedMessages,
+      // Apply sanitization to the entire history before sending to the LLM (as it's only done on user messages)
+      ...messages.map((m) => ({
+          ...m,
+          content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
+      })),
     ];
 
     const r = await fetch(CHAT_API_URL, {
@@ -157,21 +166,24 @@ export async function POST(req: NextRequest) {
       );
       
     // 3. Write new response to Supabase cache (Fire and forget: we don't await)
-    const cachePayload = {
-      query_hash: cacheHash,
-      answer: answer,
-      full_query_key: fullQueryKey, 
-    };
-    
-    // Use upsert to handle concurrent writes safely
-    const { error: cacheWriteError } = await supabase
-      .from(CACHE_TABLE)
-      .upsert(cachePayload, { onConflict: 'query_hash' }); 
-      
-    if (cacheWriteError) {
-      console.error("Supabase Cache Write Error:", cacheWriteError);
-    } else {
-      console.log(`[UMBL-API] Cache Write Success for hash: ${cacheHash}`);
+    // Only cache if the answer is meaningful (e.g., more than a short response)
+    if (answer.length > 50) { 
+        const cachePayload = {
+          query_hash: cacheHash,
+          answer: answer,
+          full_query_key: cacheKeyContent, // Storing the content used to generate the hash
+        };
+        
+        // Use upsert to handle concurrent writes safely
+        const { error: cacheWriteError } = await supabase
+          .from(CACHE_TABLE)
+          .upsert(cachePayload, { onConflict: 'query_hash' }); 
+          
+        if (cacheWriteError) {
+          console.error("Supabase Cache Write Error:", cacheWriteError);
+        } else {
+          console.log(`[UMBL-API] Cache Write Success for hash: ${cacheHash}`);
+        }
     }
 
     return NextResponse.json({ answer });
