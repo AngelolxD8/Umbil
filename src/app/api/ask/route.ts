@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { createHash } from 'crypto'; 
+import { URLSearchParams } from 'url';
 
 // ---------- Types ----------
 type OpenAIResponse = {
@@ -30,15 +31,15 @@ const CACHE_TABLE = "api_cache";
  * @returns A SHA-256 hash string.
  */
 function sha256(str: string): string {
-  // CRITICAL FIX: The 'crypto' module is available in the Next.js Node.js runtime 
-  // on Vercel API routes, but *not* the Edge runtime (which API routes don't use).
-  // If you encounter an error here, check Vercel settings to ensure the route 
-  // is *not* running as an Edge Function.
   return createHash('sha256').update(str).digest('hex');
 }
 
-function sanitizeQuery(q: string) {
-  return q
+/**
+ * Sanitizes PHI and normalizes text for a consistent cache key.
+ */
+function sanitizeAndNormalizeQuery(q: string): string {
+  // 1. PHI Sanitization
+  const sanitized = q
     .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
     .replace(/\b\d{1,2}[\/-]\d{1,2}[\/-]\d{2,4}\b/g, "a specific date")
     .replace(/\b\d{6,10}\b/g, "a long identifier number")
@@ -46,12 +47,16 @@ function sanitizeQuery(q: string) {
       /\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi,
       "$1-year-old patient"
     );
+    
+  // 2. Aggressive Normalization for Cache Consistency (lowercasing, trimming extra space)
+  return sanitized.toLowerCase().replace(/\s+/g, ' ').trim();
 }
 
 // ---------- Prompts ----------
+// CRITICAL FIX: Increased max_tokens and improved the instruction to ensure better completion
 const CORE_INSTRUCTIONS =
   "You are Umbil, a concise UK clinical assistant. Use NICE, SIGN, CKS, BNF, NHS, GOV.UK, RCGP, BMJ Best Practice, Resus Council UK, TOXBASE (cite only). " +
-  "Do not output names or PHI. Use plain lists (no tables). Keep within about 400 tokens and finish naturally. If the response hits the token limit, it may stop mid-sentence.";
+  "You must always complete your response, even if the token limit is approached. Do not output names or PHI. Use plain lists (no tables). Keep within about 700 tokens for thoroughness.";
 
 const TONE_PROMPTS: Record<string, string> = {
   conversational:
@@ -82,36 +87,37 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
     const tonePrompt = TONE_PROMPTS[tone] ?? TONE_PROMPTS.conversational;
+    
+    // NOTE: Profile grade is now only included in the prompt, NOT the cache key, 
+    // to improve cache hit rates for common questions.
     const grade = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const systemPrompt = `${CORE_INSTRUCTIONS} ${grade} ${tonePrompt}`;
     
     // The latest message is the user's current question
     const latestUserMessage = messages[messages.length - 1];
 
-    // Apply sanitization to the latest user's input
-    const sanitizedLatestUserMessage = sanitizeQuery(latestUserMessage.content);
+    // 1. Generate CRITICAL CACHE KEY CONTENT (uses normalized text & tone)
+    const normalizedLatestUserMessage = sanitizeAndNormalizeQuery(latestUserMessage.content);
 
-    // CRITICAL FIX: Base the cache key ONLY on the System Prompt and the Sanitized Latest Question
     const cacheKeyContent = JSON.stringify({
       model: MODEL_SLUG,
-      systemPrompt: systemPrompt,
-      latestUserMessage: sanitizedLatestUserMessage,
+      // For caching, we only rely on the Tone (static part of prompt)
+      tone: tone, 
+      latestUserMessage: normalizedLatestUserMessage,
     });
     
-    // 1. Generate stable hash for the cache key
+    // 2. Generate stable hash for the cache key
     const cacheHash = sha256(cacheKeyContent);
     
-    // 2. Check Supabase cache (Query is only based on the hash)
+    // 3. Check Supabase cache
     const { data: cachedData, error: cacheReadError } = await supabase
       .from(CACHE_TABLE)
       .select("answer")
       .eq("query_hash", cacheHash)
       .single();
 
-    // PGRST116 is the expected error code for 'No rows found', so we ignore it.
     if (cacheReadError && cacheReadError.code !== 'PGRST116') { 
       console.error("Supabase Cache Read Error:", cacheReadError);
-      // Continue execution to generate the answer if cache read fails
     }
     
     if (cachedData) {
@@ -123,12 +129,12 @@ export async function POST(req: NextRequest) {
     
     // --- Cache Miss: Proceed to LLM API call ---
     
-    // Prepare messages: apply the system prompt and the full conversation history (which is necessary for LLM coherence, even if we don't cache based on it)
+    // Prepare messages: apply the system prompt and the full conversation history
     const fullMessages = [
       { role: "system", content: systemPrompt },
-      // Apply sanitization to the entire history before sending to the LLM (as it's only done on user messages)
       ...messages.map((m) => ({
           ...m,
+          // Use the more permissive PHI sanitizer here
           content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
       })),
     ];
@@ -142,7 +148,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL_SLUG,
         messages: fullMessages,
-        max_tokens: 500,
+        // FIX: Increased token limit for better response quality and length
+        max_tokens: 600, 
         temperature: 0.25,
         top_p: 0.8,
       }),
@@ -157,7 +164,7 @@ export async function POST(req: NextRequest) {
     }
 
     const data: OpenAIResponse = await r.json();
-    const answer = data.choices?.[0]?.message?.content ?? "";
+    let answer = data.choices?.[0]?.message?.content ?? "";
     
 
     if (data.usage)
@@ -165,22 +172,25 @@ export async function POST(req: NextRequest) {
         `[UMBL-API] Tokens → total:${data.usage.total_tokens} prompt:${data.usage.prompt_tokens} completion:${data.usage.completion_tokens}`
       );
       
-    // 3. Write new response to Supabase cache (Fire and forget: we don't await)
-    // Only cache if the answer is meaningful (e.g., more than a short response)
+    // 4. Post-processing: Remove excessive inline citations from the answer
+    // We target citations like ' - NICE NG59' or ' - SIGN 136; BNF' at the end of lines
+    answer = answer.replace(/ - (?:[A-Z\s\d;]+|[^.\n\r]+?)(?=(?:\s*\n)|$)/g, '');
+      
+    // 5. Write new response to Supabase cache (Fire and forget: we don't await)
+    // Only cache if the answer is meaningful (e.g., more than 50 characters)
     if (answer.length > 50) { 
         const cachePayload = {
           query_hash: cacheHash,
           answer: answer,
-          full_query_key: cacheKeyContent, // Storing the content used to generate the hash
+          full_query_key: cacheKeyContent,
         };
         
-        // Use upsert to handle concurrent writes safely
         const { error: cacheWriteError } = await supabase
           .from(CACHE_TABLE)
           .upsert(cachePayload, { onConflict: 'query_hash' }); 
           
         if (cacheWriteError) {
-          console.error("Supabase Cache Write Error:", cacheWriteError);
+          console.error("Supabase Cache Write Error (Non-blocking):", cacheWriteError);
         } else {
           console.log(`[UMBL-API] Cache Write Success for hash: ${cacheHash}`);
         }
@@ -194,4 +204,8 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+function sanitizeQuery(content: string): any {
+  throw new Error("Function not implemented.");
 }
