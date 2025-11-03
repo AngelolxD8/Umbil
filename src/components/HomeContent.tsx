@@ -11,6 +11,7 @@ import { addCPD, CPDEntry } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
+import { supabase } from "@/lib/supabase"; // <-- *** 1. ADD THIS IMPORT ***
 
 // --- UPDATED TYPE FOR RATE LIMIT RESPONSE (pro_url removed) ---
 type AskResponse = { 
@@ -136,6 +137,12 @@ export default function HomeContent() {
     scrollToBottom(true); 
 
     try {
+      // --- *** 2. THIS IS THE FIX (Part 1) *** ---
+      // Get the user's current session token to send to the API
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      // --- *** END OF FIX (Part 1) *** ---
+
       // 1. Map the current conversation state to the API's expected format (role/content)
       const messagesToSend: ClientMessage[] = updatedConversation.map(entry => ({
           role: entry.type === "user" ? "user" : "assistant",
@@ -144,7 +151,12 @@ export default function HomeContent() {
       
       const res = await fetch("/api/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          // --- *** 3. THIS IS THE FIX (Part 2) *** ---
+          // Pass the token in the Authorization header
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
         // Send the full conversation history for context
         body: JSON.stringify({ messages: messagesToSend, profile, tone: "conversational" }),
       });
