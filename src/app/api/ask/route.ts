@@ -1,5 +1,8 @@
 // src/app/api/ask/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase"; // Import Supabase
+// Use the native crypto module available in the Next.js/Vercel runtime for hashing
+import { createHash } from 'crypto'; 
 
 // ---------- Types ----------
 type OpenAIResponse = {
@@ -18,11 +21,19 @@ const TOGETHER_API_BASE_URL = "https://api.together.xyz/v1";
 const CHAT_API_URL = `${TOGETHER_API_BASE_URL}/chat/completions`;
 const MODEL_SLUG = "openai/gpt-oss-120b";
 const API_KEY = process.env.TOGETHER_API_KEY;
-
-// ---------- Cache ----------
-const cache = new Map<string, string>();
+const CACHE_TABLE = "api_cache"; // New table name for cache
 
 // ---------- Helpers ----------
+
+/**
+ * Generates a stable SHA-256 hash for a given string, used as a primary key for caching.
+ * @param str The string to hash (the full query key).
+ * @returns A SHA-256 hash string.
+ */
+function sha256(str: string): string {
+  return createHash('sha256').update(str).digest('hex');
+}
+
 function sanitizeQuery(q: string) {
   return q
     .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
@@ -71,19 +82,43 @@ export async function POST(req: NextRequest) {
     const grade = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const systemPrompt = `${CORE_INSTRUCTIONS} ${grade} ${tonePrompt}`;
 
+    // Apply sanitization only to the user's input messages (role: 'user')
     const sanitizedMessages = messages.map((m) => ({
       ...m,
       content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
     }));
 
-    const cacheKey = JSON.stringify({
+    // Create a stable key from all factors influencing the response
+    const fullQueryKey = JSON.stringify({
       model: MODEL_SLUG,
       systemPrompt,
       sanitizedMessages,
     });
-    if (cache.has(cacheKey))
-      return NextResponse.json({ answer: cache.get(cacheKey) });
+    
+    // 1. Generate stable hash for the cache key
+    const cacheHash = sha256(fullQueryKey);
+    
+    // 2. Check Supabase cache (Query is only based on the hash)
+    const { data: cachedData, error: cacheReadError } = await supabase
+      .from(CACHE_TABLE)
+      .select("answer")
+      .eq("query_hash", cacheHash)
+      .single();
 
+    // PGRST116 is the expected error code for 'No rows found', so we ignore it.
+    if (cacheReadError && cacheReadError.code !== 'PGRST116') { 
+      console.error("Supabase Cache Read Error:", cacheReadError);
+      // Continue execution to generate the answer if cache read fails
+    }
+    
+    if (cachedData) {
+        console.log(`[UMBL-API] Cache Hit for hash: ${cacheHash}`);
+        return NextResponse.json({ answer: cachedData.answer });
+    }
+    
+    console.log(`[UMBL-API] Cache Miss for hash: ${cacheHash}. Calling Together API...`);
+    
+    // --- Cache Miss: Proceed to LLM API call ---
     const fullMessages = [
       { role: "system", content: systemPrompt },
       ...sanitizedMessages,
@@ -113,7 +148,6 @@ export async function POST(req: NextRequest) {
     }
 
     const data: OpenAIResponse = await r.json();
-    // FIX 1: Changed 'let' to 'const' as 'answer' is no longer reassigned.
     const answer = data.choices?.[0]?.message?.content ?? "";
     
 
@@ -121,8 +155,25 @@ export async function POST(req: NextRequest) {
       console.log(
         `[UMBL-API] Tokens → total:${data.usage.total_tokens} prompt:${data.usage.prompt_tokens} completion:${data.usage.completion_tokens}`
       );
+      
+    // 3. Write new response to Supabase cache (Fire and forget: we don't await)
+    const cachePayload = {
+      query_hash: cacheHash,
+      answer: answer,
+      full_query_key: fullQueryKey, 
+    };
+    
+    // Use upsert to handle concurrent writes safely
+    const { error: cacheWriteError } = await supabase
+      .from(CACHE_TABLE)
+      .upsert(cachePayload, { onConflict: 'query_hash' }); 
+      
+    if (cacheWriteError) {
+      console.error("Supabase Cache Write Error:", cacheWriteError);
+    } else {
+      console.log(`[UMBL-API] Cache Write Success for hash: ${cacheHash}`);
+    }
 
-    cache.set(cacheKey, answer);
     return NextResponse.json({ answer });
   } catch (err: unknown) {
     const errorMessage = (err as { message?: string })?.message ?? "Server error";
