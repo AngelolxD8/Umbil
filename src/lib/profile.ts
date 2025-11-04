@@ -5,7 +5,7 @@ export type Profile = {
   id: string;
   full_name: string | null;
   grade: string | null;
-  // title: string | null; // <-- This was correctly removed
+  // title: string | null; // This was correctly removed
   dob: string | null; // ISO date
 };
 
@@ -20,10 +20,10 @@ export async function getMyProfile(): Promise<Profile | null> {
     .single();
 
   if (error) {
-    // --- FIX: Check if this is a new user from sign-up ---
+    // FIX: Check if this is a new user from sign-up
     // The user exists in auth, but not in profiles yet.
     // We check 'user_metadata' (not 'raw_user_meta_data')
-    if (user && user.user_metadata && user.user_metadata.grade) {
+    if (user && user.user_metadata && (user.user_metadata.grade || user.user_metadata.full_name)) {
       return {
         id: user.id,
         full_name: user.user_metadata.full_name || null,
@@ -39,10 +39,20 @@ export async function getMyProfile(): Promise<Profile | null> {
 export async function upsertMyProfile(p: Partial<Profile>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in");
-  
-  // Ensure 'title' is not part of the payload
-  const { title, ...payload } = { id: user.id, ...p } as any; // Use 'any' to safely destructure 'title' out
-  
+
+  // --- THIS IS THE FIX ---
+  // We explicitly create the payload using only the properties
+  // defined in the 'Profile' type. This prevents any extra
+  // properties (like 'title') from being included and avoids
+  // both the 'no-unused-vars' and 'no-explicit-any' errors.
+  const payload: Partial<Profile> = {
+    id: user.id,
+    full_name: p.full_name,
+    grade: p.grade,
+    dob: p.dob
+  };
+  // --- END OF FIX ---
+
   const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
   if (error) throw error;
 }
