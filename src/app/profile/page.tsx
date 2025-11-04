@@ -206,7 +206,8 @@ export default function ProfilePage() {
         
         <div className="card" style={{ marginTop: 24 }}> {/* Adjusted margin-top */}
           <div className="card__body">
-            <h3>Contact and Clinical Details</h3> {/* Added sub-heading for clarity */}
+            {/* --- RENAMED: Section Title --- */}
+            <h3>Your Clinical Details</h3>
             <div className="form-group" style={{marginTop: 16}}>
               <label className="form-label">Full Name</label>
               <input
@@ -227,17 +228,9 @@ export default function ProfilePage() {
                 placeholder="e.g., FY1 Doctor, GP Trainee"
               />
             </div>
-            <div className="form-group">
-              <label className="form-label">Professional Body Number</label>
-              <input
-                className="form-control"
-                type="text"
-                value={profile.title || ""}
-                // Note: The 'title' field is repurposed to store the Professional Body Number
-                onChange={(e) => setProfile({ ...profile, title: e.target.value })}
-                placeholder="e.g., GMC number"
-              />
-            </div>
+            
+            {/* --- REMOVED: Professional Body Number Field --- */}
+            
             {error && <p style={{ color: 'red' }}>{error}</p>}
             <button className="btn btn--primary" onClick={handleSave} disabled={loading}>
               {loading ? "Saving..." : "Save Profile"}

@@ -9,6 +9,7 @@ import type { AuthError } from "@supabase/supabase-js";
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [grade, setGrade] = useState(""); // <-- ADDED: State for the new grade field
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [mode, setMode] = useState<"signIn" | "signUp" | "forgotPassword">("signIn");
@@ -41,9 +42,15 @@ export default function AuthPage() {
       });
       error = signInError;
     } else if (mode === "signUp") {
+      // --- MODIFIED: Pass grade in options.data ---
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            grade: grade || null, // Pass the grade to be stored in user metadata
+          },
+        },
       });
       error = signUpError;
     }
@@ -113,12 +120,28 @@ export default function AuthPage() {
               <input
                 className="form-control"
                 type="email"
-                placeholder="you@nhs.net"
+                placeholder="e.g., your.email@example.com" // <-- CHANGED: Placeholder
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={sending}
               />
             </div>
+
+            {/* --- ADDED: Grade field only for sign up --- */}
+            {mode === "signUp" && (
+              <div className="form-group">
+                <label className="form-label">Position / Grade (Optional)</label>
+                <input
+                  className="form-control"
+                  type="text"
+                  placeholder="e.g., 5th Year Medical Student, GP, FY1"
+                  value={grade}
+                  onChange={(e) => setGrade(e.target.value)}
+                  disabled={sending}
+                />
+              </div>
+            )}
+            {/* --- END OF ADDED FIELD --- */}
 
             {!isForgot && (
               <div className="form-group">

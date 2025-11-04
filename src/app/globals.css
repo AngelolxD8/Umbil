@@ -812,3 +812,62 @@ a {
 .color-legend.level-0 { background-color: var(--umbil-hover-bg); opacity: 1; } /* Explicitly defined for 'Less' */
 
 /* End NEW STYLES FOR CPD STREAK CALENDAR */
+
+/* --- ADDED: Responsive Markdown & Table Fixes --- */
+
+/* 1. Wrapper for AI-generated content */
+.markdown-content-wrapper {
+  /* This is the key: allows horizontal scrolling on mobile */
+  overflow-x: auto;
+  width: 100%;
+}
+
+/* 2. Style all tables inside the wrapper */
+.markdown-content-wrapper table {
+  width: 100%; /* Make table try to fit */
+  min-width: 500px; /* But force a min-width to prevent extreme cramping */
+  border-collapse: collapse;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--umbil-divider);
+}
+
+/* 3. Style table headers */
+.markdown-content-wrapper th {
+  background-color: var(--umbil-hover-bg);
+  padding: 10px 12px;
+  border-bottom: 2px solid var(--umbil-divider);
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem; /* Consistent font size */
+}
+
+/* 4. Style table cells */
+.markdown-content-wrapper td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--umbil-divider);
+  vertical-align: top; /* Align content to the top of the cell */
+  font-size: 0.9rem; /* Consistent font size */
+}
+
+/* 5. Clean look for the last row */
+.markdown-content-wrapper tr:last-child td {
+  border-bottom: none;
+}
+
+/* 6. Fix for line breaks and lists inside tables */
+.markdown-content-wrapper td p {
+  margin-bottom: 0.5rem; /* Space out paragraphs inside a cell */
+}
+.markdown-content-wrapper td p:last-child {
+  margin-bottom: 0;
+}
+.markdown-content-wrapper td ul,
+.markdown-content-wrapper td ol {
+  margin: 0.5rem 0 0.5rem 1.25rem; /* Indent lists inside cells */
+  padding: 0;
+}
+.markdown-content-wrapper td li {
+  margin-bottom: 0.25rem; /* Tighter list spacing inside tables */
+}
+/* --- END OF RESPONSIVE TABLE FIXES --- */

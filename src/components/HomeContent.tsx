@@ -222,7 +222,18 @@ export default function HomeContent() {
 
     return (
       <div key={index} className={className}>
-        <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
+        {/* --- THIS IS THE FIX --- */}
+        {/* Add a wrapper div for Umbil messages to control table overflow */}
+        {isUmbil ? (
+          <div className="markdown-content-wrapper">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
+          </div>
+        ) : (
+          // User messages don't need the wrapper
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
+        )}
+        {/* --- END OF FIX --- */}
+
         {isUmbil && ( // Show CPD button for all Umbil messages
           <div className="umbil-message-actions">
             <button className="action-button" onClick={() => handleOpenAddCpdModal(entry)}>Add to CPD</button>

@@ -50,12 +50,11 @@ function sanitizeQuery(q: string): string {
     .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
-// --- CORE PROMPT UPDATED AS REQUESTED ---
+// --- CORE PROMPT UPDATED ---
+// This instructs the AI to *only* use Markdown, fixing the <br> issue.
 const CORE_INSTRUCTIONS = `
-You are Umbil, a concise UK clinical assistant. Use UK English. Give structured, evidence-based answers (NICE, SIGN, CKS, BNF, BMJ or other UK sources). Start with a short summary, then bullets. End with a helpful follow-up (e.g another differential or suggestion)
+You are Umbil, a concise UK clinical assistant. Use UK English, Markdowns for format, if using tables also use markdown tables. Give structured, evidence-based answers (NICE, SIGN, CKS, BNF, BMJ or other UK sources). Start with a short summary, then bullets. End with a helpful follow-up (e.g another differential or suggestion)
 `;
-
-// --- TONE_PROMPTS REMOVED ---
 
 // --- HELPER: Get User ID from request ---
 async function getUserId(req: NextRequest): Promise<string | null> {
@@ -109,22 +108,18 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    // --- 'tone' REMOVED from destructuring ---
     const { messages, profile } = body;
     if (!messages?.length)
       return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
-    // --- 'tonePrompt' logic REMOVED ---
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
 
-    // --- 'systemPrompt' logic SIMPLIFIED ---
     const systemPrompt = `${CORE_INSTRUCTIONS.trim()} ${gradeNote}`;
 
     // ----- CACHE KEY -----
     const latestUserMessage = messages[messages.length - 1];
     const normalizedUser = sanitizeAndNormalizeQuery(latestUserMessage.content);
 
-    // --- 'tone' REMOVED from cache key ---
     const cacheKeyContent = JSON.stringify({
       model: MODEL_SLUG,
       query: normalizedUser,
@@ -177,7 +172,7 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: MODEL_SLUG,
         messages: fullMessages,
-        max_tokens: 4096, // Kept fix for long answers
+        max_tokens: 4096,
         temperature: 0.25,
         top_p: 0.8,
       }),
