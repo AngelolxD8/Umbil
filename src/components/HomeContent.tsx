@@ -6,37 +6,43 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ReflectionModal from "@/components/ReflectionModal";
 import Toast from "@/components/Toast";
-// Updated addCPD will now be the remote save function
-import { addCPD, CPDEntry } from "@/lib/store"; 
+import { addCPD, CPDEntry } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
-import { supabase } from "@/lib/supabase"; // <-- *** 1. ADD THIS IMPORT ***
+import { supabase } from "@/lib/supabase";
 
-// --- UPDATED TYPE FOR RATE LIMIT RESPONSE (pro_url removed) ---
-type AskResponse = { 
-    answer?: string; 
-    error?: string;
+// --- Types ---
+
+type AskResponse = {
+  answer?: string;
+  error?: string;
 };
-// ----------------------------------------
 
-type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; }; // pro_url removed from this type
+type ConversationEntry = {
+  type: "user" | "umbil";
+  content: string;
+  question?: string;
+};
 
-// Define a type for a message to be sent to the API
 type ClientMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
+// --- Helpers ---
+
 const getErrorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
-  // Handle objects that might have an error message property, common in API responses
-  if (typeof err === 'object' && err !== null && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+  if (
+    typeof err === "object" &&
+    err !== null &&
+    "message" in err &&
+    typeof (err as { message: unknown }).message === "string"
+  ) {
     return (err as { message: string }).message;
   }
   if (typeof err === "string") return err;
-  
-  // Final fallback
   return "An unexpected error occurred.";
 };
 
@@ -48,21 +54,27 @@ const loadingMessages = [
   "Crafting your response...",
 ];
 
+// --- Component ---
+
 export default function HomeContent() {
   const [q, setQ] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
   const [loadingMsg, setLoadingMsg] = useState(loadingMessages[0]);
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const scrollContainerRef = useRef<HTMLDivElement | null>(null); // NEW: Reference to the main content container
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  // Using Omit to ensure we only collect the client-side fields needed before database insertion
-  const [currentCpdEntry, setCurrentCpdEntry] = useState<Omit<CPDEntry, "reflection" | "tags" | "id" | "user_id"> | null>(null);
+  const [currentCpdEntry, setCurrentCpdEntry] = useState<Omit<
+    CPDEntry,
+    "reflection" | "tags" | "id" | "user_id"
+  > | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { email } = useUserEmail();
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
+
+  // --- Effects ---
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -75,37 +87,30 @@ export default function HomeContent() {
   }, [email]);
 
   useEffect(() => {
-    // Clear chat history if the 'new-chat' parameter is present
     if (searchParams.get("new-chat")) {
       setConversation([]);
     }
   }, [searchParams]);
 
-  // IMPROVED SCROLL LOGIC
   const scrollToBottom = (instant = false) => {
-    // Get the main content container (the viewport/window that is scrolling)
-    const container = document.querySelector('.main-content'); 
-    
+    const container = document.querySelector(".main-content");
     if (container) {
-        // Check if the user is already near the bottom (within 200px)
-        const isNearBottom = container.scrollHeight - container.scrollTop < container.clientHeight + 200; 
-        
-        // Only scroll if it's an instant scroll (user just submitted a question) OR 
-        // if the user was already near the bottom (new message arrival)
-        if (isNearBottom || instant) {
-            messagesEndRef.current?.scrollIntoView({ behavior: instant ? "auto" : "smooth" });
-        }
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop <
+        container.clientHeight + 200;
+      if (isNearBottom || instant) {
+        messagesEndRef.current?.scrollIntoView({
+          behavior: instant ? "auto" : "smooth",
+        });
+      }
     }
   };
 
-  // Trigger scroll only when conversation updates
   useEffect(() => {
-      // Small delay to ensure the new DOM element has rendered before measuring scroll height
-      const timeoutId = setTimeout(() => scrollToBottom(), 50); 
-      return () => clearTimeout(timeoutId);
+    const timeoutId = setTimeout(() => scrollToBottom(), 50);
+    return () => clearTimeout(timeoutId);
   }, [conversation]);
-  
-  // Handle dynamic loading message
+
   useEffect(() => {
     if (loading) {
       const interval = setInterval(() => {
@@ -117,126 +122,269 @@ export default function HomeContent() {
       }, 2000);
       return () => clearInterval(interval);
     } else {
-      setLoadingMsg(loadingMessages[0]); // Reset to initial message
+      setLoadingMsg(loadingMessages[0]);
     }
   }, [loading]);
 
+  // --- Core API Logic ---
+
+  /**
+   * Fetches an answer from the API based on the provided conversation history.
+   * This is the core logic, refactored to be reusable by ask() and handleRegenerateResponse().
+   */
+  const fetchUmbilResponse = async (
+    currentConversation: ConversationEntry[]
+  ) => {
+    setLoading(true);
+
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const messagesToSend: ClientMessage[] = currentConversation.map(
+        (entry) => ({
+          role: entry.type === "user" ? "user" : "assistant",
+          content: entry.content,
+        })
+      );
+
+      const res = await fetch("/api/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+        body: JSON.stringify({ messages: messagesToSend, profile }),
+      });
+
+      const data: AskResponse = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Request failed");
+      } else {
+        // Find the original question that led to this answer
+        const lastUserQuestion = [...currentConversation]
+          .reverse()
+          .find((e) => e.type === "user")?.question;
+
+        setConversation((prev) => [
+          ...prev,
+          {
+            type: "umbil",
+            content: data.answer ?? "",
+            question: lastUserQuestion,
+          },
+        ]);
+      }
+    } catch (err: unknown) {
+      setConversation((prev) => [
+        ...prev,
+        { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Handles the user submitting a new question from the ask bar.
+   */
   const ask = async () => {
     if (!q.trim() || loading) return;
 
     const newQuestion = q;
     setQ("");
-    setLoading(true);
 
     const updatedConversation: ConversationEntry[] = [
       ...conversation,
-      { type: "user", content: newQuestion, question: newQuestion }
+      { type: "user", content: newQuestion, question: newQuestion },
     ];
-    // Use the instant scroll on user submission
+
     setConversation(updatedConversation);
-    scrollToBottom(true); 
+    scrollToBottom(true);
+    await fetchUmbilResponse(updatedConversation);
+  };
 
-    try {
-      // --- *** 2. THIS IS THE FIX (Part 1) *** ---
-      // Get the user's current session token to send to the API
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-      // --- *** END OF FIX (Part 1) *** ---
+  // --- NEW: Action Button Handlers ---
 
-      // 1. Map the current conversation state to the API's expected format (role/content)
-      const messagesToSend: ClientMessage[] = updatedConversation.map(entry => ({
-          role: entry.type === "user" ? "user" : "assistant",
-          content: entry.content
-      }));
-      
-      const res = await fetch("/api/ask", {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          // --- *** 3. THIS IS THE FIX (Part 2) *** ---
-          // Pass the token in the Authorization header
-          ...(token && { 'Authorization': `Bearer ${token}` })
-        },
-        // Send the full conversation history for context
-        // --- 'tone' REMOVED from the request body ---
-        body: JSON.stringify({ messages: messagesToSend, profile }),
+  /**
+   * Copies a single message's content to the clipboard.
+   */
+  const handleCopyMessage = (content: string) => {
+    navigator.clipboard
+      .writeText(content)
+      .then(() => {
+        setToastMessage("Copied to clipboard!");
+      })
+      .catch((err) => {
+        console.error("Failed to copy text: ", err);
+        setToastMessage("❌ Failed to copy text.");
       });
+  };
 
-      const data: AskResponse = await res.json();
-      
-      if (!res.ok) {
-          throw new Error(data.error || "Request failed");
-      } else {
-          setConversation((prev) => [
-            ...prev,
-            { type: "umbil", content: data.answer ?? "", question: newQuestion },
-          ]);
+  /**
+   * Formats the entire conversation history into a readable string.
+   */
+  const formatConversationAsText = (): string => {
+    return conversation
+      .map((entry) => {
+        const prefix = entry.type === "user" ? "You" : "Umbil";
+        return `${prefix}:\n${entry.content}\n\n--------------------\n`;
+      })
+      .join("\n");
+  };
+
+  /**
+   * Triggers a .txt file download of the entire conversation.
+   */
+  const downloadConversationAsTxt = () => {
+    const textContent = formatConversationAsText();
+    const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "umbil_conversation.txt";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    setToastMessage("Conversation downloading...");
+  };
+
+  /**
+   * Shares the conversation using Web Share API (mobile) or triggers a .txt download (desktop).
+   */
+  const handleShare = async () => {
+    const textContent = formatConversationAsText();
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Umbil Conversation",
+          text: textContent,
+        });
+      } catch (err) {
+        console.log("Share API error or cancelled:", err);
       }
-      
-    } catch (err: unknown) {
-      setConversation((prev) => [...prev, { type: "umbil", content: `⚠️ ${getErrorMessage(err)}` }]);
-    } finally {
-      setLoading(false);
+    } else {
+      // Fallback for desktop browsers
+      downloadConversationAsTxt();
     }
   };
+
+  /**
+   * Removes the last AI response and fetches a new one.
+   */
+  const handleRegenerateResponse = async () => {
+    if (loading || conversation.length === 0) return;
+
+    const lastEntry = conversation[conversation.length - 1];
+    if (lastEntry.type !== "umbil") return; // Can only regenerate an Umbil response
+
+    const conversationForRegen = conversation.slice(0, -1); // Remove the last Umbil response
+    setConversation(conversationForRegen);
+    await fetchUmbilResponse(conversationForRegen);
+  };
+
+  // --- CPD Handlers ---
 
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
     if (!email) {
       setToastMessage("Please sign in to add CPD entries.");
       return;
     }
-    // Prepare the core data to be passed to the modal and eventually the DB
     setCurrentCpdEntry({
       timestamp: new Date().toISOString(),
-      question: entry.question || "", // Use the original sanitized question
-      answer: entry.content, // Use the AI's response content
+      question: entry.question || "",
+      answer: entry.content,
     });
     setIsModalOpen(true);
   };
 
-  /**
-   * Handles saving the reflection and tags to the CPD entry in the remote database.
-   */
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (!currentCpdEntry) return;
-    
-    // Combine the captured message with the new reflection/tags for the DB insertion
+
     const cpdEntry = { ...currentCpdEntry, reflection, tags };
-    
-    // Asynchronously save to the remote Supabase database and handle the response
     const { error } = await addCPD(cpdEntry);
 
     if (error) {
       console.error("Failed to save CPD entry:", error);
-      setToastMessage("❌ Failed to save CPD entry. Please check the console for details.");
+      setToastMessage(
+        "❌ Failed to save CPD entry. Please check the console for details."
+      );
     } else {
       setToastMessage("✅ CPD entry saved remotely!");
     }
-    
+
     setIsModalOpen(false);
   };
 
+  // --- Render Logic ---
+
   const renderMessage = (entry: ConversationEntry, index: number) => {
     const isUmbil = entry.type === "umbil";
-    const className = `message-bubble ${isUmbil ? "umbil-message" : "user-message"}`;
+    const isLastMessage = index === conversation.length - 1;
+    const className = `message-bubble ${
+      isUmbil ? "umbil-message" : "user-message"
+    }`;
 
     return (
       <div key={index} className={className}>
-        {/* --- THIS IS THE FIX --- */}
-        {/* Add a wrapper div for Umbil messages to control table overflow */}
         {isUmbil ? (
           <div className="markdown-content-wrapper">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {entry.content}
+            </ReactMarkdown>
           </div>
         ) : (
-          // User messages don't need the wrapper
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {entry.content}
+          </ReactMarkdown>
         )}
-        {/* --- END OF FIX --- */}
 
-        {isUmbil && ( // Show CPD button for all Umbil messages
+        {isUmbil && (
           <div className="umbil-message-actions">
-            <button className="action-button" onClick={() => handleOpenAddCpdModal(entry)}>Add to CPD</button>
+            {/* Share Button (Mobile Share / Desktop Download) */}
+            <button
+              className="action-button"
+              onClick={handleShare}
+              title="Share conversation"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+              Share
+            </button>
+
+            {/* Copy Button (Copies this message) */}
+            <button
+              className="action-button"
+              onClick={() => handleCopyMessage(entry.content)}
+              title="Copy this message"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              Copy
+            </button>
+            
+            {/* Regenerate Button (Only on last message) */}
+            {isLastMessage && !loading && (
+              <button
+                className="action-button"
+                onClick={handleRegenerateResponse}
+                title="Regenerate response"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg>
+                Regenerate
+              </button>
+            )}
+
+            {/* Add to CPD Button (Always shown) */}
+            <button
+              className="action-button"
+              onClick={() => handleOpenAddCpdModal(entry)}
+              title="Add reflection to your CPD log"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
+              Add to CPD
+            </button>
           </div>
         )}
       </div>
@@ -245,9 +393,11 @@ export default function HomeContent() {
 
   return (
     <>
-      {/* Assigning a class to the container element */}
-      <div ref={scrollContainerRef} className="main-content-scroll-container" style={{ flexGrow: 1 }}>
-          
+      <div
+        ref={scrollContainerRef}
+        className="main-content-scroll-container"
+        style={{ flexGrow: 1 }}
+      >
         {conversation.length > 0 ? (
           // Conversation Mode
           <div className="conversation-container">
@@ -271,8 +421,24 @@ export default function HomeContent() {
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && ask()}
               />
-              <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              <button
+                className="ask-bar-send-button"
+                onClick={ask}
+                disabled={loading}
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
               </button>
             </div>
           </div>
@@ -289,13 +455,42 @@ export default function HomeContent() {
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && ask()}
               />
-              <button className="ask-bar-send-button" onClick={ask} disabled={loading}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              <button
+                className="ask-bar-send-button"
+                onClick={ask}
+                disabled={loading}
+              >
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <line x1="22" y1="2" x2="11" y2="13"></line>
+                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
               </button>
             </div>
 
-            <p className="disclaimer" style={{ marginTop: '36px' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
+            <p className="disclaimer" style={{ marginTop: "36px" }}>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <circle cx="12" cy="12" r="10"></circle>
+                <path d="M12 16v-4M12 8h.01"></path>
+              </svg>
               Please don’t enter any patient-identifiable information.
             </p>
           </div>

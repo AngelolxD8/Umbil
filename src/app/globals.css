@@ -882,3 +882,55 @@ a {
   margin-bottom: 0.25rem; /* Tighter list spacing inside tables */
 }
 /* --- END OF RESPONSIVE TABLE FIXES --- */
+
+/* --- NEW: Icon Button Styles for Message Actions --- */
+
+.umbil-message-actions {
+  display: flex;
+  flex-wrap: wrap; /* Allow buttons to wrap on small screens */
+  gap: 16px; /* Increased gap for easier clicking */
+  margin-top: 1rem;
+  padding-top: 0.75rem; /* Add padding above buttons */
+  border-top: 1px solid var(--umbil-divider); /* Separator line */
+  justify-content: flex-start; /* Align buttons to the start */
+  opacity: 1;
+}
+
+.action-button {
+  font-size: 13px; /* Slightly larger text */
+  color: var(--umbil-muted);
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 4px; /* Add padding for a better click target */
+  border-radius: var(--umbil-radius-sm);
+  transition: color 0.2s, background-color 0.2s;
+  
+  /* This is the key for icon alignment */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px; /* Space between icon and text */
+  font-weight: 500;
+}
+
+.action-button:hover {
+  text-decoration: none;
+  color: var(--umbil-brand-teal);
+  background-color: var(--umbil-hover-bg);
+}
+
+/* Style for the SVG icons inside the buttons */
+.action-button svg {
+  width: 14px;
+  height: 14px;
+  stroke-width: 2.5; /* Make icons a bit bolder */
+  color: var(--umbil-muted); /* Icon color matches text */
+  transition: color 0.2s;
+}
+
+.action-button:hover svg {
+  color: var(--umbil-brand-teal); /* Icon color matches text on hover */
+}
+
+/* --- END OF NEW STYLES --- */
