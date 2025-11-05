@@ -817,13 +817,24 @@ a {
 
 /* 1. Wrapper for AI-generated content */
 .markdown-content-wrapper {
-  /* This is the key: allows horizontal scrolling on mobile */
-  overflow-x: auto;
+  /*
+    REMOVED: We're moving the overflow from the whole
+    wrapper to just the table element itself.
+  */
+  /* overflow-x: auto; */
   width: 100%;
 }
 
 /* 2. Style all tables inside the wrapper */
 .markdown-content-wrapper table {
+  /*
+    NEW: These two lines make the table element itself
+    scrollable if its content (due to min-width)
+    is wider than the container.
+  */
+  display: block;
+  overflow-x: auto;
+
   width: 100%; /* Make table try to fit */
   min-width: 500px; /* But force a min-width to prevent extreme cramping */
   border-collapse: collapse;
