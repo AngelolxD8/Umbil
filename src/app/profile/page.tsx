@@ -7,6 +7,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import { useRouter } from "next/navigation";
 import ResetPassword from "@/components/ResetPassword"; 
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
+import Toast from "@/components/Toast"; // <-- 1. IMPORT TOAST
 
 /**
  * Utility function to get a user-friendly error message from an unknown error object.
@@ -50,15 +51,43 @@ type StreakCalendarProps = {
     currentStreak: number;
     longestStreak: number;
     loading: boolean;
+    setToastMessage: (message: string) => void; // <-- 2. ADD SETTOASTMESSAGE PROP
 }
 
-const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: StreakCalendarProps) => {
+const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, setToastMessage }: StreakCalendarProps) => { // <-- 3. ACCEPT PROP
     // Memoize the dates array to prevent recalculation on every render
     const calendarDates = useMemo(getLastYearDates, []);
     const todayStr = new Date().toISOString().split('T')[0];
     
     // Display only 5 labels for better visibility: S, M, T, W, T, F, S
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+
+    // --- 4. NEW: SHARE STREAK HANDLER ---
+    const handleShareStreak = async () => {
+        const shareText = `I'm on a ${currentStreak}-day learning streak on Umbil, my medical co-pilot! 🔥 Check it out: https://www.umbil.app`;
+
+        if (navigator.share) {
+            try {
+                await navigator.share({
+                    title: "My Umbil Streak!",
+                    text: shareText,
+                });
+            } catch (err) {
+                console.log("Share API error or cancelled:", err);
+            }
+        } else {
+            // Fallback for desktop: Copy to clipboard
+            navigator.clipboard.writeText(shareText)
+                .then(() => {
+                    setToastMessage("Streak details copied to clipboard!");
+                })
+                .catch(err => {
+                    console.error("Failed to copy text: ", err);
+                    setToastMessage("❌ Failed to copy text.");
+                });
+        }
+    };
+    // --- END OF NEW HANDLER ---
 
     if (loading) {
         return <p>Loading CPD learning history...</p>;
@@ -77,14 +106,28 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading }: 
     return (
         <div className="card" style={{ marginTop: 24, padding: 20 }}>
             <h3 style={{ marginBottom: 16 }}>CPD Learning History</h3>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16, fontSize: '1rem' }}>
-                <div style={{ fontWeight: 600 }}>
-                    Current Streak: <span style={{ color: 'var(--umbil-brand-teal)' }}>{currentStreak} {currentStreak === 1 ? 'day' : 'days'} 🔥</span>
+
+            {/* --- 5. UPDATED: Streak display and Share Button --- */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: 16, fontSize: '1rem' }}>
+                {/* Left side: Streak info */}
+                <div>
+                    <div style={{ fontWeight: 600, marginBottom: '4px' }}>
+                        Current Streak: <span style={{ color: 'var(--umbil-brand-teal)' }}>{currentStreak} {currentStreak === 1 ? 'day' : 'days'} 🔥</span>
+                    </div>
+                    <div style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
+                        Longest Streak: {longestStreak} days
+                    </div>
                 </div>
-                <div style={{ color: 'var(--umbil-muted)' }}>
-                    Longest Streak: {longestStreak} days
-                </div>
+                
+                {/* Right side: Share button (only if streak > 0) */}
+                {currentStreak > 0 && (
+                    <button className="btn btn--outline" onClick={handleShareStreak} style={{ padding: '8px 12px', fontSize: '0.9rem' }}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '6px'}}><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
+                        Share Streak
+                    </button>
+                )}
             </div>
+            {/* --- END OF UPDATED SECTION --- */}
             
             <div className="calendar-grid-container">
                 {/* Day Labels Column - Positioned alongside the grid */}
@@ -150,6 +193,10 @@ export default function ProfilePage() {
   
   // Fetch streak data 
   const { dates: loggedDates, currentStreak, longestStreak, loading: streaksLoading } = useCpdStreaks();
+  
+  // --- 6. ADD TOAST STATE ---
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+
 
   // Redirect unauthenticated users to the sign-in page
   useEffect(() => {
@@ -196,12 +243,13 @@ export default function ProfilePage() {
       <div className="container">
         <h2>{isNewUser ? "Complete Your Profile" : "Edit Profile"}</h2>
         
-        {/* Streak Calendar Display */}
+        {/* --- 7. PASS SETTOASTMESSAGE TO CALENDAR --- */}
         <StreakCalendar 
             loggedDates={loggedDates} 
             currentStreak={currentStreak} 
             longestStreak={longestStreak} 
             loading={streaksLoading}
+            setToastMessage={setToastMessage}
         />
         
         <div className="card" style={{ marginTop: 24 }}> {/* Adjusted margin-top */}
@@ -242,6 +290,9 @@ export default function ProfilePage() {
         <ResetPassword /> 
 
       </div>
+      
+      {/* --- 8. ADD TOAST COMPONENT TO RENDER --- */}
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </section>
   );
 }
