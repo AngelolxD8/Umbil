@@ -62,9 +62,10 @@ const StreakCalendar = ({ loggedDates, currentStreak, longestStreak, loading, se
     // Display only 5 labels for better visibility: S, M, T, W, T, F, S
     const dayLabels = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
 
-    // --- 4. NEW: SHARE STREAK HANDLER ---
+    // --- 4. NEW: SHARE STREAK HANDLER (WITH UPDATED MESSAGE & URL) ---
     const handleShareStreak = async () => {
-        const shareText = `I'm on a ${currentStreak}-day learning streak on Umbil, my medical co-pilot! 🔥 Check it out: https://www.umbil.app`;
+        // This is the new, smarter marketing message
+        const shareText = `🔥 ${currentStreak}-day streak! I'm using Umbil to turn clinical questions into CPD. You should check it out: https://umbil.co.uk`;
 
         if (navigator.share) {
             try {
