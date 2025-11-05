@@ -4,7 +4,7 @@
 import { useState } from "react";
 
 // Placeholder for your actual external feedback form URL (e.g., Google Form, Typeform)
-const EXTERNAL_FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/e/YOUR_FORM_ID/viewform";
+const EXTERNAL_FEEDBACK_FORM_URL = "https://docs.google.com/forms/d/1hDMhLdFbvVte_WHDgz3GaDXm9qQq6ElLuGfGavy98nw/viewform";
 
 export default function FeedbackPage() {
   const [hasClicked, setHasClicked] = useState(false); 
