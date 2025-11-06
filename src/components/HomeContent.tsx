@@ -74,7 +74,7 @@ export default function HomeContent() {
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  // --- Effects ---
+  // --- Effects (Unchanged) ---
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -126,16 +126,21 @@ export default function HomeContent() {
     }
   }, [loading]);
 
-  // --- Core API Logic ---
+  // --- Core API Logic (Updated for Streaming) ---
 
   /**
-   * Fetches an answer from the API based on the provided conversation history.
-   * This is the core logic, refactored to be reusable by ask() and handleRegenerateResponse().
+   * Fetches an answer from the API.
+   * This now handles both JSON (cache hit) and text/plain (stream) responses.
    */
   const fetchUmbilResponse = async (
     currentConversation: ConversationEntry[]
   ) => {
     setLoading(true);
+    
+    // Find the original question that led to this answer
+    const lastUserQuestion = [...currentConversation]
+      .reverse()
+      .find((e) => e.type === "user")?.question;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -157,16 +162,16 @@ export default function HomeContent() {
         body: JSON.stringify({ messages: messagesToSend, profile }),
       });
 
-      const data: AskResponse = await res.json();
-
       if (!res.ok) {
+        const data: AskResponse = await res.json();
         throw new Error(data.error || "Request failed");
-      } else {
-        // Find the original question that led to this answer
-        const lastUserQuestion = [...currentConversation]
-          .reverse()
-          .find((e) => e.type === "user")?.question;
+      }
 
+      const contentType = res.headers.get("Content-Type");
+
+      // --- Handle Cache Hit (JSON) ---
+      if (contentType?.includes("application/json")) {
+        const data: AskResponse = await res.json();
         setConversation((prev) => [
           ...prev,
           {
@@ -175,7 +180,46 @@ export default function HomeContent() {
             question: lastUserQuestion,
           },
         ]);
+      } 
+      // --- Handle Stream (Cache Miss) ---
+      else if (contentType?.includes("text/plain")) {
+        if (!res.body) {
+          throw new Error("Response body is empty for streaming.");
+        }
+        
+        // Add a new, empty message bubble to stream into
+        setConversation((prev) => [
+          ...prev,
+          {
+            type: "umbil",
+            content: "", // Start with empty content
+            question: lastUserQuestion,
+          },
+        ]);
+        
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break; // Stream finished
+          
+          const chunk = decoder.decode(value);
+          
+          // Append the new chunk to the last message in the conversation
+          setConversation((prev) => {
+            const newConversation = [...prev];
+            const lastMessage = newConversation[newConversation.length - 1];
+            if (lastMessage && lastMessage.type === "umbil") {
+              lastMessage.content += chunk;
+            }
+            return newConversation;
+          });
+        }
+      } else {
+        throw new Error(`Unexpected Content-Type: ${contentType}`);
       }
+
     } catch (err: unknown) {
       setConversation((prev) => [
         ...prev,
@@ -188,6 +232,7 @@ export default function HomeContent() {
 
   /**
    * Handles the user submitting a new question from the ask bar.
+   * (Unchanged - this logic is still correct)
    */
   const ask = async () => {
     if (!q.trim() || loading) return;
@@ -205,11 +250,8 @@ export default function HomeContent() {
     await fetchUmbilResponse(updatedConversation);
   };
 
-  // --- NEW: Action Button Handlers ---
+  // --- Action Button Handlers (Unchanged) ---
 
-  /**
-   * Copies a single message's content to the clipboard.
-   */
   const handleCopyMessage = (content: string) => {
     navigator.clipboard
       .writeText(content)
@@ -222,9 +264,6 @@ export default function HomeContent() {
       });
   };
 
-  /**
-   * Formats the entire conversation history into a readable string.
-   */
   const formatConversationAsText = (): string => {
     return conversation
       .map((entry) => {
@@ -234,9 +273,6 @@ export default function HomeContent() {
       .join("\n");
   };
 
-  /**
-   * Triggers a .txt file download of the entire conversation.
-   */
   const downloadConversationAsTxt = () => {
     const textContent = formatConversationAsText();
     const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
@@ -251,9 +287,6 @@ export default function HomeContent() {
     setToastMessage("Conversation downloading...");
   };
 
-  /**
-   * Shares the conversation using Web Share API (mobile) or triggers a .txt download (desktop).
-   */
   const handleShare = async () => {
     const textContent = formatConversationAsText();
 
@@ -267,26 +300,26 @@ export default function HomeContent() {
         console.log("Share API error or cancelled:", err);
       }
     } else {
-      // Fallback for desktop browsers
       downloadConversationAsTxt();
     }
   };
 
   /**
    * Removes the last AI response and fetches a new one.
+   * (Unchanged - this logic is still correct)
    */
   const handleRegenerateResponse = async () => {
     if (loading || conversation.length === 0) return;
 
     const lastEntry = conversation[conversation.length - 1];
-    if (lastEntry.type !== "umbil") return; // Can only regenerate an Umbil response
+    if (lastEntry.type !== "umbil") return;
 
-    const conversationForRegen = conversation.slice(0, -1); // Remove the last Umbil response
+    const conversationForRegen = conversation.slice(0, -1);
     setConversation(conversationForRegen);
     await fetchUmbilResponse(conversationForRegen);
   };
 
-  // --- CPD Handlers ---
+  // --- CPD Handlers (Unchanged) ---
 
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
     if (!email) {
@@ -319,7 +352,7 @@ export default function HomeContent() {
     setIsModalOpen(false);
   };
 
-  // --- Render Logic ---
+  // --- Render Logic (Unchanged) ---
 
   const renderMessage = (entry: ConversationEntry, index: number) => {
     const isUmbil = entry.type === "umbil";
@@ -332,13 +365,6 @@ export default function HomeContent() {
       <div key={index} className={className}>
         {isUmbil ? (
           <div className="markdown-content-wrapper">
-            {/* --- THIS IS THE FIX ---
-              We add the 'components' prop to ReactMarkdown.
-              We tell it: "When you are about to render a <table>,
-              instead render our custom component which is a <div>
-              with the class 'table-scroll-wrapper' that *contains*
-              the <table>."
-            */}
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
@@ -353,7 +379,6 @@ export default function HomeContent() {
             </ReactMarkdown>
           </div>
         ) : (
-          // User messages don't need the wrapper
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {entry.content}
           </ReactMarkdown>
@@ -361,7 +386,6 @@ export default function HomeContent() {
 
         {isUmbil && (
           <div className="umbil-message-actions">
-            {/* Share Button (Mobile Share / Desktop Download) */}
             <button
               className="action-button"
               onClick={handleShare}
@@ -371,7 +395,6 @@ export default function HomeContent() {
               Share
             </button>
 
-            {/* Copy Button (Copies this message) */}
             <button
               className="action-button"
               onClick={() => handleCopyMessage(entry.content)}
@@ -381,7 +404,6 @@ export default function HomeContent() {
               Copy
             </button>
             
-            {/* Regenerate Button (Only on last message) */}
             {isLastMessage && !loading && (
               <button
                 className="action-button"
@@ -393,7 +415,6 @@ export default function HomeContent() {
               </button>
             )}
 
-            {/* Add to CPD Button (Always shown) */}
             <button
               className="action-button"
               onClick={() => handleOpenAddCpdModal(entry)}
@@ -412,7 +433,7 @@ export default function HomeContent() {
     <>
       <div
         ref={scrollContainerRef}
-        className="main-content" /* This now matches all other pages */
+        className="main-content"
       >
         {conversation.length > 0 ? (
           // Conversation Mode
@@ -459,7 +480,7 @@ export default function HomeContent() {
             </div>
           </div>
         ) : (
-          // Home Screen
+          // Home Screen (Unchanged)
           <div className="hero">
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
 
