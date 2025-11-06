@@ -81,6 +81,7 @@ a {
 
 .main-content {
   flex-grow: 1;
+  overflow-y: auto; /* <-- **THIS IS THE CRITICAL LAYOUT FIX** */
 }
 
 /* Header */
@@ -818,25 +819,22 @@ a {
 /* 1. Wrapper for AI-generated content */
 .markdown-content-wrapper {
   /*
-    REMOVED: We're moving the overflow from the whole
-    wrapper to just the table element itself.
+    THIS IS THE FIX: This element will scroll horizontally
+    when its content (the table) is too wide.
   */
-  /* overflow-x: auto; */
+  overflow-x: auto;
   width: 100%;
 }
 
 /* 2. Style all tables inside the wrapper */
 .markdown-content-wrapper table {
   /*
-    NEW: These two lines make the table element itself
-    scrollable if its content (due to min-width)
-    is wider than the container.
+    REMOVED: display: block and overflow-x: auto
+    are no longer needed on the table itself.
   */
-  display: block;
-  overflow-x: auto;
-
+  
   width: 100%; /* Make table try to fit */
-  min-width: 500px; /* But force a min-width to prevent extreme cramping */
+  min-width: 500px; /* But force a min-width to trigger the parent's overflow */
   border-collapse: collapse;
   margin-top: 1rem;
   margin-bottom: 1rem;

@@ -393,11 +393,12 @@ export default function HomeContent() {
 
   return (
     <>
-      <div
-        ref={scrollContainerRef}
-        className="main-content-scroll-container"
-        style={{ flexGrow: 1 }}
-      >
+      {/* HERE IS THE FIX:
+        - Changed className from "main-content-scroll-container" to "main-content"
+        - Removed the inline style for flexGrow 
+      */}
+      <div ref={scrollContainerRef} className="main-content">
+          
         {conversation.length > 0 ? (
           // Conversation Mode
           <div className="conversation-container">
