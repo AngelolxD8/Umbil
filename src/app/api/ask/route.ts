@@ -29,6 +29,18 @@ function sha256(str: string): string {
   return createHash("sha256").update(str).digest("hex");
 }
 
+// --- NEW (Restored): Function specifically for cache key generation ---
+function sanitizeAndNormalizeQuery(q: string): string {
+  return q
+    .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
+    .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date")
+    .replace(/\b\d{6,10}\b/g, "an identifier")
+    .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient")
+    .toLowerCase() // Normalizes case
+    .replace(/\s+/g, " ") // Normalizes whitespace
+    .trim();
+}
+
 function sanitizeQuery(q: string): string {
   return q
     .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
@@ -79,71 +91,94 @@ export async function POST(req: NextRequest) {
   if (!API_KEY)
     return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500 });
 
+  // Get User ID for logging (available in both try and catch)
   const userId = await getUserId(req);
-  const { messages, profile } = await req.json();
 
-  if (!messages?.length)
-    return NextResponse.json({ error: "Missing messages" }, { status: 400 });
+  // --- FEATURE 2: Add main try...catch for API error logging ---
+  try {
+    const { messages, profile } = await req.json();
 
-  const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
-  const systemPrompt = `${CORE_INSTRUCTIONS.trim()} ${gradeNote}`;
+    if (!messages?.length)
+      return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
-  const latestUserMessage = messages[messages.length - 1];
-  const sanitized = sanitizeQuery(latestUserMessage.content);
-  // The call to sha256 will now work
-  const cacheKey = sha256(JSON.stringify({ model: MODEL_SLUG, query: sanitized }));
+    const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
+    const systemPrompt = `${CORE_INSTRUCTIONS.trim()} ${gradeNote}`;
 
-  // --- Cache Lookup ---
-  const { data: cached } = await supabase
-    .from(CACHE_TABLE)
-    .select("answer")
-    .eq("query_hash", cacheKey)
-    .single();
+    const latestUserMessage = messages[messages.length - 1];
+    
+    // 1. Use the *normalized* query for the cache key
+    const normalizedQuery = sanitizeAndNormalizeQuery(latestUserMessage.content);
+    
+    // 2. Define the full cache key content
+    const cacheKeyContent = JSON.stringify({ model: MODEL_SLUG, query: normalizedQuery });
+    const cacheKey = sha256(cacheKeyContent);
 
-  if (cached) {
-    await logAnalytics(userId, "question_asked", {
-      cache: "hit",
-      input_tokens: 0,
-      output_tokens: 0,
-    });
-    return NextResponse.json({ answer: cached.answer }); // Fixed typo "cached.answer" -> cached.answer
-  }
+    // --- Cache Lookup ---
+    const { data: cached } = await supabase
+      .from(CACHE_TABLE)
+      .select("answer")
+      .eq("query_hash", cacheKey)
+      .single();
 
-  // --- Streaming Call ---
-  const result = await streamText({
-    model: together(MODEL_SLUG), // This is correct. `together` is a function.
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...messages.map((m: ClientMessage) => ({
-        ...m,
-        content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
-      })),
-    ],
-    temperature: 0.25,
-    topP: 0.8,
-    maxOutputTokens: 4096, // ✅ correct param name
-    async onFinish({ text, usage }) {
-      const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
-
+    if (cached) {
       await logAnalytics(userId, "question_asked", {
-        cache: "miss",
-        input_tokens: usage.inputTokens,
-        output_tokens: usage.outputTokens,
-        total_tokens: usage.totalTokens,
-        model: MODEL_SLUG,
+        cache: "hit",
+        input_tokens: 0,
+        output_tokens: 0,
       });
+      return NextResponse.json({ answer: cached.answer });
+    }
 
-      if (answer.length > 50) {
-        await supabaseService.from(CACHE_TABLE).upsert({
-          query_hash: cacheKey,
-          answer,
+    // --- Streaming Call ---
+    const result = await streamText({
+      model: together(MODEL_SLUG), 
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...messages.map((m: ClientMessage) => ({
+          ...m,
+          content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
+        })),
+      ],
+      temperature: 0.25,
+      topP: 0.8,
+      maxOutputTokens: 4096, 
+      async onFinish({ text, usage }) {
+        const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
+
+        await logAnalytics(userId, "question_asked", {
+          cache: "miss",
+          input_tokens: usage.inputTokens,
+          output_tokens: usage.outputTokens,
+          total_tokens: usage.totalTokens,
+          model: MODEL_SLUG,
         });
-      }
-    },
-  });
 
-  // --- FIX 2: Use the `.toTextStreamResponse()` method on the `result` object ---
-  return result.toTextStreamResponse({
-    headers: { "X-Cache-Status": "MISS" },
-  });
+        if (answer.length > 50) {
+          // 3. Add `full_query_key` back to the cache entry
+          await supabaseService.from(CACHE_TABLE).upsert({
+            query_hash: cacheKey,
+            answer,
+            full_query_key: cacheKeyContent,
+          });
+        }
+      },
+    });
+
+    return result.toTextStreamResponse({
+      headers: { "X-Cache-Status": "MISS" },
+    });
+
+  } catch (err: unknown) {
+    // --- This is the new catch block for logging API errors ---
+    console.error("[Umbil] Fatal Error:", err);
+    
+    await logAnalytics(userId, 'api_error', { 
+      error: (err as Error).message,
+      source: 'ask_route'
+    });
+    
+    const msg = (err as Error).message || "Internal server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+  // --- END FEATURE 2 ---
 }
