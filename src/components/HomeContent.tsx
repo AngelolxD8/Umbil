@@ -332,11 +332,28 @@ export default function HomeContent() {
       <div key={index} className={className}>
         {isUmbil ? (
           <div className="markdown-content-wrapper">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {/* --- THIS IS THE FIX ---
+              We add the 'components' prop to ReactMarkdown.
+              We tell it: "When you are about to render a <table>,
+              instead render our custom component which is a <div>
+              with the class 'table-scroll-wrapper' that *contains*
+              the <table>."
+            */}
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              components={{
+                table: ({ node, ...props }) => (
+                  <div className="table-scroll-wrapper">
+                    <table {...props} />
+                  </div>
+                ),
+              }}
+            >
               {entry.content}
             </ReactMarkdown>
           </div>
         ) : (
+          // User messages don't need the wrapper
           <ReactMarkdown remarkPlugins={[remarkGfm]}>
             {entry.content}
           </ReactMarkdown>
@@ -393,12 +410,10 @@ export default function HomeContent() {
 
   return (
     <>
-      {/* HERE IS THE FIX:
-        - Changed className from "main-content-scroll-container" to "main-content"
-        - Removed the inline style for flexGrow 
-      */}
-      <div ref={scrollContainerRef} className="main-content">
-          
+      <div
+        ref={scrollContainerRef}
+        className="main-content" /* This now matches all other pages */
+      >
         {conversation.length > 0 ? (
           // Conversation Mode
           <div className="conversation-container">
