@@ -81,7 +81,7 @@ a {
 
 .main-content {
   flex-grow: 1;
-  overflow-y: auto; /* <-- **THIS IS THE CRITICAL LAYOUT FIX** */
+  overflow-y: auto; /* Keeps the main content scrollable */
 }
 
 /* Header */
@@ -814,27 +814,36 @@ a {
 
 /* End NEW STYLES FOR CPD STREAK CALENDAR */
 
-/* --- ADDED: Responsive Markdown & Table Fixes --- */
+/* --- 
+  START OF TABLE FIX: 
+  This is the final, correct version.
+--- */
 
 /* 1. Wrapper for AI-generated content */
 .markdown-content-wrapper {
-  /*
-    THIS IS THE FIX: This element will scroll horizontally
-    when its content (the table) is too wide.
+  /* **THE FIX (Part 1):** This modern CSS property creates a new "block formatting context", 
+    which forces this wrapper to *contain* its children—even the
+    scrolling table. This is what stops the table from
+    breaking out of the message bubble on mobile.
   */
-  overflow-x: auto;
+  display: flow-root;
   width: 100%;
 }
 
 /* 2. Style all tables inside the wrapper */
 .markdown-content-wrapper table {
-  /*
-    REMOVED: display: block and overflow-x: auto
-    are no longer needed on the table itself.
+  /* **THE FIX (Part 2):** We make the table itself a block-level element and
+    give *it* the overflow. This puts the scrollbar
+    directly under the table, not at the bottom of the answer.
   */
+  display: block;
+  overflow-x: auto;
+
+  /* This forces the table to be wide, triggering the scrollbar */
+  min-width: 500px;
   
-  width: 100%; /* Make table try to fit */
-  min-width: 500px; /* But force a min-width to trigger the parent's overflow */
+  /* All your other table styles are preserved */
+  width: 100%; 
   border-collapse: collapse;
   margin-top: 1rem;
   margin-bottom: 1rem;
@@ -848,15 +857,15 @@ a {
   border-bottom: 2px solid var(--umbil-divider);
   text-align: left;
   font-weight: 600;
-  font-size: 0.9rem; /* Consistent font size */
+  font-size: 0.9rem;
 }
 
 /* 4. Style table cells */
 .markdown-content-wrapper td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--umbil-divider);
-  vertical-align: top; /* Align content to the top of the cell */
-  font-size: 0.9rem; /* Consistent font size */
+  vertical-align: top;
+  font-size: 0.9rem;
 }
 
 /* 5. Clean look for the last row */
@@ -866,18 +875,18 @@ a {
 
 /* 6. Fix for line breaks and lists inside tables */
 .markdown-content-wrapper td p {
-  margin-bottom: 0.5rem; /* Space out paragraphs inside a cell */
+  margin-bottom: 0.5rem;
 }
 .markdown-content-wrapper td p:last-child {
   margin-bottom: 0;
 }
 .markdown-content-wrapper td ul,
 .markdown-content-wrapper td ol {
-  margin: 0.5rem 0 0.5rem 1.25rem; /* Indent lists inside cells */
+  margin: 0.5rem 0 0.5rem 1.25rem;
   padding: 0;
 }
 .markdown-content-wrapper td li {
-  margin-bottom: 0.25rem; /* Tighter list spacing inside tables */
+  margin-bottom: 0.25rem;
 }
 /* --- END OF RESPONSIVE TABLE FIXES --- */
 
