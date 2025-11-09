@@ -1,35 +1,30 @@
-// src/app/api/generate-reflection/route.ts
+// src/app/api/generate-tags/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { streamText } from "ai";
+// We use generateText for a simple JSON response, not streamText
+import { generateText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
-const MODEL_SLUG = "mistralai/Mixtral-8x7B-Instruct-v0.1"; // Good model for generation
-// const MODEL_SLUG = "openai/gpt-oss-120b"; // You can also use this one
+// FIX: Using your main model which is more powerful and better at following JSON rules
+const MODEL_SLUG = "openai/gpt-oss-120b";
 
 // Together AI client
 const together = createTogetherAI({
   apiKey: API_KEY,
 });
 
-// The prompt you provided
-const REFLECTION_PROMPT = `
-You are Umbil, a UK clinical reflection assistant.
+// FIX: Hardened prompt to be extremely clear about JSON output
+const TAG_PROMPT = `
+You are a clinical keyword extractor.
+Analyze the following clinical question and answer.
+Extract 5-7 relevant clinical keywords or concepts.
 
-Using the user’s question and the AI’s answer, generate a GMC-compliant reflective prompt for CPD/ePortfolio use.
-
-Include 4 short sections:
-Key learning
-Application
-Next steps
-GMC domains
-
-Keep it concise, professional, and UK-based.
+RULES:
+- Respond ONLY with a valid JSON array of strings.
+- Example: ["hypertension", "NICE guidelines", "ACE inhibitors", "CKD"]
+- DO NOT include any other text, markdown, or explanations. Just the JSON array.
 `;
-
-// Set the runtime to edge
-export const runtime = 'edge';
 
 // ---------- Route Handler ----------
 export async function POST(req: NextRequest) {
@@ -50,34 +45,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Construct the final prompt for the AI
     const finalPrompt = `
-${REFLECTION_PROMPT}
+${TAG_PROMPT}
 
 ---
-USER QUESTION:
+QUESTION:
 ${question}
 
-AI ANSWER:
+ANSWER:
 ${answer}
 ---
 
-Generate the reflection now:
+JSON Array:
 `;
 
-    // --- Streaming Call ---
-    const result = await streamText({
+    const { text } = await generateText({
       model: together(MODEL_SLUG),
-      messages: [{ role: "user", content: finalPrompt }],
-      temperature: 0.3,
-      maxOutputTokens: 1024,
+      prompt: finalPrompt,
+      temperature: 0.1,
+      maxOutputTokens: 200,
     });
 
-    return result.toTextStreamResponse();
+    // Clean up the response to ensure it's valid JSON
+    // The AI might sometimes add backticks or "json"
+    const cleanedText = text
+      .replace(/```json/g, "")
+      .replace(/```/g, "")
+      .trim();
+
+    // Parse the string to get the array
+    const tags = JSON.parse(cleanedText);
+
+    return NextResponse.json({ tags });
 
   } catch (err: unknown) {
-    console.error("[Umbil] Reflection API Error:", err);
+    console.error("[Umbil] Tag API Error:", err, "Raw AI output:", (err as any)?.data?.text);
     const msg = (err as Error).message || "Internal server error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    // Return an empty array on error so the UI doesn't break
+    return NextResponse.json({ tags: [] }, { status: 500 });
   }
 }

@@ -185,7 +185,13 @@ export default function ReflectionModal({
         
         {/* 1. Streak Display */}
         <div className="streak-display-modal">
-          🔥 Current Learning Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
+          <div>
+            🔥 Current Learning Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
+          </div>
+          {/* NEW SUBTITLE */}
+          <p style={{fontSize: '0.9rem', color: 'var(--umbil-muted)', fontWeight: 400, marginTop: '4px'}}>
+            Consistency builds clarity - Keep your learning flow alive!
+          </p>
         </div>
 
         {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
@@ -248,7 +254,6 @@ export default function ReflectionModal({
           {generatedTags.length > 0 && (
             <>
               <div className="tag-button-container">
-                {/* THIS IS THE FIX - Added (tag: string) */}
                 {generatedTags.map((tag: string) => ( 
                   <button key={tag} className="tag-button" onClick={() => addTag(tag)}>
                     {tag}

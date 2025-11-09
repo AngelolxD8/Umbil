@@ -5,8 +5,8 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
-const MODEL_SLUG = "mistralai/Mixtral-8x7B-Instruct-v0.1"; // Good model for generation
-// const MODEL_SLUG = "openai/gpt-oss-120b"; // You can also use this one
+// FIX: Using your main model which is more powerful
+const MODEL_SLUG = "openai/gpt-oss-120b"; 
 
 // Together AI client
 const together = createTogetherAI({
@@ -16,8 +16,9 @@ const together = createTogetherAI({
 // The prompt you provided
 const REFLECTION_PROMPT = `
 You are Umbil, a UK clinical reflection assistant.
-
 Using the user’s question and the AI’s answer, generate a GMC-compliant reflective prompt for CPD/ePortfolio use.
+
+Respond ONLY with plain text. DO NOT use markdown (like ** or *).
 
 Include 4 short sections:
 Key learning
@@ -62,7 +63,7 @@ AI ANSWER:
 ${answer}
 ---
 
-Generate the reflection now:
+Generate the reflection now (in plain text, no markdown):
 `;
 
     // --- Streaming Call ---
