@@ -6,10 +6,10 @@ import { useState, useEffect, useCallback } from "react";
 import "./globals.css";
 import AuthButtons from "@/components/AuthButtons";
 import MobileNav from "@/components/MobileNav";
-// Removed WelcomeModal import
 import Link from "next/link";
 import { useUserEmail } from "@/hooks/useUser";
-import { useCpdStreaks } from "@/hooks/useCpdStreaks"; // <-- NEW IMPORT
+import { useCpdStreaks } from "@/hooks/useCpdStreaks";
+import { Analytics } from "@vercel/analytics/react"; // <-- 1. IMPORT VERCEL ANALYTICS
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -37,7 +37,6 @@ function GlobalStreakDisplay() {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  // FIX 2: Removed 'loading: userLoading' as it was unused.
   const { email } = useUserEmail(); 
   
   // Dark mode state and setter
@@ -109,6 +108,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             toggleDarkMode={toggleDarkMode} 
           />
         </div>
+        <Analytics /> {/* <-- 2. ADD THE ANALYTICS COMPONENT HERE */}
       </body>
     </html>
   );
