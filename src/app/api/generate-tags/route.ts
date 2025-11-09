@@ -6,7 +6,8 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
-const MODEL_SLUG = "openai/gpt-oss-120b";
+// Using Mixtral again as it's fast and good with JSON.
+const MODEL_SLUG = "mistralai/Mixtral-8x7B-Instruct-v0.1";
 
 // Together AI client
 const together = createTogetherAI({
@@ -43,43 +44,41 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const finalPrompt = `
-${TAG_PROMPT}
-
----
-QUESTION:
-${question}
-
-ANSWER:
-${answer}
----
-
-JSON Array:
-`;
-
+    // --- THIS IS THE FIX ---
+    // We are changing from a single 'prompt' string to the 'messages' array.
+    // This is more robust and what chat models expect.
     const { text } = await generateText({
       model: together(MODEL_SLUG),
-      prompt: finalPrompt,
+      // Use 'system' for the main instruction and 'user' for the content
+      messages: [
+        { role: "system", content: TAG_PROMPT },
+        { 
+          role: "user", 
+          content: `QUESTION: ${question}\n\nANSWER: ${answer}\n\nJSON Array:` 
+        }
+      ],
       temperature: 0.1,
       maxOutputTokens: 200,
     });
+    // --- END OF FIX ---
 
     // Clean up the response to ensure it's valid JSON
-    // The AI might sometimes add backticks or "json"
     const cleanedText = text
       .replace(/```json/g, "")
       .replace(/```/g, "")
       .trim();
 
-    // Parse the string to get the array
-    const tags = JSON.parse(cleanedText);
+    // Add a safety check before parsing
+    if (!cleanedText.startsWith("[") || !cleanedText.endsWith("]")) {
+        console.error("[Umbil] Tag API Error: AI did not return a valid JSON array. Output:", cleanedText);
+        throw new Error("AI did not return a valid JSON array.");
+    }
 
+    const tags = JSON.parse(cleanedText);
     return NextResponse.json({ tags });
 
   } catch (err: unknown) {
-    // FIX: Removed '(err as any)' to pass linting and removed unused 'msg' variable.
     console.error("[Umbil] Tag API Error:", (err as Error).message);
-    
     // Return an empty array on error so the UI doesn't break
     return NextResponse.json({ tags: [] }, { status: 500 });
   }
