@@ -39,7 +39,7 @@ export default function ReflectionModal({
   cpdEntry,
 }: ReflectionModalProps) {
   const [reflection, setReflection] = useState("");
-  const [tags, setTags] = useState("");
+  const [tags, setTags] = useState(""); // This is the comma-separated STRING from the input
   
   // New state for AI generation
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
@@ -63,7 +63,8 @@ export default function ReflectionModal({
    * Appends a tag to the tags input field, avoiding duplicates.
    */
   const addTag = (tagToAdd: string) => {
-    const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
+    // We use the 'tags' state (string) here
+    const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     if (!tagList.includes(tagToAdd)) {
       setTags((prev) => (prev ? `${prev}, ${tagToAdd}` : tagToAdd));
     }
@@ -135,11 +136,16 @@ export default function ReflectionModal({
         throw new Error(errData.error || "Failed to generate tags");
       }
 
-      const { tags } = await res.json();
-      if (tags && tags.length > 0) {
-        // Filter out any tags already in the input
+      // ** THE FIX IS HERE **
+      // 1. Rename the API response variable to 'apiTags' to avoid the name conflict
+      const { tags: apiTags } = await res.json(); 
+
+      if (apiTags && apiTags.length > 0) {
+        // 2. Now, this 'tags.split' correctly uses the 'tags' variable from component state (the string)
         const currentTagList = tags.split(",").map((t: string) => t.trim().toLowerCase());
-        const newTags = tags.filter((t: string) => !currentTagList.includes(t.toLowerCase()));
+        
+        // 3. We filter the 'apiTags' (the array) against our 'currentTagList'
+        const newTags = apiTags.filter((t: string) => !currentTagList.includes(t.toLowerCase()));
         setGeneratedTags(newTags);
       }
     } catch (err) {
@@ -153,9 +159,9 @@ export default function ReflectionModal({
    * Main save handler
    */
   const handleSave = () => {
-    const tagList = tags.split(",").map((t) => t.trim()).filter(Boolean);
+    // Proactive fix for the *next* lint error: added (t: string)
+    const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     onSave(reflection, tagList);
-    // onClose(); // onClose is called by onSave in HomeContent now
   };
 
   if (!isOpen) return null;
@@ -183,12 +189,11 @@ export default function ReflectionModal({
           </button>
         </div>
         
-        {/* 1. Streak Display */}
+        {/* 1. Streak Display (with subtitle) */}
         <div className="streak-display-modal">
           <div>
             🔥 Current Learning Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
           </div>
-          {/* NEW SUBTITLE */}
           <p style={{fontSize: '0.9rem', color: 'var(--umbil-muted)', fontWeight: 400, marginTop: '4px'}}>
             Consistency builds clarity - Keep your learning flow alive!
           </p>

@@ -5,7 +5,6 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
-// FIX: Using your main model which is more powerful
 const MODEL_SLUG = "openai/gpt-oss-120b"; 
 
 // Together AI client
@@ -24,7 +23,7 @@ Include 4 short sections:
 Key learning
 Application
 Next steps
-GMC domains
+GMC domains: Briefly explain how this learning links to one or two domains (e.g., 'Links to Knowledge, Skills & Performance by...').
 
 Keep it concise, professional, and UK-based.
 `;
