@@ -11,6 +11,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
+import { useCpdStreaks } from "@/hooks/useCpdStreaks"; // <-- 1. IMPORT STREAK HOOK
 
 // --- Types ---
 
@@ -64,15 +65,21 @@ export default function HomeContent() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentCpdEntry, setCurrentCpdEntry] = useState<Omit<
-    CPDEntry,
-    "reflection" | "tags" | "id" | "user_id"
-  > | null>(null);
+  
+  // This now holds the simple { question, answer } object for the modal
+  const [currentCpdEntry, setCurrentCpdEntry] = useState<{
+    question: string;
+    answer: string;
+  } | null>(null);
+  
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const { email } = useUserEmail();
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
+
+  // --- 2. GET STREAK DATA ---
+  const { currentStreak, loading: streakLoading } = useCpdStreaks();
 
   // --- Effects (Unchanged) ---
 
@@ -126,7 +133,7 @@ export default function HomeContent() {
     }
   }, [loading]);
 
-  // --- Core API Logic (Updated for Streaming) ---
+  // --- Core API Logic (Unchanged) ---
 
   /**
    * Fetches an answer from the API.
@@ -232,7 +239,7 @@ export default function HomeContent() {
 
   /**
    * Handles the user submitting a new question from the ask bar.
-   * (Unchanged - this logic is still correct)
+   * (Unchanged)
    */
   const ask = async () => {
     if (!q.trim() || loading) return;
@@ -306,7 +313,7 @@ export default function HomeContent() {
 
   /**
    * Removes the last AI response and fetches a new one.
-   * (Unchanged - this logic is still correct)
+   * (Unchanged)
    */
   const handleRegenerateResponse = async () => {
     if (loading || conversation.length === 0) return;
@@ -319,16 +326,16 @@ export default function HomeContent() {
     await fetchUmbilResponse(conversationForRegen);
   };
 
-  // --- CPD Handlers (Unchanged) ---
+  // --- 3. UPDATED CPD Handlers ---
 
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
     if (!email) {
       setToastMessage("Please sign in to add CPD entries.");
       return;
     }
+    // Set the state with the question and answer for the modal
     setCurrentCpdEntry({
-      timestamp: new Date().toISOString(),
-      question: entry.question || "",
+      question: entry.question || "", // Fallback for safety
       answer: entry.content,
     });
     setIsModalOpen(true);
@@ -337,7 +344,15 @@ export default function HomeContent() {
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (!currentCpdEntry) return;
 
-    const cpdEntry = { ...currentCpdEntry, reflection, tags };
+    // Create the full CPD entry to be saved
+    const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { 
+      timestamp: new Date().toISOString(),
+      question: currentCpdEntry.question,
+      answer: currentCpdEntry.answer,
+      reflection,
+      tags 
+    };
+    
     const { error } = await addCPD(cpdEntry);
 
     if (error) {
@@ -349,7 +364,9 @@ export default function HomeContent() {
       setToastMessage("✅ CPD entry saved remotely!");
     }
 
+    // Close modal and clear temp entry *after* saving
     setIsModalOpen(false);
+    setCurrentCpdEntry(null);
   };
 
   // --- Render Logic (Unchanged) ---
@@ -533,11 +550,16 @@ export default function HomeContent() {
           </div>
         )}
       </div>
+
+      {/* 4. PASS THE NEW PROPS TO THE MODAL */}
       <ReflectionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSave={handleSaveCpd}
+        currentStreak={streakLoading ? 0 : currentStreak}
+        cpdEntry={currentCpdEntry}
       />
+      
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </>
   );
