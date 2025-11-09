@@ -11,7 +11,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
-import { useCpdStreaks } from "@/hooks/useCpdStreaks"; // <-- 1. IMPORT STREAK HOOK
+import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 
 // --- Types ---
 
@@ -66,7 +66,6 @@ export default function HomeContent() {
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   
-  // This now holds the simple { question, answer } object for the modal
   const [currentCpdEntry, setCurrentCpdEntry] = useState<{
     question: string;
     answer: string;
@@ -78,10 +77,9 @@ export default function HomeContent() {
   const searchParams = useSearchParams();
   const [profile, setProfile] = useState<Profile | null>(null);
 
-  // --- 2. GET STREAK DATA ---
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
 
-  // --- Effects (Unchanged) ---
+  // --- Effects ---
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -133,18 +131,13 @@ export default function HomeContent() {
     }
   }, [loading]);
 
-  // --- Core API Logic (Unchanged) ---
+  // --- Core API Logic ---
 
-  /**
-   * Fetches an answer from the API.
-   * This now handles both JSON (cache hit) and text/plain (stream) responses.
-   */
   const fetchUmbilResponse = async (
     currentConversation: ConversationEntry[]
   ) => {
     setLoading(true);
     
-    // Find the original question that led to this answer
     const lastUserQuestion = [...currentConversation]
       .reverse()
       .find((e) => e.type === "user")?.question;
@@ -176,7 +169,6 @@ export default function HomeContent() {
 
       const contentType = res.headers.get("Content-Type");
 
-      // --- Handle Cache Hit (JSON) ---
       if (contentType?.includes("application/json")) {
         const data: AskResponse = await res.json();
         setConversation((prev) => [
@@ -188,18 +180,16 @@ export default function HomeContent() {
           },
         ]);
       } 
-      // --- Handle Stream (Cache Miss) ---
       else if (contentType?.includes("text/plain")) {
         if (!res.body) {
           throw new Error("Response body is empty for streaming.");
         }
         
-        // Add a new, empty message bubble to stream into
         setConversation((prev) => [
           ...prev,
           {
             type: "umbil",
-            content: "", // Start with empty content
+            content: "", 
             question: lastUserQuestion,
           },
         ]);
@@ -209,11 +199,10 @@ export default function HomeContent() {
         
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break; // Stream finished
+          if (done) break; 
           
           const chunk = decoder.decode(value);
           
-          // Append the new chunk to the last message in the conversation
           setConversation((prev) => {
             const newConversation = [...prev];
             const lastMessage = newConversation[newConversation.length - 1];
@@ -237,10 +226,6 @@ export default function HomeContent() {
     }
   };
 
-  /**
-   * Handles the user submitting a new question from the ask bar.
-   * (Unchanged)
-   */
   const ask = async () => {
     if (!q.trim() || loading) return;
 
@@ -257,7 +242,7 @@ export default function HomeContent() {
     await fetchUmbilResponse(updatedConversation);
   };
 
-  // --- Action Button Handlers (Unchanged) ---
+  // --- Action Button Handlers ---
 
   const handleCopyMessage = (content: string) => {
     navigator.clipboard
@@ -311,10 +296,6 @@ export default function HomeContent() {
     }
   };
 
-  /**
-   * Removes the last AI response and fetches a new one.
-   * (Unchanged)
-   */
   const handleRegenerateResponse = async () => {
     if (loading || conversation.length === 0) return;
 
@@ -326,16 +307,15 @@ export default function HomeContent() {
     await fetchUmbilResponse(conversationForRegen);
   };
 
-  // --- 3. UPDATED CPD Handlers ---
+  // --- CPD Handlers ---
 
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
     if (!email) {
       setToastMessage("Please sign in to add CPD entries.");
       return;
     }
-    // Set the state with the question and answer for the modal
     setCurrentCpdEntry({
-      question: entry.question || "", // Fallback for safety
+      question: entry.question || "", 
       answer: entry.content,
     });
     setIsModalOpen(true);
@@ -344,7 +324,6 @@ export default function HomeContent() {
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (!currentCpdEntry) return;
 
-    // Create the full CPD entry to be saved
     const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { 
       timestamp: new Date().toISOString(),
       question: currentCpdEntry.question,
@@ -364,12 +343,11 @@ export default function HomeContent() {
       setToastMessage("✅ CPD entry saved remotely!");
     }
 
-    // Close modal and clear temp entry *after* saving
     setIsModalOpen(false);
     setCurrentCpdEntry(null);
   };
 
-  // --- Render Logic (Unchanged) ---
+  // --- Render Logic ---
 
   const renderMessage = (entry: ConversationEntry, index: number) => {
     const isUmbil = entry.type === "umbil";
@@ -385,7 +363,8 @@ export default function HomeContent() {
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                table: ({ node, ...props }) => (
+                // FIX: Removed unused 'node' prop from destructuring
+                table: ({ ...props }) => (
                   <div className="table-scroll-wrapper">
                     <table {...props} />
                   </div>
@@ -497,7 +476,7 @@ export default function HomeContent() {
             </div>
           </div>
         ) : (
-          // Home Screen (Unchanged)
+          // Home Screen
           <div className="hero">
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
 
@@ -551,7 +530,6 @@ export default function HomeContent() {
         )}
       </div>
 
-      {/* 4. PASS THE NEW PROPS TO THE MODAL */}
       <ReflectionModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

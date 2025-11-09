@@ -6,7 +6,6 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
-// FIX: Using your main model which is more powerful and better at following JSON rules
 const MODEL_SLUG = "openai/gpt-oss-120b";
 
 // Together AI client
@@ -14,7 +13,6 @@ const together = createTogetherAI({
   apiKey: API_KEY,
 });
 
-// FIX: Hardened prompt to be extremely clear about JSON output
 const TAG_PROMPT = `
 You are a clinical keyword extractor.
 Analyze the following clinical question and answer.
@@ -79,8 +77,9 @@ JSON Array:
     return NextResponse.json({ tags });
 
   } catch (err: unknown) {
-    console.error("[Umbil] Tag API Error:", err, "Raw AI output:", (err as any)?.data?.text);
-    const msg = (err as Error).message || "Internal server error";
+    // FIX: Removed '(err as any)' to pass linting and removed unused 'msg' variable.
+    console.error("[Umbil] Tag API Error:", (err as Error).message);
+    
     // Return an empty array on error so the UI doesn't break
     return NextResponse.json({ tags: [] }, { status: 500 });
   }
