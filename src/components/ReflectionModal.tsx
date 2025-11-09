@@ -8,7 +8,6 @@ type ReflectionModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onSave: (reflection: string, tags: string[]) => void;
-  // NEW PROPS
   currentStreak: number;
   cpdEntry: {
     question: string;
@@ -43,7 +42,7 @@ export default function ReflectionModal({
   
   // New state for AI generation
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
-  const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+  // REMOVED: isGeneratingTags
   const [generatedTags, setGeneratedTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -55,7 +54,6 @@ export default function ReflectionModal({
       setGeneratedTags([]);
       setError(null);
       setIsGeneratingReflection(false);
-      setIsGeneratingTags(false);
     }
   }, [isOpen]);
 
@@ -63,23 +61,24 @@ export default function ReflectionModal({
    * Appends a tag to the tags input field, avoiding duplicates.
    */
   const addTag = (tagToAdd: string) => {
-    // We use the 'tags' state (string) here
     const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     if (!tagList.includes(tagToAdd)) {
       setTags((prev) => (prev ? `${prev}, ${tagToAdd}` : tagToAdd));
     }
-    // Remove from generated list if it was clicked
     setGeneratedTags(prev => prev.filter((t: string) => t !== tagToAdd));
   };
 
   /**
-   * 3. Handles AI Reflection Generation (Streaming)
+   * 3. Handles AI Reflection & Tag Generation (Streaming)
    */
   const handleGenerateReflection = async () => {
     if (!cpdEntry) return;
     setIsGeneratingReflection(true);
     setError(null);
-    setReflection(""); // Clear previous reflection
+    setReflection("");
+    setGeneratedTags([]);
+
+    let fullText = ""; // Accumulate the full streamed response here
 
     try {
       const res = await fetch("/api/generate-reflection", {
@@ -102,9 +101,44 @@ export default function ReflectionModal({
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        const chunk = decoder.decode(value);
-        setReflection((prev) => prev + chunk);
+        
+        fullText += decoder.decode(value);
+
+        // As we stream, only show the user the part *before* the tags.
+        if (fullText.includes("---TAGS---")) {
+          const parts = fullText.split("---TAGS---");
+          setReflection(parts[0]); // Only show reflection
+        } else {
+          setReflection(fullText); // Show everything so far
+        }
       }
+
+      // --- Stream is finished, now parse the tags ---
+      if (fullText.includes("---TAGS---")) {
+        const parts = fullText.split("---TAGS---");
+        setReflection(parts[0].trim()); // Set final clean reflection
+        
+        const tagText = parts[1].trim();
+        
+        try {
+          // Try to parse as JSON array (e.g., ["tag1", "tag2"])
+          const parsedTags = JSON.parse(tagText);
+          if (Array.isArray(parsedTags)) {
+            const newTags = parsedTags.filter((t: string) => t);
+            setGeneratedTags(newTags);
+          }
+        } catch (e) {
+          // Fallback: AI failed to send JSON, treat as comma-separated
+          const fallbackTags = tagText
+            .replace(/[\[\]"]/g, "") // Remove brackets/quotes
+            .split(",")
+            .map((t: string) => t.trim())
+            .filter((t: string) => t);
+          setGeneratedTags(fallbackTags);
+        }
+      }
+      // If no delimiter, we just get the reflection and no tags.
+      
     } catch (err) {
       setError(`⚠️ ${getErrorMessage(err)}`);
     } finally {
@@ -113,53 +147,13 @@ export default function ReflectionModal({
   };
 
   /**
-   * 4. Handles AI Tag Generation (JSON)
+   * 4. REMOVED: handleGenerateTags() function
    */
-  const handleGenerateTags = async () => {
-    if (!cpdEntry) return;
-    setIsGeneratingTags(true);
-    setError(null);
-    setGeneratedTags([]);
-
-    try {
-      const res = await fetch("/api/generate-tags", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: cpdEntry.question,
-          answer: cpdEntry.answer,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to generate tags");
-      }
-
-      // ** THE FIX IS HERE **
-      // 1. Rename the API response variable to 'apiTags' to avoid the name conflict
-      const { tags: apiTags } = await res.json(); 
-
-      if (apiTags && apiTags.length > 0) {
-        // 2. Now, this 'tags.split' correctly uses the 'tags' variable from component state (the string)
-        const currentTagList = tags.split(",").map((t: string) => t.trim().toLowerCase());
-        
-        // 3. We filter the 'apiTags' (the array) against our 'currentTagList'
-        const newTags = apiTags.filter((t: string) => !currentTagList.includes(t.toLowerCase()));
-        setGeneratedTags(newTags);
-      }
-    } catch (err) {
-      setError(`⚠️ ${getErrorMessage(err)}`);
-    } finally {
-      setIsGeneratingTags(false);
-    }
-  };
 
   /**
    * Main save handler
    */
   const handleSave = () => {
-    // Proactive fix for the *next* lint error: added (t: string)
     const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     onSave(reflection, tagList);
   };
@@ -206,7 +200,7 @@ export default function ReflectionModal({
           <label className="form-label">Your Reflection (GMC-style)</label>
           <textarea
             className="form-control"
-            rows={8} // Increased rows for generated content
+            rows={8}
             value={reflection}
             onChange={(e) => setReflection(e.target.value)}
             placeholder="e.g., What did I learn? How will this change my practice? Click 'Generate' for help!"
@@ -226,7 +220,7 @@ export default function ReflectionModal({
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9Z"></path></svg>
-                Generate Reflection
+                Generate Reflection & Tags
               </>
             )}
           </button>
@@ -270,17 +264,7 @@ export default function ReflectionModal({
           )}
         </div>
         
-        {/* 4. Generate Tags Button */}
-        <div className="generate-button-container" style={{marginTop: 0}}>
-          <button
-              className="generate-button"
-              onClick={handleGenerateTags}
-              disabled={isGeneratingTags || !cpdEntry}
-              style={{flex: 'unset'}} // Don't make it full width
-            >
-              {isGeneratingTags ? "Generating..." : "✨ Suggest Tags"}
-            </button>
-        </div>
+        {/* 4. REMOVED: Generate Tags Button */}
 
 
         <div className="flex justify-end mt-4">

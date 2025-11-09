@@ -12,10 +12,10 @@ const together = createTogetherAI({
   apiKey: API_KEY,
 });
 
-// The prompt you provided
+// The prompt you provided - NOW ASKS FOR TAGS
 const REFLECTION_PROMPT = `
 You are Umbil, a UK clinical reflection assistant.
-Using the user’s question and the AI’s answer, generate a GMC-compliant reflective prompt for CPD/ePortfolio use.
+Using the user’s question and the AI’s answer, generate a GMC-compliant reflective prompt.
 
 Respond ONLY with plain text. DO NOT use markdown (like ** or *).
 
@@ -25,7 +25,14 @@ Application
 Next steps
 GMC domains: Briefly explain how this learning links to one or two domains (e.g., 'Links to Knowledge, Skills & Performance by...').
 
-Keep it concise, professional, and UK-based.
+Keep it concise and professional.
+
+After the reflection, add a separator '---TAGS---' on a new line, followed by a JSON string array of 5-7 relevant clinical keywords.
+Example:
+[...reflection text...]
+
+---TAGS---
+["atopic eczema", "topical steroids", "NICE guidelines", "emollients", "paediatrics"]
 `;
 
 // Set the runtime to edge
@@ -62,7 +69,7 @@ AI ANSWER:
 ${answer}
 ---
 
-Generate the reflection now (in plain text, no markdown):
+Generate the reflection and tags now:
 `;
 
     // --- Streaming Call ---
