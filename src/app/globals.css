@@ -1082,3 +1082,54 @@ a {
   font-weight: 600;
 }
 /* --- END: Answer Style Selector --- */
+
+
+/* --- NEW: Sticky Input Wrapper for Convo View --- */
+.sticky-input-wrapper {
+  position: sticky;
+  bottom: 0;
+  /* This padding matches the .conversation-container's horizontal padding */
+  padding: 16px 20px 20px 20px;
+  background: var(--umbil-bg);
+  transition: background-color 0.3s;
+  border-top: 1px solid var(--umbil-divider);
+  
+  /* This centers the content (the selector and the ask-bar) */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 50; /* Ensure it's above scrolling content */
+}
+
+/* Adjust selector margins for its new home */
+.answer-style-selector {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px; /* Space *above* the search bar */
+}
+
+.answer-style-selector .btn--style {
+  background-color: transparent;
+  color: var(--umbil-muted);
+  border: 1px solid var(--umbil-card-border);
+  padding: 6px 14px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  border-radius: var(--umbil-radius-sm);
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.answer-style-selector .btn--style:hover {
+  background-color: var(--umbil-hover-bg);
+  color: var(--umbil-text);
+}
+
+.answer-style-selector .btn--style.active {
+  background-color: var(--umbil-brand-teal);
+  color: var(--umbil-surface);
+  border-color: var(--umbil-brand-teal);
+  font-weight: 600;
+}
+/* --- END: Answer Style Selector --- */

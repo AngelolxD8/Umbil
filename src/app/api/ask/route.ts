@@ -58,15 +58,16 @@ Reference UK clinical guidance (NICE, SIGN, CKS, BNF).
 Start with a concise summary, then use bullet points for key details, and end with a helpful follow-up or differential.
 `.trim();
 
+// --- UPDATED: Using word limits for style ---
 const getStyleModifier = (style: AnswerStyle | null): string => {
   switch (style) {
     case 'clinic':
-      return "Your answer must be extremely concise. Focus on 4-6 critical bullet points: likely diagnosis, key actions, and safety-netting. Keep it very short for quick reading in a clinical setting.";
+      return "Your answer must be extremely concise and under 150 words. Focus on 4-6 critical bullet points: likely diagnosis, key actions, and safety-netting. Keep it very short for quick reading in a clinical setting.";
     case 'deepDive':
-      return "Provide a comprehensive, detailed answer suitable for teaching. Go into more depth on the evidence, pathophysiology, or specific guideline details. Be thorough.";
+      return "Provide a comprehensive, detailed answer suitable for teaching. Go into more depth on the evidence, pathophysiology, or specific guideline details. There is no word limit; be thorough.";
     case 'standard':
     default:
-      return "Provide a standard, balanced answer."; // Standard behavior
+      return "Provide a standard, balanced answer, ideally under 400 words. Be clear and comprehensive but not excessively long.";
   }
 };
 // --- END OF PROMPT UPDATES ---

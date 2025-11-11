@@ -15,7 +15,7 @@ import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 
 // --- Types ---
 
-type AnswerStyle = "clinic" | "standard" | "deepDive"; // <-- NEW
+type AnswerStyle = "clinic" | "standard" | "deepDive";
 
 type AskResponse = {
   answer?: string;
@@ -115,7 +115,6 @@ export default function HomeContent() {
 
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
 
-  // --- NEW: State for Answer Style ---
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
 
   // --- Effects ---
@@ -198,11 +197,10 @@ export default function HomeContent() {
           "Content-Type": "application/json",
           ...(token && { Authorization: `Bearer ${token}` }),
         },
-        // --- UPDATED: Pass answerStyle in the request body ---
         body: JSON.stringify({ 
           messages: messagesToSend, 
           profile, 
-          answerStyle // <-- ADDED
+          answerStyle
         }),
       });
 
@@ -407,7 +405,6 @@ export default function HomeContent() {
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                // FIX: Removed unused 'node' prop from destructuring
                 table: ({ ...props }) => (
                   <div className="table-scroll-wrapper">
                     <table {...props} />
@@ -477,61 +474,68 @@ export default function HomeContent() {
       >
         {conversation.length > 0 ? (
           // Conversation Mode
-          <div className="conversation-container">
-            {/* --- NEW ANSWER STYLE SELECTOR --- */}
-            <AnswerStyleSelector
-              currentStyle={answerStyle}
-              onStyleChange={setAnswerStyle}
-            />
-            {/* --- END OF SELECTOR --- */}
-            
-            <div className="message-thread">
-              {conversation.map(renderMessage)}
-              {loading && (
-                <div className="loading-indicator">
-                  {loadingMsg}
-                  <span>•</span>
-                  <span>•</span>
-                  <span>•</span>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
+          <>
+            <div className="conversation-container">
+              <div className="message-thread">
+                {conversation.map(renderMessage)}
+                {loading && (
+                  <div className="loading-indicator">
+                    {loadingMsg}
+                    <span>•</span>
+                    <span>•</span>
+                    <span>•</span>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
             </div>
-            <div className="ask-bar-container sticky">
-              <input
-                className="ask-bar-input"
-                placeholder="Ask a follow-up question..."
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && ask()}
+            {/* --- STICKY WRAPPER IS NOW A SIBLING TO THE CONTAINER --- */}
+            <div className="sticky-input-wrapper">
+              <AnswerStyleSelector
+                currentStyle={answerStyle}
+                onStyleChange={setAnswerStyle}
               />
-              <button
-                className="ask-bar-send-button"
-                onClick={ask}
-                disabled={loading}
-              >
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+              <div className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px' }}>
+                <input
+                  className="ask-bar-input"
+                  placeholder="Ask a follow-up question..."
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && ask()}
+                />
+                <button
+                  className="ask-bar-send-button"
+                  onClick={ask}
+                  disabled={loading}
                 >
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
-              </button>
+                  <svg
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                  </svg>
+                </button>
+              </div>
             </div>
-          </div>
+          </>
         ) : (
           // Home Screen
           <div className="hero">
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
 
-            <div className="ask-bar-container">
+            <AnswerStyleSelector
+              currentStyle={answerStyle}
+              onStyleChange={setAnswerStyle}
+            />
+
+            <div className="ask-bar-container" style={{ marginTop: "24px" }}>
               <input
                 className="ask-bar-input"
                 placeholder="Ask anything — clinical, reflective, or educational..."
