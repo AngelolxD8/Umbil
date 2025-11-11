@@ -9,6 +9,7 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 
 // ---------- Types ----------
 type ClientMessage = { role: "user" | "assistant"; content: string };
+type AnswerStyle = "clinic" | "standard" | "deepDive"; // <-- NEW
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -49,11 +50,26 @@ function sanitizeQuery(q: string): string {
     .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
-const CORE_INSTRUCTIONS = `
-You are Umbil, a concise UK clinical assistant. Use UK English, markdown formatting (not HTML). 
-Reference UK clinical guidance (NICE, SIGN, CKS, BNF). Start with a short summary, then bullet points, 
-and end with a helpful follow-up or differential.
-`;
+// --- UPDATED: Base prompt with artifact fix and answer style logic ---
+const BASE_PROMPT = `
+You are Umbil, a UK clinical assistant. Use UK English and markdown formatting.
+NEVER use HTML tags like <br>. Use new lines for spacing.
+Reference UK clinical guidance (NICE, SIGN, CKS, BNF).
+Start with a concise summary, then use bullet points for key details, and end with a helpful follow-up or differential.
+`.trim();
+
+const getStyleModifier = (style: AnswerStyle | null): string => {
+  switch (style) {
+    case 'clinic':
+      return "Your answer must be extremely concise. Focus on 4-6 critical bullet points: likely diagnosis, key actions, and safety-netting. Keep it very short for quick reading in a clinical setting.";
+    case 'deepDive':
+      return "Provide a comprehensive, detailed answer suitable for teaching. Go into more depth on the evidence, pathophysiology, or specific guideline details. Be thorough.";
+    case 'standard':
+    default:
+      return "Provide a standard, balanced answer."; // Standard behavior
+  }
+};
+// --- END OF PROMPT UPDATES ---
 
 async function getUserId(req: NextRequest): Promise<string | null> {
   try {
@@ -96,21 +112,29 @@ export async function POST(req: NextRequest) {
 
   // --- FEATURE 2: Add main try...catch for API error logging ---
   try {
-    const { messages, profile } = await req.json();
+    // --- UPDATED: Destructure new answerStyle property ---
+    const { messages, profile, answerStyle } = await req.json();
 
     if (!messages?.length)
       return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
+    // --- UPDATED: Construct system prompt with style modifier ---
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
-    const systemPrompt = `${CORE_INSTRUCTIONS.trim()} ${gradeNote}`;
+    const styleModifier = getStyleModifier(answerStyle);
+    const systemPrompt = `${BASE_PROMPT} ${styleModifier} ${gradeNote}`;
+    // --- END OF UPDATE ---
 
     const latestUserMessage = messages[messages.length - 1];
     
     // 1. Use the *normalized* query for the cache key
     const normalizedQuery = sanitizeAndNormalizeQuery(latestUserMessage.content);
     
-    // 2. Define the full cache key content
-    const cacheKeyContent = JSON.stringify({ model: MODEL_SLUG, query: normalizedQuery });
+    // 2. --- UPDATED: Define the full cache key content (includes style) ---
+    const cacheKeyContent = JSON.stringify({ 
+      model: MODEL_SLUG, 
+      query: normalizedQuery, 
+      style: answerStyle || 'standard' // Ensure default is cached
+    });
     const cacheKey = sha256(cacheKeyContent);
 
     // --- Cache Lookup ---
@@ -125,6 +149,7 @@ export async function POST(req: NextRequest) {
         cache: "hit",
         input_tokens: 0,
         output_tokens: 0,
+        style: answerStyle || 'standard', // Log style
       });
       return NextResponse.json({ answer: cached.answer });
     }
@@ -133,7 +158,7 @@ export async function POST(req: NextRequest) {
     const result = await streamText({
       model: together(MODEL_SLUG), 
       messages: [
-        { role: "system", content: systemPrompt },
+        { role: "system", content: systemPrompt }, // Pass the new combined prompt
         ...messages.map((m: ClientMessage) => ({
           ...m,
           content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
@@ -151,6 +176,7 @@ export async function POST(req: NextRequest) {
           output_tokens: usage.outputTokens,
           total_tokens: usage.totalTokens,
           model: MODEL_SLUG,
+          style: answerStyle || 'standard', // Log style
         });
 
         if (answer.length > 50) {

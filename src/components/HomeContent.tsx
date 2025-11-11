@@ -15,6 +15,8 @@ import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 
 // --- Types ---
 
+type AnswerStyle = "clinic" | "standard" | "deepDive"; // <-- NEW
+
 type AskResponse = {
   answer?: string;
   error?: string;
@@ -30,6 +32,40 @@ type ClientMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+// --- NEW: Answer Style Button Component ---
+const AnswerStyleSelector: React.FC<{
+  currentStyle: AnswerStyle;
+  onStyleChange: (style: AnswerStyle) => void;
+}> = ({ currentStyle, onStyleChange }) => {
+  return (
+    <div className="answer-style-selector">
+      <button
+        className={`btn--style ${currentStyle === "clinic" ? "active" : ""}`}
+        onClick={() => onStyleChange("clinic")}
+        title="Concise bullets: 4-6 key points for quick reading."
+      >
+        Clinic
+      </button>
+      <button
+        className={`btn--style ${currentStyle === "standard" ? "active" : ""}`}
+        onClick={() => onStyleChange("standard")}
+        title="Standard balanced answer (default)."
+      >
+        Standard
+      </button>
+      <button
+        className={`btn--style ${currentStyle === "deepDive" ? "active" : ""}`}
+        onClick={() => onStyleChange("deepDive")}
+        title="Comprehensive details suitable for teaching or in-depth learning."
+      >
+        Deep Dive
+      </button>
+    </div>
+  );
+};
+// --- END: Answer Style Button Component ---
+
 
 // --- Helpers ---
 
@@ -78,6 +114,9 @@ export default function HomeContent() {
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
+
+  // --- NEW: State for Answer Style ---
+  const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
 
   // --- Effects ---
 
@@ -159,7 +198,12 @@ export default function HomeContent() {
           "Content-Type": "application/json",
           ...(token && { Authorization: `Bearer ${token}` }),
         },
-        body: JSON.stringify({ messages: messagesToSend, profile }),
+        // --- UPDATED: Pass answerStyle in the request body ---
+        body: JSON.stringify({ 
+          messages: messagesToSend, 
+          profile, 
+          answerStyle // <-- ADDED
+        }),
       });
 
       if (!res.ok) {
@@ -434,6 +478,13 @@ export default function HomeContent() {
         {conversation.length > 0 ? (
           // Conversation Mode
           <div className="conversation-container">
+            {/* --- NEW ANSWER STYLE SELECTOR --- */}
+            <AnswerStyleSelector
+              currentStyle={answerStyle}
+              onStyleChange={setAnswerStyle}
+            />
+            {/* --- END OF SELECTOR --- */}
+            
             <div className="message-thread">
               {conversation.map(renderMessage)}
               {loading && (
