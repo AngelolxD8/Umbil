@@ -28,23 +28,70 @@ const PDP_GOALS_KEY = "pdp_goals";
 // --- Remote CPD Functions ---
 
 /**
- * Fetches all CPD entries for the current logged-in user from the remote database.
+ * Fetches ALL CPD entries for the current logged-in user.
+ * Used for PDP suggestions and Streak calculations.
  */
 export async function getCPD(): Promise<CPDEntry[]> {
   const { data, error } = await supabase
     .from(CPD_TABLE)
     .select("*")
-    // Order by newest first, so the log feels correct
+    // Order by newest first
     .order("timestamp", { ascending: false }); 
 
   if (error) {
-    console.error("Error fetching CPD log:", error);
+    console.error("Error fetching all CPD logs:", error);
     return [];
   }
   
-  // The retrieved data matches CPDEntry structure
   return data as CPDEntry[]; 
 }
+
+/**
+ * NEW: Fetches a single page of CPD entries with server-side filtering and pagination.
+ * Used by the main CPD log page.
+ */
+export async function getCPDPage(options: {
+  page: number;
+  limit: number;
+  q?: string;
+  tag?: string;
+}): Promise<{ entries: CPDEntry[]; count: number; error: PostgrestError | null }> {
+  
+  const { page, limit, q, tag } = options;
+  const from = page * limit;
+  const to = from + limit - 1;
+
+  // Start building the query. We request 'count' to get the total number of filtered items.
+  let query = supabase
+    .from(CPD_TABLE)
+    .select('*', { count: 'exact' });
+
+  // Add search filter (q)
+  if (q) {
+    // Searches 'question', 'answer', and 'reflection' columns
+    query = query.or(`question.ilike.%${q}%,answer.ilike.%${q}%,reflection.ilike.%${q}%`);
+  }
+
+  // Add tag filter
+  if (tag) {
+    query = query.contains('tags', [tag]);
+  }
+
+  // Add ordering and pagination
+  query = query
+    .order("timestamp", { ascending: false })
+    .range(from, to);
+
+  // Execute the query
+  const { data, error, count } = await query;
+
+  return {
+    entries: (data as CPDEntry[]) || [],
+    count: count ?? 0,
+    error,
+  };
+}
+
 
 /**
  * Adds a new CPD entry to the remote database.

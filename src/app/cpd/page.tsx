@@ -2,10 +2,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CPDEntry, getCPD } from "@/lib/store"; // Import the remote getCPD now
+// Import BOTH getCPD (for tags) and getCPDPage (for pagination)
+import { CPDEntry, getCPD, getCPDPage } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+
+// Page size constant
+const PAGE_SIZE = 10;
 
 /**
  * Converts the CPD log array into a CSV string for easy export.
@@ -29,58 +33,106 @@ function toCSV(rows: CPDEntry[]) {
 }
 
 function CPDInner() {
+  // State for paged data
   const [list, setList] = useState<CPDEntry[]>([]);
-  const [loading, setLoading] = useState(true); // Added loading state
+  const [loading, setLoading] = useState(true);
+  
+  // State for filters
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
+  
+  // State for pagination
+  const [currentPage, setCurrentPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  
+  // State for tag dropdown
+  const [allTags, setAllTags] = useState<string[]>([]);
+  const [tagsLoading, setTagsLoading] = useState(true);
 
-  // Fetch the CPD log from the remote database when the component mounts
+  // State for CSV downloading
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  // Debounced filter values
+  const [debouncedQ, setDebouncedQ] = useState(q);
+  const [debouncedTag, setDebouncedTag] = useState(tag);
+
+  // 1. Debounce text and tag filters to avoid excessive API calls
   useEffect(() => {
-    const fetchCPD = async () => {
+    const handler = setTimeout(() => {
+      setDebouncedQ(q);
+      setDebouncedTag(tag);
+    }, 500); // 500ms delay
+    return () => clearTimeout(handler);
+  }, [q, tag]);
+
+  // 2. Reset to page 0 when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [debouncedQ, debouncedTag]);
+
+  // 3. Fetch all unique tags ONCE on component mount
+  useEffect(() => {
+    const fetchAllTags = async () => {
+      setTagsLoading(true);
+      const allEntries = await getCPD(); // Fetches all entries
+      const tags = Array.from(new Set(allEntries.flatMap((e) => e.tags || []))).sort();
+      setAllTags(tags);
+      setTagsLoading(false);
+    };
+    fetchAllTags();
+  }, []); // Empty dependency array = runs once
+
+  // 4. Fetch the appropriate page of data when page or filters change
+  useEffect(() => {
+    const fetchPage = async () => {
       setLoading(true);
-      // This calls the updated function in src/lib/store.ts which hits Supabase
-      const remoteList = await getCPD(); 
-      setList(remoteList);
+      const { entries, count, error } = await getCPDPage({
+        page: currentPage,
+        limit: PAGE_SIZE,
+        q: debouncedQ || undefined,
+        tag: debouncedTag || undefined,
+      });
+
+      if (error) {
+        console.error("Error fetching CPD page:", error);
+        setList([]);
+        setTotalCount(0);
+      } else {
+        setList(entries);
+        setTotalCount(count);
+      }
       setLoading(false);
     };
-    fetchCPD();
-  }, []); // Empty dependency array ensures this runs once
 
-  // Filter the CPD entries based on the current search text and selected tag
-  const filtered = useMemo(() => {
-    return list.filter((e) => {
-      // Create a single searchable string (haystack) from question, answer, and tags
-      const hay = (
-        (e.question || "") +
-        " " +
-        (e.answer || "") +
-        " " +
-        (e.tags || []).join(" ")
-      ).toLowerCase();
-      
-      const okQ = !q || hay.includes(q.toLowerCase());
-      const okTag =
-        !tag ||
-        (e.tags || []).map((t) => t.toLowerCase()).includes(tag.toLowerCase());
-      
-      return okQ && okTag;
-    });
-  }, [list, q, tag]);
+    fetchPage();
+  }, [currentPage, debouncedQ, debouncedTag]); // Re-fetch on page or filter change
 
-  // Generate a sorted list of all unique tags for the dropdown filter
-  const allTags = useMemo(() => {
-      return Array.from(new Set(list.flatMap((e) => e.tags || []))).sort();
-  }, [list]);
-
+  // Calculate total pages
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   /**
-   * Generates a CSV file from the filtered entries and triggers a browser download.
+   * Generates a CSV file from ALL filtered entries and triggers a browser download.
    */
-  const download = () => {
-    const csvContent = toCSV(filtered);
+  const download = async () => {
+    setIsDownloading(true);
+    // Fetch ALL entries that match the current filter (limit: 10000)
+    const { entries, error } = await getCPDPage({
+      page: 0,
+      limit: 10000, 
+      q: debouncedQ || undefined,
+      tag: debouncedTag || undefined,
+    });
+
+    if (error) {
+      console.error("Error fetching data for CSV:", error);
+      alert("Failed to download CSV data.");
+      setIsDownloading(false);
+      return;
+    }
+
+    const csvContent = toCSV(entries);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
     
-    // Create an invisible link element and click it to trigger download
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -89,12 +141,12 @@ function CPDInner() {
     a.click();
     document.body.removeChild(a);
     
-    // Revoke the temporary URL after the download starts
     URL.revokeObjectURL(url);
+    setIsDownloading(false);
   };
 
   // Display a friendly message while data is loading
-  if (loading) {
+  if (loading && list.length === 0) {
     return (
         <section className="main-content">
             <div className="container">
@@ -107,14 +159,16 @@ function CPDInner() {
   return (
     <section className="main-content">
       <div className="container">
-        {/* Increased bottom margin for better spacing from filters */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2>My CPD Learning Log</h2>
-          {/* Only show download if there are entries */}
-          {list.length > 0 && <button className="btn btn--outline" onClick={download}>📥 Download CSV</button>}
+          {totalCount > 0 && (
+            <button className="btn btn--outline" onClick={download} disabled={isDownloading}>
+              {isDownloading ? "Generating..." : "📥 Download CSV"}
+            </button>
+          )}
         </div>
 
-        <div className="filters" style={{ marginBottom: 32 }}> {/* Increased spacing under filters */}
+        <div className="filters" style={{ marginBottom: 32 }}>
           <input
             className="form-control"
             placeholder="Search text…"
@@ -125,27 +179,29 @@ function CPDInner() {
             className="form-control"
             value={tag}
             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTag(e.target.value)}
+            disabled={tagsLoading}
           >
-            <option value="">All tags</option>
+            <option value="">{tagsLoading ? "Loading tags..." : "All tags"}</option>
             {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
 
         <div className="cpd-entries">
-          {list.length === 0 && (
-            <div className="card"><div className="card__body">No entries found. Log something new on the Ask page!</div></div>
+          {loading && <p>Loading entries...</p>}
+          {!loading && totalCount === 0 && (
+            <div className="card"><div className="card__body">
+              {q || tag ? "No entries matched your search criteria." : "No entries found. Log something new on the Ask page!"}
+            </div></div>
           )}
-          {filtered.length === 0 && list.length > 0 && (
-            <div className="card"><div className="card__body">No entries matched your search criteria.</div></div>
-          )}
-          {filtered.map((e, idx) => (
-            <div key={e.id || idx} className="card" style={{ marginBottom: 24 }}> {/* Increased spacing between entries */}
-              <div className="card__body" style={{ padding: '20px' }}> {/* Added explicit padding for a slightly larger card feel */}
+          
+          {!loading && list.map((e, idx) => (
+            <div key={e.id || idx} className="card" style={{ marginBottom: 24 }}>
+              <div className="card__body" style={{ padding: '20px' }}>
                 <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16 }}>
                   <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>
                     {new Date(e.timestamp).toLocaleString()}
                   </div>
-                  <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem' }}>{e.question}</div> {/* Slightly increased question size */}
+                  <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem' }}>{e.question}</div>
                 </div>
                 <div style={{ fontSize: '0.9rem' }}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
@@ -163,10 +219,9 @@ function CPDInner() {
                             marginRight: 8, 
                             padding: '4px 8px', 
                             borderRadius: 12, 
-                            // Use a solid background in dark mode, and a lighter one in light mode
                             backgroundColor: 'var(--umbil-hover-bg)', 
                             fontSize: '0.8rem', 
-                            color: 'var(--umbil-text)', // Inherit main text color
+                            color: 'var(--umbil-text)',
                             fontWeight: 500
                         }}
                     >
@@ -178,6 +233,30 @@ function CPDInner() {
             </div>
           ))}
         </div>
+
+        {/* --- NEW: Pagination Controls --- */}
+        {totalPages > 1 && (
+          <div className="pagination-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 }}>
+            <button 
+              className="btn btn--outline"
+              onClick={() => setCurrentPage(p => p - 1)}
+              disabled={currentPage === 0 || loading}
+            >
+              Previous
+            </button>
+            <span style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
+              Page {currentPage + 1} of {totalPages}
+            </span>
+            <button
+              className="btn btn--outline"
+              onClick={() => setCurrentPage(p => p + 1)}
+              disabled={currentPage >= totalPages - 1 || loading}
+            >
+              Next
+            </button>
+          </div>
+        )}
+
       </div>
     </section>
   );

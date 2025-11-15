@@ -46,69 +46,93 @@ export function useCpdStreaks(): StreakData {
   
   // 2. Memoize streak and calendar calculations for performance
   const { dates, currentStreak, longestStreak, hasLoggedToday } = useMemo(() => {
-    // Determine today's date string once
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Ensure consistency
-    const todayStr = today.toISOString().split('T')[0];
-    
-    // Calculate date counts (Map<string, number>)
+    // --- START: NEW STREAK LOGIC ---
+
+    // Helper to get YYYY-MM-DD string from a Date object
+    const toDateString = (date: Date): string => date.toISOString().split('T')[0];
+
+    // 1. Create a Map of date strings to their log counts
     const dateCounts = new Map<string, number>();
     for (const ts of cpdTimestamps) {
-        const dateStr = new Date(ts).toISOString().split('T')[0];
+        const dateStr = toDateString(new Date(ts));
         dateCounts.set(dateStr, (dateCounts.get(dateStr) || 0) + 1);
     }
+    
+    // Get a set of unique dates where logging occurred
+    const loggedDatesSet = new Set(dateCounts.keys());
 
-    if (cpdTimestamps.length === 0) {
+    if (loggedDatesSet.size === 0) {
       return { dates: dateCounts, currentStreak: 0, longestStreak: 0, hasLoggedToday: false };
     }
-    
-    let current = 0;
-    let longest = 0;
-    let maxSoFar = 0;
-    
-    // Check if user has logged today
-    const hasEntryToday = dateCounts.has(todayStr);
-    
-    // The starting day for our current streak check is TODAY
-    const checkDate = new Date(today); 
-    
-    // Set initial current streak count
-    if (hasEntryToday) {
-        current = 1;
-    } 
-    
-    // Start iterating from YESTERDAY backwards
-    checkDate.setDate(checkDate.getDate() - 1);
-    
-    // Iterative logic to find both current and longest streaks
-    // We use a new mutable variable for date checking to avoid ESLint errors.
-    // eslint-disable-next-line prefer-const
-    let cursorDate = checkDate;
 
-    for (let i = 0; i < 365; i++) { 
-      const dateStr = cursorDate.toISOString().split('T')[0];
-      const hadCpd = dateCounts.has(dateStr);
-      
-      if (hadCpd) {
-        maxSoFar++;
-        // If we are currently counting the streak *before* today, keep counting it.
-        if (hasEntryToday || maxSoFar === 1) { 
-             current = (hasEntryToday ? 1 : 0) + maxSoFar; 
-        }
+    // 2. Initialize counters
+    let currentStreakCount = 0;
+    let longestStreakCount = 0;
+    let tempStreakCount = 0;
+
+    // 3. Get today's date string
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = toDateString(today);
+    const hasLoggedToday = loggedDatesSet.has(todayStr);
+
+    // 4. Iterate backwards from today for 1 year (or more)
+    const checkDate = new Date(today);
+    let isCurrentStreak = true; // Flag to track if we are still in the "current" streak
+
+    for (let i = 0; i < 365; i++) {
+      const dateStr = toDateString(checkDate);
+
+      if (loggedDatesSet.has(dateStr)) {
+        // Log found, increment temp streak
+        tempStreakCount++;
       } else {
-        // Gap found.
-        longest = Math.max(longest, maxSoFar);
-        maxSoFar = 0; 
+        // No log found, streak is broken
+        
+        // Check if this was the "current" streak
+        if (isCurrentStreak) {
+          // If the gap is today (i=0), the current streak is 0.
+          // If the gap is yesterday (i=1), the current streak was `tempStreakCount` (which would be 1 if logged today).
+          // This is simpler: if we find a gap, the "current" streak is whatever we counted *before* this gap.
+          // But since we start at i=0 (today), if `hasLoggedToday` is false, `tempStreakCount` will be 0, so `currentStreakCount` will be 0.
+          if (i === 0 && !hasLoggedToday) {
+            currentStreakCount = 0;
+          } else {
+            // This is the first gap *after* today. The streak we just counted *was* the current streak.
+            // We only set this once.
+            if (isCurrentStreak) {
+                 currentStreakCount = tempStreakCount;
+            }
+          }
+          isCurrentStreak = false; // We've found the end of the current streak
+        }
+
+        // Update longest streak
+        longestStreakCount = Math.max(longestStreakCount, tempStreakCount);
+        // Reset temp counter
+        tempStreakCount = 0;
       }
       
       // Move to the previous day
-      cursorDate.setDate(cursorDate.getDate() - 1);
+      checkDate.setDate(checkDate.getDate() - 1);
     }
     
-    // Final check to capture the longest streak that might run up to the loop end
-    longest = Math.max(longest, current, maxSoFar); 
+    // 5. Final check
+    // If the streak ran for the entire loop, `isCurrentStreak` will still be true
+    if (isCurrentStreak) {
+      currentStreakCount = tempStreakCount;
+    }
+    // Final check for longest streak
+    longestStreakCount = Math.max(longestStreakCount, tempStreakCount);
 
-    return { dates: dateCounts, currentStreak: current, longestStreak: longest, hasLoggedToday: hasEntryToday };
+    return { 
+      dates: dateCounts, 
+      currentStreak: currentStreakCount, 
+      longestStreak: longestStreakCount, 
+      hasLoggedToday: hasLoggedToday 
+    };
+    
+    // --- END: NEW STREAK LOGIC ---
   }, [cpdTimestamps]);
 
   // Return the Map object (now correctly typed as Map<string, number>)

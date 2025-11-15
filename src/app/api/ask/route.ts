@@ -113,16 +113,21 @@ export async function POST(req: NextRequest) {
 
   // --- FEATURE 2: Add main try...catch for API error logging ---
   try {
-    // --- UPDATED: Destructure new answerStyle property ---
-    const { messages, profile, answerStyle } = await req.json();
+    // --- UPDATED: Destructure new answerStyle and localTrust properties ---
+    const { messages, profile, answerStyle, localTrust } = await req.json();
 
     if (!messages?.length)
       return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
-    // --- UPDATED: Construct system prompt with style modifier ---
+    // --- NEW: Create conditional prompt for local trust ---
+    const localTrustPrompt = localTrust 
+      ? `The user is based in ${localTrust}. Where possible, you MUST tailor the answer to this specific NHS board/ICB/trust, referencing their local guidelines or formulary *in addition* to national ones (NICE, CKS). State if local guidance could not be found.`
+      : "";
+
+    // --- UPDATED: Construct system prompt with style modifier and local trust ---
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
-    const systemPrompt = `${BASE_PROMPT} ${styleModifier} ${gradeNote}`;
+    const systemPrompt = `${BASE_PROMPT} ${styleModifier} ${gradeNote} ${localTrustPrompt}`.trim();
     // --- END OF UPDATE ---
 
     const latestUserMessage = messages[messages.length - 1];
@@ -130,11 +135,12 @@ export async function POST(req: NextRequest) {
     // 1. Use the *normalized* query for the cache key
     const normalizedQuery = sanitizeAndNormalizeQuery(latestUserMessage.content);
     
-    // 2. --- UPDATED: Define the full cache key content (includes style) ---
+    // 2. --- UPDATED: Define the full cache key content (includes style and trust) ---
     const cacheKeyContent = JSON.stringify({ 
       model: MODEL_SLUG, 
       query: normalizedQuery, 
-      style: answerStyle || 'standard' // Ensure default is cached
+      style: answerStyle || 'standard', // Ensure default is cached
+      trust: localTrust || null // <-- ADDED LOCAL TRUST TO CACHE KEY
     });
     const cacheKey = sha256(cacheKeyContent);
 
@@ -150,7 +156,8 @@ export async function POST(req: NextRequest) {
         cache: "hit",
         input_tokens: 0,
         output_tokens: 0,
-        style: answerStyle || 'standard', // Log style
+        style: answerStyle || 'standard',
+        trust: localTrust || null, // <-- ADDED TO ANALYTICS
       });
       return NextResponse.json({ answer: cached.answer });
     }
@@ -177,7 +184,8 @@ export async function POST(req: NextRequest) {
           output_tokens: usage.outputTokens,
           total_tokens: usage.totalTokens,
           model: MODEL_SLUG,
-          style: answerStyle || 'standard', // Log style
+          style: answerStyle || 'standard',
+          trust: localTrust || null, // <-- ADDED TO ANALYTICS
         });
 
         if (answer.length > 50) {

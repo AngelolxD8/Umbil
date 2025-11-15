@@ -66,6 +66,25 @@ const AnswerStyleSelector: React.FC<{
 };
 // --- END: Answer Style Button Component ---
 
+// --- NEW: Local Trust Input Component ---
+const LocalTrustInput: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ value, onChange }) => {
+  return (
+    <div className="local-trust-container">
+      <input
+        type="text"
+        className="local-trust-input"
+        placeholder="Optional: Enter NHS Board / ICB / Trust for local guidance..."
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+};
+// --- END: Local Trust Input Component ---
+
 
 // --- Helpers ---
 
@@ -87,6 +106,7 @@ const loadingMessages = [
   "Umbil is thinking...",
   "Consulting the guidelines...",
   "Synthesizing clinical data...",
+  "Checking local formularies...",
   "Almost there...",
   "Crafting your response...",
 ];
@@ -116,6 +136,7 @@ export default function HomeContent() {
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
 
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
+  const [localTrust, setLocalTrust] = useState<string>(""); // <-- NEW STATE FOR LOCAL TRUST
 
   // --- Effects ---
 
@@ -171,8 +192,14 @@ export default function HomeContent() {
 
   // --- Core API Logic ---
 
+  /**
+   * Fetches a response from the API.
+   * @param currentConversation The conversation history to send.
+   * @param styleOverride (Optional) Force a specific answer style for this request.
+   */
   const fetchUmbilResponse = async (
-    currentConversation: ConversationEntry[]
+    currentConversation: ConversationEntry[],
+    styleOverride: AnswerStyle | null = null // <-- NEW: Allow style override
   ) => {
     setLoading(true);
     
@@ -190,6 +217,9 @@ export default function HomeContent() {
           content: entry.content,
         })
       );
+      
+      // Use the override if provided, otherwise use the state
+      const styleToUse = styleOverride || answerStyle;
 
       const res = await fetch("/api/ask", {
         method: "POST",
@@ -200,7 +230,8 @@ export default function HomeContent() {
         body: JSON.stringify({ 
           messages: messagesToSend, 
           profile, 
-          answerStyle
+          answerStyle: styleToUse, // <-- Use the determined style
+          localTrust: localTrust.trim() || null 
         }),
       });
 
@@ -212,6 +243,7 @@ export default function HomeContent() {
       const contentType = res.headers.get("Content-Type");
 
       if (contentType?.includes("application/json")) {
+        // Handle non-streamed (cached) response
         const data: AskResponse = await res.json();
         setConversation((prev) => [
           ...prev,
@@ -223,10 +255,12 @@ export default function HomeContent() {
         ]);
       } 
       else if (contentType?.includes("text/plain")) {
+        // Handle streamed response
         if (!res.body) {
           throw new Error("Response body is empty for streaming.");
         }
         
+        // Add a new, empty message bubble to stream into
         setConversation((prev) => [
           ...prev,
           {
@@ -245,6 +279,7 @@ export default function HomeContent() {
           
           const chunk = decoder.decode(value);
           
+          // Append the chunk to the *last* message bubble in the conversation
           setConversation((prev) => {
             const newConversation = [...prev];
             const lastMessage = newConversation[newConversation.length - 1];
@@ -281,7 +316,8 @@ export default function HomeContent() {
 
     setConversation(updatedConversation);
     scrollToBottom(true);
-    await fetchUmbilResponse(updatedConversation);
+    // Call with no style override (uses state)
+    await fetchUmbilResponse(updatedConversation, null); 
   };
 
   // --- Action Button Handlers ---
@@ -344,10 +380,37 @@ export default function HomeContent() {
     const lastEntry = conversation[conversation.length - 1];
     if (lastEntry.type !== "umbil") return;
 
+    // Get conversation *before* the last Umbil response
     const conversationForRegen = conversation.slice(0, -1);
+    
+    // Set the state to this truncated conversation
     setConversation(conversationForRegen);
-    await fetchUmbilResponse(conversationForRegen);
+    
+    // Fetch a new response based on the truncated history
+    await fetchUmbilResponse(conversationForRegen, null);
   };
+  
+  // --- NEW: Deep Dive Handler ---
+  const handleDeepDive = async (entry: ConversationEntry, index: number) => {
+    if (loading) return;
+    
+    const originalQuestion = entry.question;
+    
+    if (!originalQuestion) {
+        setToastMessage("❌ Cannot deep-dive on this message.");
+        return;
+    }
+    
+    // Get the conversation history *up to and including* the user prompt that generated this answer
+    // The 'entry' is at 'index', so the user question is at 'index - 1'
+    // We slice up to 'index' (exclusive of 'index') to get [User, Umbil, User]
+    const historyForDeepDive = conversation.slice(0, index);
+
+    // Call fetchUmbilResponse, passing the truncated history and forcing the 'deepDive' style
+    await fetchUmbilResponse(historyForDeepDive, 'deepDive');
+  };
+  // --- END: Deep Dive Handler ---
+
 
   // --- CPD Handlers ---
 
@@ -441,6 +504,20 @@ export default function HomeContent() {
               Copy
             </button>
             
+            {/* --- NEW: Deep Dive Button --- */}
+            {/* Show if it's the last message, not loading, AND has a question */}
+            {isLastMessage && !loading && entry.question && (
+              <button
+                className="action-button"
+                onClick={() => handleDeepDive(entry, index)}
+                title="Deep dive on this topic"
+              >
+                <svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+                Deep Dive
+              </button>
+            )}
+            {/* --- END: Deep Dive Button --- */}
+
             {isLastMessage && !loading && (
               <button
                 className="action-button"
@@ -489,12 +566,14 @@ export default function HomeContent() {
                 <div ref={messagesEndRef} />
               </div>
             </div>
-            {/* --- STICKY WRAPPER IS NOW A SIBLING TO THE CONTAINER --- */}
+            {/* --- STICKY WRAPPER --- */}
             <div className="sticky-input-wrapper">
               <AnswerStyleSelector
                 currentStyle={answerStyle}
                 onStyleChange={setAnswerStyle}
               />
+              <LocalTrustInput value={localTrust} onChange={setLocalTrust} />
+
               <div className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px' }}>
                 <input
                   className="ask-bar-input"
@@ -534,6 +613,8 @@ export default function HomeContent() {
               currentStyle={answerStyle}
               onStyleChange={setAnswerStyle}
             />
+            
+            <LocalTrustInput value={localTrust} onChange={setLocalTrust} />
 
             <div className="ask-bar-container" style={{ marginTop: "24px" }}>
               <input

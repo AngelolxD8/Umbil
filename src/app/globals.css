@@ -1133,3 +1133,53 @@ a {
   font-weight: 600;
 }
 /* --- END: Answer Style Selector --- */
+
+/* --- NEW: Local Trust Input --- */
+.local-trust-container {
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto 24px auto; /* Margin below selector, above ask bar */
+  position: relative;
+}
+
+.local-trust-input {
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 14px;
+  border: 1px dashed var(--umbil-divider);
+  border-radius: var(--umbil-radius-sm);
+  background-color: var(--umbil-surface);
+  color: var(--umbil-text);
+  text-align: center;
+  transition: all 0.2s ease-in-out;
+}
+
+.local-trust-input::placeholder {
+  color: var(--umbil-muted);
+  opacity: 1;
+}
+
+.local-trust-input:focus {
+  outline: none;
+  border-style: solid;
+  border-color: var(--umbil-brand-teal);
+  box-shadow: 0 0 0 3px var(--umbil-focus-ring);
+  background-color: var(--umbil-surface);
+}
+
+/* Adjust sticky wrapper to use this */
+.sticky-input-wrapper .local-trust-container {
+  max-width: 800px;
+  margin-bottom: 16px; /* Tighter margin in convo view */
+}
+/* --- END: Local Trust Input --- */
+
+/* --- NEW: Style for Deep Dive Icon --- */
+/* We can just use the default size (14px) and stroke (2.5) 
+  from the .action-button svg style, so no new rules
+  are needed unless you want to override them!
+  This class is here just in case you want to change it,
+  for example, make it a different color.
+*/
+/* .action-button svg.icon-zoom-in {} */
+/* --- END: Deep Dive Icon Style --- */
