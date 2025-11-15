@@ -106,14 +106,20 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           New Chat
         </button>
 
-        {/* Streak Display */}
+        {/* --- MODIFIED: Streak Display is now a Link --- */}
         {userEmail && !streaksLoading && currentStreak > 0 && (
-            <div className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`}>
+            <Link
+                href="/profile"
+                className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`}
+                onClick={onClose}
+                title="Click to view your profile"
+            >
                 <span style={{fontWeight: 700}}>
                     🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
                 </span>
-            </div>
+            </Link>
         )}
+        {/* --- END MODIFICATION --- */}
         
         <nav className="sidebar-nav">
           {filteredMenuItems.map((item) => (
@@ -192,7 +198,14 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             border-radius: var(--umbil-radius-sm);
             margin: 0 0 16px 0;
             text-align: center;
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, background-color 0.2s;
+            display: block; /* Make the link a block element */
+            text-decoration: none; /* Remove link underline */
+            cursor: pointer;
+        }
+
+        .streak-display-sidebar:hover {
+            background-color: var(--umbil-divider); /* Add a subtle hover */
         }
 
         .streak-display-sidebar.faded-streak {

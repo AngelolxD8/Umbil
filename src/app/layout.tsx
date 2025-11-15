@@ -26,11 +26,16 @@ function GlobalStreakDisplay() {
     
     // Determine the style based on whether today's log exists
     const className = `global-streak ${hasLoggedToday ? '' : 'faded'}`;
+    const title = hasLoggedToday ? "You've logged CPD today! Click to view your profile." : "Log CPD today to keep your streak alive! Click to view your profile.";
     
     return (
-        <div className={className} title={hasLoggedToday ? "You've logged CPD today!" : "Log CPD today to keep your streak alive!"}>
+        <Link 
+          href="/profile" 
+          className={className} 
+          title={title}
+        >
             {streakDisplay} 🔥
-        </div>
+        </Link>
     );
 }
 // -----------------------------------------------
