@@ -1,15 +1,15 @@
 // src/components/HomeContent.tsx
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+// --- FIX 2: Import useCallback ---
+import { useState, useRef, useEffect, useCallback } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ReflectionModal from "@/components/ReflectionModal";
 import Toast from "@/components/Toast";
-import QuickTour from "@/components/QuickTour"; // <-- 1. IMPORT QUICKTOUR
+import QuickTour from "@/components/QuickTour"; 
 import { addCPD, CPDEntry } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
-// --- FIX 1: Import useRouter ---
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
@@ -174,7 +174,6 @@ export default function HomeContent() {
 
   const { email } = useUserEmail();
   const searchParams = useSearchParams();
-  // --- FIX 1: Initialize router ---
   const router = useRouter(); 
   const [profile, setProfile] = useState<Profile | null>(null);
 
@@ -204,11 +203,8 @@ export default function HomeContent() {
     if (searchParams.get("new-chat")) {
       setConversation([]);
     }
-    // Check if tour should start
     if (searchParams.get("tour")) {
-      // Check if user is logged in, if not, redirect to login first
       if (!email) {
-        // --- FIX 1: Use router (now defined) ---
         router.push("/auth"); 
         return;
       }
@@ -219,7 +215,6 @@ export default function HomeContent() {
         setTourStep(0);
       }
     }
-  // --- FIX 1: Add router to dependency array ---
   }, [searchParams, email, router]);
   // -------------------------
 
@@ -259,47 +254,42 @@ export default function HomeContent() {
 
   
   // --- TOUR STEP HANDLER ---
-  const handleTourStepChange = (stepIndex: number) => {
+  // --- FIX 2: Wrap in useCallback ---
+  const handleTourStepChange = useCallback((stepIndex: number) => {
     setTourStep(stepIndex);
     
-    // Step 2: "Ask Your Question" -> "Get Your Answer"
     if (stepIndex === 2) { 
-      // This is step 3 (index 2), show dummy message
       // Handled by `convoToShow`
     }
-    // Step 4: "Add to CPD" -> "Reflect & Save"
     if (stepIndex === 4) {
-      // This is step 5 (index 4), open the modal
-      setCurrentCpdEntry(DUMMY_CPD_ENTRY); // Use dummy data
+      setCurrentCpdEntry(DUMMY_CPD_ENTRY); 
       setIsModalOpen(true);
     } else {
-      // Close modal if not on step 5
       if(isModalOpen) setIsModalOpen(false);
     }
 
-    // Step 5: "Reflect & Save" -> "Explore Your Logs"
     if (stepIndex === 5) {
-      // This is step 6 (index 5), open the sidebar
       const menuButton = document.getElementById("tour-highlight-sidebar-button");
-      menuButton?.click(); // Programmatically click the sidebar button
+      menuButton?.click(); 
     }
-  };
+  // --- FIX 2: Add dependencies ---
+  }, [isModalOpen]); 
 
-  const handleTourClose = () => {
+  // --- FIX 2: Wrap in useCallback ---
+  const handleTourClose = useCallback(() => {
     setIsTourOpen(false);
     setTourStep(0);
-    setIsModalOpen(false); // Ensure modal is closed
+    setIsModalOpen(false); 
     setCurrentCpdEntry(null);
     localStorage.setItem("hasCompletedQuickTour", "true");
     
-    // Close sidebar if it was opened by tour
     const sidebar = document.querySelector('.sidebar.is-open');
     if (sidebar) {
-       // Find the close button inside the sidebar and click it
        const closeButton = sidebar.querySelector('.sidebar-header button') as HTMLButtonElement;
        closeButton?.click();
     }
-  };
+  // --- FIX 2: Add empty dependency array ---
+  }, []);
   // --------------------------
 
 
@@ -420,9 +410,7 @@ export default function HomeContent() {
     await fetchUmbilResponse(updatedConversation, null); 
   };
 
-  // --- 
-  // --- FIX 2: Restore function bodies ---
-  // --- 
+  // --- Action Button Handlers ---
   const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
 
   const handleCopyMessage = (content: string) => {
@@ -438,7 +426,6 @@ export default function HomeContent() {
   };
 
   const formatConversationAsText = (): string => {
-    // --- FIX 2.1: Use convoToShow ---
     return convoToShow
       .map((entry) => {
         const prefix = entry.type === "user" ? "You" : "Umbil";
@@ -479,7 +466,6 @@ export default function HomeContent() {
   };
 
   const handleRegenerateResponse = async () => {
-    // --- FIX 2.2: Add isTourOpen check ---
     if (loading || conversation.length === 0 || isTourOpen) return;
 
     const lastEntry = conversation[conversation.length - 1];
@@ -491,7 +477,6 @@ export default function HomeContent() {
   };
   
   const handleDeepDive = async (entry: ConversationEntry, index: number) => {
-    // --- FIX 2.3: Add isTourOpen check ---
     if (loading || isTourOpen) return;
     
     const originalQuestion = entry.question;
@@ -504,7 +489,6 @@ export default function HomeContent() {
     const historyForDeepDive = conversation.slice(0, index);
     await fetchUmbilResponse(historyForDeepDive, 'deepDive');
   };
-  // --- END FIX 2 ---
 
 
   // --- CPD Handlers ---
@@ -676,22 +660,26 @@ export default function HomeContent() {
             </div>
             
             <div className="sticky-input-wrapper">
-              <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px' }}>
+              {/* --- FIX 3: Add position: relative and move dropdown --- */}
+              <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px', position: 'relative' }}>
                 <input
                   className="ask-bar-input"
                   placeholder="Ask a follow-up question..."
                   value={isTourOpen ? "What are the red flags for a headache?" : q}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && ask()}
-                  disabled={isTourOpen} // Disable input during tour
+                  disabled={isTourOpen} 
+                  // --- FIX 3: Add padding for buttons ---
+                  style={{ paddingRight: '150px' }} 
                 />
+                {/* --- FIX 3: Dropdown moved before send button --- */}
                 <AnswerStyleDropdown
                   currentStyle={answerStyle}
                   onStyleChange={setAnswerStyle}
                 />
                 <button
                   className="ask-bar-send-button"
-                  onClick={isTourOpen ? () => handleTourStepChange(2) : ask} // Go to next step
+                  onClick={isTourOpen ? () => handleTourStepChange(2) : ask} 
                   disabled={loading}
                 >
                   <svg
@@ -716,22 +704,26 @@ export default function HomeContent() {
           <div className="hero">
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
 
-            <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: "24px" }}>
+            {/* --- FIX 3: Add position: relative and move dropdown --- */}
+            <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: "24px", position: 'relative' }}>
               <input
                 className="ask-bar-input"
                 placeholder="Ask anything — clinical, reflective, or educational..."
                 value={isTourOpen ? "What are the red flags for a headache?" : q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && ask()}
-                disabled={isTourOpen} // Disable input during tour
+                disabled={isTourOpen}
+                // --- FIX 3: Add padding for buttons ---
+                style={{ paddingRight: '150px' }}
               />
+              {/* --- FIX 3: Dropdown moved before send button --- */}
               <AnswerStyleDropdown
                 currentStyle={answerStyle}
                 onStyleChange={setAnswerStyle}
               />
               <button
                 className="ask-bar-send-button"
-                onClick={isTourOpen ? () => handleTourStepChange(2) : ask} // Go to next step
+                onClick={isTourOpen ? () => handleTourStepChange(2) : ask}
                 disabled={loading}
               >
                 <svg
@@ -774,7 +766,7 @@ export default function HomeContent() {
       <div id={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined}>
         <ReflectionModal
           isOpen={isModalOpen}
-          onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} // Prevent closing during tour
+          onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)}
           onSave={handleSaveCpd}
           currentStreak={streakLoading ? 0 : currentStreak}
           cpdEntry={currentCpdEntry}

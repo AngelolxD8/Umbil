@@ -168,25 +168,6 @@ a {
   align-items: center;
   gap: 12px;
 }
-/* REMOVED: Since the profile display is now in the sidebar, these styles are removed for a cleaner header. */
-/*
-.profile-info {
-  text-align: right;
-  line-height: 1.2;
-}
-
-.profile-info .user-name {
-  font-weight: 600;
-  font-size: 1rem;
-}
-
-.profile-info .user-role {
-  font-size: 0.8rem;
-  color: var(--umbil-muted);
-  margin-top: 4px;
-}
-*/
-
 
 /* Hero Section */
 .hero {
@@ -227,7 +208,7 @@ a {
   color: var(--umbil-muted);
 }
 
-/* --- UPDATED: Ask Bar Styles --- */
+/* Ask Bar */
 .ask-bar-container {
   max-width: 600px;
   width: 100%;
@@ -235,14 +216,12 @@ a {
   position: relative;
   display: flex;
   align-items: center;
-  /* --- NEW: Add gap for buttons --- */
   gap: 8px; 
 }
 
 .ask-bar-input {
-  flex-grow: 1; /* Input takes remaining space */
-  /* --- UPDATED: Reduced right padding for buttons --- */
-  padding: 16px 20px;
+  flex-grow: 1; 
+  padding: 16px 150px 16px 20px;
   font-size: 16px;
   border: 1px solid var(--umbil-card-border);
   border-radius: var(--umbil-radius-lg);
@@ -258,14 +237,11 @@ a {
 }
 
 .ask-bar-send-button {
-  /* --- UPDATED: No longer position: absolute --- */
-  position: relative;
-  right: auto;
-  top: auto;
-  transform: none;
-  /* --- NEW: Ensure it doesn't shrink --- */
+  position: absolute;
+  right: 10px; 
+  top: 50%;
+  transform: translateY(-50%);
   flex-shrink: 0; 
-
   background-color: var(--umbil-brand-teal);
   color: var(--umbil-surface);
   border: none;
@@ -278,8 +254,6 @@ a {
   cursor: pointer;
   transition: background-color 0.2s ease-in-out;
 }
-/* --- END: Ask Bar Style Updates --- */
-
 
 .ask-bar-send-button:hover {
   background-color: #1a92a5;
@@ -288,9 +262,9 @@ a {
 
 /* Add a new keyframes animation for the send button */
 @keyframes pulseSend {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.1); }
-  100% { transform: scale(1); }
+  0% { transform: translateY(-50%) scale(1); }
+  50% { transform: translateY(-50%) scale(1.1); }
+  100% { transform: translateY(-50%) scale(1); }
 }
 
 .ask-bar-send-button:active {
@@ -302,10 +276,14 @@ a {
   cursor: not-allowed;
 }
 
-/* --- NEW: Answer Style Dropdown Styles --- */
+/* Answer Style Dropdown Styles */
 .style-dropdown-container {
-  position: relative;
-  flex-shrink: 0; /* Don't shrink */
+  position: absolute;
+  right: 60px; /* 10px (gap) + 40px (send button) + 10px (gap) */
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5; /* Sits above the input */
+  flex-shrink: 0; 
 }
 
 .style-dropdown-button {
@@ -382,7 +360,6 @@ a {
   color: var(--umbil-muted);
   margin-top: 2px;
 }
-/* --- END: Answer Style Dropdown Styles --- */
 
 
 /* Conversation Mode Styles (after first question) */
@@ -421,7 +398,6 @@ a {
   padding: 20px;
   margin-right: auto;
   position: relative;
-  /* Adjusting inner spacing for better readability */
   line-height: 1.6;
 }
 
@@ -463,7 +439,6 @@ a {
   gap: 8px;
   margin-top: 1rem;
   justify-content: flex-end;
-  /* Action buttons are now always visible */
   opacity: 1;
 }
 
@@ -535,6 +510,18 @@ a {
   box-shadow: var(--umbil-shadow-lg);
   position: relative;
   transition: background-color 0.3s;
+  
+  /* MODAL SCROLLING FIX */
+  max-height: 90vh; 
+  overflow-y: auto; 
+  display: flex;
+  flex-direction: column;
+}
+
+/* MODAL SCROLLING FIX */
+.modal-content textarea.form-control {
+  min-height: 120px;
+  max-height: 30vh; /* Max 30% of viewport height */
 }
 
 .close-button {
@@ -736,14 +723,12 @@ a {
   transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out, background-color 0.3s, color 0.3s;
 }
 
-/* New CSS to style the placeholder text */
 .form-control::placeholder {
   color: var(--umbil-muted);
   font-family: inherit;
   opacity: 1; /* For Firefox */
 }
 
-/* FIX 2: Apply the same placeholder styling to the home screen input */
 .ask-bar-input::placeholder {
   color: var(--umbil-muted);
   font-family: inherit;
@@ -756,7 +741,7 @@ a {
   box-shadow: 0 0 0 3px var(--umbil-focus-ring);
 }
 
-/* --- Global Streak Display Style (for top right header) --- */
+/* Global Streak Display Style (for top right header) */
 .global-streak {
   font-weight: 700;
   font-size: 1rem;
@@ -773,32 +758,11 @@ a {
   opacity: 0.5; /* Fade the icon and text when today is not logged */
 }
 
-/* --- NEW STYLES FOR CPD STREAK CALENDAR --- */
-
-/* --- Global Streak Display Style (for top right header) --- */
-.global-streak {
-  font-weight: 700;
-  font-size: 1rem;
-  color: var(--umbil-text);
-  margin-right: 12px;
-  padding: 8px 12px;
-  border-radius: var(--umbil-radius-sm);
-  background-color: var(--umbil-hover-bg);
-  cursor: help;
-  transition: opacity 0.3s;
-}
-
-.global-streak.faded {
-  opacity: 0.5; /* Fade the icon and text when today is not logged */
-}
-
+/* CPD STREAK CALENDAR */
 .calendar-grid-container {
     display: flex;
-    /* FIX: Scroll the calendar content from the right side */
     overflow-x: auto;
     direction: rtl; /* Start scrolling from the right */
-    
-    /* Hide the scrollbar if possible but maintain functionality */
     scrollbar-width: none; /* Firefox */
 }
 .calendar-grid-container::-webkit-scrollbar {
@@ -810,8 +774,8 @@ a {
     flex-direction: column;
     justify-content: space-between;
     margin-right: 5px;
-    padding-top: 2px; /* Slight alignment adjustment */
-    direction: ltr; /* Ensure labels are read left-to-right */
+    padding-top: 2px; 
+    direction: ltr; 
 }
 
 .day-label-item {
@@ -829,40 +793,37 @@ a {
     grid-auto-flow: column; 
     grid-auto-columns: 17px; 
     gap: 3px;
-    direction: ltr; /* Ensure squares are drawn left-to-right inside the RTL container */
+    direction: ltr; 
 }
 
 .calendar-square {
     width: 14px;
     height: 14px;
     border-radius: 2px;
-    background-color: var(--umbil-hover-bg); /* Base color (no CPD, Level 0) */
+    background-color: var(--umbil-hover-bg); 
     transition: background-color 0.2s, opacity 0.2s;
     position: relative;
 }
 
-/* --- NEW SHADING LEVELS (Based on a fixed tier: 1, 2-3, 4-5, 6+) --- */
-
 .calendar-square.level-1 {
     background-color: var(--umbil-brand-teal);
-    opacity: 0.3; /* Lightest shade for 1 log */
+    opacity: 0.3; 
 }
 .calendar-square.level-2 {
     background-color: var(--umbil-brand-teal);
-    opacity: 0.5; /* Medium shade for 2-3 logs */
+    opacity: 0.5;
 }
 .calendar-square.level-3 {
     background-color: var(--umbil-brand-teal);
-    opacity: 0.7; /* Darker shade for 4-5 logs */
+    opacity: 0.7;
 }
 .calendar-square.level-4 {
     background-color: var(--umbil-brand-teal);
-    opacity: 1; /* Full color for 6+ logs */
+    opacity: 1;
 }
 
-/* Indicator for today's square */
 .calendar-square.is-today {
-    box-shadow: 0 0 0 1px var(--umbil-text); /* Highlight with a thin border */
+    box-shadow: 0 0 0 1px var(--umbil-text); 
 }
 .calendar-square.is-today.level-1,
 .calendar-square.is-today.level-2,
@@ -871,8 +832,6 @@ a {
     box-shadow: 0 0 0 2px var(--umbil-text), 0 0 0 3px var(--umbil-brand-teal);
 }
 
-
-/* Dark Mode Overrides */
 :root .dark .calendar-square.level-1 { opacity: 0.4; }
 :root .dark .calendar-square.level-2 { opacity: 0.6; }
 :root .dark .calendar-square.level-3 { opacity: 0.8; }
@@ -888,7 +847,6 @@ a {
     box-shadow: 0 0 0 2px var(--umbil-surface), 0 0 0 3px var(--umbil-brand-teal);
 }
 
-/* Legend Styles - Must match levels 0-4 */
 .color-legend {
     width: 14px;
     height: 14px;
@@ -901,39 +859,20 @@ a {
 .color-legend.level-2 { background-color: var(--umbil-brand-teal); opacity: 0.5; }
 .color-legend.level-3 { background-color: var(--umbil-brand-teal); opacity: 0.7; }
 .color-legend.level-4 { background-color: var(--umbil-brand-teal); opacity: 1; }
-.color-legend.level-0 { background-color: var(--umbil-hover-bg); opacity: 1; } /* Explicitly defined for 'Less' */
+.color-legend.level-0 { background-color: var(--umbil-hover-bg); opacity: 1; }
 
-/* End NEW STYLES FOR CPD STREAK CALENDAR */
-
-
-/* ---
-  START OF TABLE FIX (This is the final, correct version)
---- */
-
-/* 1. Wrapper for AI-generated content */
+/* RESPONSIVE TABLE FIXES */
 .markdown-content-wrapper {
-  /* This wrapper just ensures the content is 100% width of the bubble */
   width: 100%;
 }
 
-/* NEW: Wrapper class that will be programmatically added 
-  around <table> elements in HomeContent.tsx
-*/
 .table-scroll-wrapper {
-  overflow-x: auto; /* This makes *this div* scrollable */
-  width: 100%;      /* This ensures it respects the bubble's width */
+  overflow-x: auto; 
+  width: 100%;      
 }
 
-/* 2. Style all tables inside the wrapper */
 .markdown-content-wrapper table {
-  /* REMOVED: All layout-breaking properties
-    (no display: block, no overflow-x: auto)
-  */
-
-  /* This forces the table to be wide, which triggers the wrapper's scrollbar */
   min-width: 500px;
-  
-  /* All your other table styles are preserved */
   width: 100%; 
   border-collapse: collapse;
   margin-top: 1rem;
@@ -941,75 +880,67 @@ a {
   border: 1px solid var(--umbil-divider);
 }
 
-/* 3. Style table headers */
 .markdown-content-wrapper th {
   background-color: var(--umbil-hover-bg);
   padding: 10px 12px;
   border-bottom: 2px solid var(--umbil-divider);
   text-align: left;
   font-weight: 600;
-  font-size: 0.9rem; /* Consistent font size */
+  font-size: 0.9rem; 
 }
 
-/* 4. Style table cells */
 .markdown-content-wrapper td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--umbil-divider);
-  vertical-align: top; /* Align content to the top of the cell */
-  font-size: 0.9rem; /* Consistent font size */
+  vertical-align: top; 
+  font-size: 0.9rem; 
 }
 
-/* 5. Clean look for the last row */
 .markdown-content-wrapper tr:last-child td {
   border-bottom: none;
 }
 
-/* 6. Fix for line breaks and lists inside tables */
 .markdown-content-wrapper td p {
-  margin-bottom: 0.5rem; /* Space out paragraphs inside a cell */
+  margin-bottom: 0.5rem; 
 }
 .markdown-content-wrapper td p:last-child {
   margin-bottom: 0;
 }
 .markdown-content-wrapper td ul,
 .markdown-content-wrapper td ol {
-  margin: 0.5rem 0 0.5rem 1.25rem; /* Indent lists inside cells */
+  margin: 0.5rem 0 0.5rem 1.25rem; 
   padding: 0;
 }
 .markdown-content-wrapper td li {
-  margin-bottom: 0.25rem; /* Tighter list spacing inside tables */
+  margin-bottom: 0.25rem; 
 }
-/* --- END OF RESPONSIVE TABLE FIXES --- */
 
-
-/* --- NEW: Icon Button Styles for Message Actions --- */
-
+/* Icon Button Styles for Message Actions */
 .umbil-message-actions {
   display: flex;
-  flex-wrap: wrap; /* Allow buttons to wrap on small screens */
-  gap: 16px; /* Increased gap for easier clicking */
+  flex-wrap: wrap; 
+  gap: 16px; 
   margin-top: 1rem;
-  padding-top: 0.75rem; /* Add padding above buttons */
-  border-top: 1px solid var(--umbil-divider); /* Separator line */
-  justify-content: flex-start; /* Align buttons to the start */
+  padding-top: 0.75rem; 
+  border-top: 1px solid var(--umbil-divider); 
+  justify-content: flex-start; 
   opacity: 1;
 }
 
 .action-button {
-  font-size: 13px; /* Slightly larger text */
+  font-size: 13px; 
   color: var(--umbil-muted);
   text-decoration: none;
   cursor: pointer;
   background: none;
   border: none;
-  padding: 4px; /* Add padding for a better click target */
+  padding: 4px; 
   border-radius: var(--umbil-radius-sm);
   transition: color 0.2s, background-color 0.2s;
   
-  /* This is the key for icon alignment */
   display: inline-flex;
   align-items: center;
-  gap: 6px; /* Space between icon and text */
+  gap: 6px; 
   font-weight: 500;
 }
 
@@ -1019,24 +950,19 @@ a {
   background-color: var(--umbil-hover-bg);
 }
 
-/* Style for the SVG icons inside the buttons */
 .action-button svg {
   width: 14px;
   height: 14px;
-  stroke-width: 2.5; /* Make icons a bit bolder */
-  color: var(--umbil-muted); /* Icon color matches text */
+  stroke-width: 2.5; 
+  color: var(--umbil-muted); 
   transition: color 0.2s;
 }
 
 .action-button:hover svg {
-  color: var(--umbil-brand-teal); /* Icon color matches text on hover */
+  color: var(--umbil-brand-teal); 
 }
 
-/* --- END OF NEW STYLES --- */
-
-/* --- START: Styles for Reflection Modal Additions --- */
-
-/* Streak display in modal */
+/* Styles for Reflection Modal Additions */
 .streak-display-modal {
   padding: 12px 16px;
   font-size: 1.1rem;
@@ -1049,7 +975,6 @@ a {
   text-align: center;
 }
 
-/* GMC Cluster buttons */
 .gmc-cluster-container {
   display: flex;
   flex-wrap: wrap;
@@ -1075,7 +1000,6 @@ a {
   background-color: var(--umbil-hover-bg);
 }
 
-/* Generate AI buttons */
 .generate-button-container {
   margin: 12px 0;
   display: flex;
@@ -1083,7 +1007,7 @@ a {
 }
 
 .generate-button {
-  flex: 1; /* Make buttons share space */
+  flex: 1; 
   background-color: transparent;
   color: var(--umbil-brand-teal);
   border: 1px solid var(--umbil-brand-teal);
@@ -1107,7 +1031,6 @@ a {
   cursor: not-allowed;
 }
 
-/* Auto-generated tag buttons */
 .tag-button-container {
   display: flex;
   flex-wrap: wrap;
@@ -1139,97 +1062,48 @@ a {
   width: 100%;
   margin-top: 4px;
 }
-/* --- END: Styles for Reflection Modal Additions --- */
 
-/* --- REMOVED: Answer Style Selector (now a dropdown) --- */
-/* .answer-style-selector { ... } */
-/* .answer-style-selector .btn--style { ... } */
-/* .answer-style-selector .btn--style:hover { ... } */
-/* .answer-style-selector .btn--style.active { ... } */
-/* --- END: Answer Style Selector --- */
-
-
-/* --- NEW: Sticky Input Wrapper for Convo View --- */
+/* Sticky Input Wrapper for Convo View */
 .sticky-input-wrapper {
   position: sticky;
   bottom: 0;
-  /* This padding matches the .conversation-container's horizontal padding */
   padding: 16px 20px 20px 20px;
   background: var(--umbil-bg);
   transition: background-color 0.3s;
   border-top: 1px solid var(--umbil-divider);
-  
-  /* This centers the content (the selector and the ask-bar) */
   display: flex;
   flex-direction: column;
   align-items: center;
-  z-index: 50; /* Ensure it's above scrolling content */
+  z-index: 50; 
 }
 
-/* --- REMOVED: Old Answer Style Selector from sticky wrapper --- */
-/* .answer-style-selector { ... } */
-/* .answer-style-selector .btn--style { ... } */
-/* .answer-style-selector .btn--style:hover { ... } */
-/* .answer-style-selector .btn--style.active { ... } */
-/* --- END: Answer Style Selector --- */
-
-/* --- REMOVED: Local Trust Input --- */
-/* .local-trust-container { ... } */
-/* .local-trust-input { ... } */
-/* .local-trust-input::placeholder { ... } */
-/* .local-trust-input:focus { ... } */
-/* .sticky-input-wrapper .local-trust-container { ... } */
-/* --- END: Local Trust Input --- */
-
-/* --- NEW: Style for Deep Dive Icon --- */
-/* We can just use the default size (14px) and stroke (2.5) 
-  from the .action-button svg style, so no new rules
-  are needed unless you want to override them!
-  This class is here just in case you want to change it,
-  for example, make it a different color.
-*/
-/* .action-button svg.icon-zoom-in {} */
-/* --- END: Deep Dive Icon Style --- */
-
-/* ---
-  START OF PART 2 ADDITIONS
---- */
-
-/* --- 1. MODAL SCROLLING FIX (Request 4) --- */
-
-.modal-content {
-  /* ... (all existing .modal-content styles) ... */
-
-  /* NEW: Add max-height and overflow */
-  max-height: 90vh; /* 90% of the viewport height */
-  overflow-y: auto; /* Make the *modal* scrollable, not the page */
-  
-  /* NEW: Ensure it's a flex column to manage content */
-  display: flex;
-  flex-direction: column;
+/* Sidebar Quick Tour Button */
+.quick-tour-button {
+  display: flex !important; 
+  align-items: center;
+  padding: 12px 16px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--umbil-text);
+  border-radius: var(--umbil-radius-sm);
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+.quick-tour-button:hover,
+.quick-tour-button.active {
+  background-color: var(--umbil-hover-bg);
+  color: var(--umbil-brand-teal);
 }
 
-/* NEW: Make the reflection textarea slightly smaller 
-  on very small screens to prevent it from dominating the modal
-*/
-.modal-content textarea.form-control {
-  min-height: 120px;
-  max-height: 30vh; /* Max 30% of viewport height */
-}
-
-/* --- END OF MODAL SCROLLING FIX --- */
-
-
-/* --- 2. QUICK TOUR STYLES (Request 3) --- */
-
+/* QUICK TOUR STYLES */
 .tour-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
-  backdrop-filter: blur(4px); /* Nice blur effect */
+  background-color: rgba(0, 0, 0, 0.5); 
+  backdrop-filter: blur(4px); 
   z-index: 1001;
   cursor: pointer;
 }
@@ -1237,15 +1111,14 @@ a {
 .tour-highlight-box {
   position: absolute;
   border-radius: var(--umbil-radius-sm);
-  /* This creates the "hole" by blending the highlight with the overlay */
   box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
   border: 2px solid var(--umbil-brand-teal);
   transition: all 0.3s ease-in-out;
-  pointer-events: none; /* Allows clicks to go "through" to overlay */
+  pointer-events: none; 
 }
 
 .tour-content-box {
-  position: fixed; /* Changed from absolute */
+  position: fixed; 
   background-color: var(--umbil-surface);
   color: var(--umbil-text);
   border-radius: var(--umbil-radius-sm);
@@ -1325,7 +1198,6 @@ a {
 }
 
 .tour-button-next {
-  /* Re-use the .btn styles but apply them here */
   padding: 8px 12px;
   border-radius: var(--umbil-radius-sm);
   font-weight: 600;
@@ -1341,5 +1213,3 @@ a {
   background-color: #1a92a5;
   border-color: #1a92a5;
 }
-
-/* --- END OF QUICK TOUR STYLES --- */

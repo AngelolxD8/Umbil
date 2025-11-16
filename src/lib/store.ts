@@ -32,9 +32,12 @@ const PDP_GOALS_KEY = "pdp_goals";
  * Used for PDP suggestions and Streak calculations.
  */
 export async function getCPD(): Promise<CPDEntry[]> {
+  // --- THIS IS THE FIX ---
+  // We only select 'timestamp' and 'tags' instead of '*'
+  // This is much faster as it avoids fetching large text fields.
   const { data, error } = await supabase
     .from(CPD_TABLE)
-    .select("*")
+    .select("timestamp, tags") // <-- MODIFIED
     // Order by newest first
     .order("timestamp", { ascending: false }); 
 
