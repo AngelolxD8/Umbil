@@ -9,7 +9,7 @@ import MobileNav from "@/components/MobileNav";
 import Link from "next/link";
 import { useUserEmail } from "@/hooks/useUser";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
-import { Analytics } from "@vercel/analytics/react"; // <-- 1. IMPORT VERCEL ANALYTICS
+import { Analytics } from "@vercel/analytics/react"; 
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -82,6 +82,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <header className="header">
             <div className="header-left">
               <button
+                // --- THIS IS THE FIX ---
+                id="tour-highlight-sidebar-button" 
+                // -----------------------
                 className="menu-button"
                 aria-label="Open sidebar menu"
                 onClick={() => setIsMobileNavOpen(true)}
@@ -113,7 +116,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             toggleDarkMode={toggleDarkMode} 
           />
         </div>
-        <Analytics /> {/* <-- 2. ADD THE ANALYTICS COMPONENT HERE */}
+        <Analytics /> 
       </body>
     </html>
   );
