@@ -2,17 +2,24 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import dynamic from 'next/dynamic'; 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import ReflectionModal from "@/components/ReflectionModal";
-import Toast from "@/components/Toast";
-import QuickTour from "@/components/QuickTour"; 
+
+// --- THIS IS THE FIX ---
+import Toast from "@/components/Toast"; // <-- Re-added the missing import
+// ------------------------
+
 import { addCPD, CPDEntry } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
+
+// Define dynamic components
+const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
+const QuickTour = dynamic(() => import('@/components/QuickTour'));
 
 // --- Types ---
 
@@ -182,7 +189,6 @@ export default function HomeContent() {
   
   // --- TOUR STATE ---
   const [isTourOpen, setIsTourOpen] = useState(false);
-  // --- UPDATED: This is now the single source of truth for the step ---
   const [tourStep, setTourStep] = useState(0); 
   // ---------------------
 
@@ -198,23 +204,40 @@ export default function HomeContent() {
     }
   }, [email]);
 
-  // --- START TOUR LOGIC ---
+  // --- START TOUR LOGIC (Combined) ---
   useEffect(() => {
     if (searchParams.get("new-chat")) {
       setConversation([]);
     }
+
+    const checkTour = () => {
+      const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
+      const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
+      const forceTour = searchParams.get("tour") === "true" && searchParams.get("forceTour") === "true";
+
+      if (forceTour) {
+        setIsTourOpen(true);
+        setTourStep(0);
+      } else if (justLoggedIn && !hasCompletedTour) {
+        setIsTourOpen(true);
+        setTourStep(0);
+      }
+
+      if (justLoggedIn) {
+        sessionStorage.removeItem("justLoggedIn");
+      }
+    };
+
     if (searchParams.get("tour")) {
       if (!email) {
         router.push("/auth"); 
         return;
       }
-      
-      const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour");
-      if (hasCompletedTour !== "true" || searchParams.get("forceTour")) {
-        setIsTourOpen(true);
-        setTourStep(0);
-      }
+      checkTour();
+    } else {
+      checkTour();
     }
+    
   }, [searchParams, email, router]);
   // -------------------------
 
@@ -254,15 +277,13 @@ export default function HomeContent() {
 
   
   // --- TOUR STEP HANDLER ---
-  // --- UPDATED: This function is now the central controller for tour steps ---
   const handleTourStepChange = useCallback((stepIndex: number) => {
-    setTourStep(stepIndex); // Set the step state directly
+    setTourStep(stepIndex); 
     
     if (stepIndex === 4) {
       setCurrentCpdEntry(DUMMY_CPD_ENTRY); 
       setIsModalOpen(true);
     } else if (isModalOpen) {
-      // Close modal if we're not on the modal step
       setIsModalOpen(false);
     }
 
@@ -270,12 +291,11 @@ export default function HomeContent() {
       const menuButton = document.getElementById("tour-highlight-sidebar-button");
       menuButton?.click(); 
     }
-  }, [isModalOpen]); // Only depends on isModalOpen
+  }, [isModalOpen]); 
 
-  // --- UPDATED: This function resets the state in the parent ---
   const handleTourClose = useCallback(() => {
     setIsTourOpen(false);
-    setTourStep(0); // Reset step state
+    setTourStep(0); 
     setIsModalOpen(false); 
     setCurrentCpdEntry(null);
     localStorage.setItem("hasCompletedQuickTour", "true");
@@ -285,7 +305,7 @@ export default function HomeContent() {
        const closeButton = sidebar.querySelector('.sidebar-header button') as HTMLButtonElement;
        closeButton?.click();
     }
-  }, []); // No dependencies
+  }, []);
   // --------------------------
 
 
@@ -294,7 +314,6 @@ export default function HomeContent() {
     currentConversation: ConversationEntry[],
     styleOverride: AnswerStyle | null = null
   ) => {
-    // ... (This function is unchanged from the previous step)
     setLoading(true);
     
     const lastUserQuestion = [...currentConversation]
@@ -411,7 +430,6 @@ export default function HomeContent() {
   const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
 
   const handleCopyMessage = (content: string) => {
-    // ... (This function is unchanged)
     navigator.clipboard
       .writeText(content)
       .then(() => {
@@ -424,7 +442,6 @@ export default function HomeContent() {
   };
 
   const formatConversationAsText = (): string => {
-    // ... (This function is unchanged)
     return convoToShow
       .map((entry) => {
         const prefix = entry.type === "user" ? "You" : "Umbil";
@@ -434,7 +451,6 @@ export default function HomeContent() {
   };
 
   const downloadConversationAsTxt = () => {
-    // ... (This function is unchanged)
     const textContent = formatConversationAsText();
     const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
     const url = URL.createObjectURL(blob);
@@ -449,7 +465,6 @@ export default function HomeContent() {
   };
 
   const handleShare = async () => {
-    // ... (This function is unchanged)
     const textContent = formatConversationAsText();
 
     if (navigator.share) {
@@ -467,7 +482,6 @@ export default function HomeContent() {
   };
 
   const handleRegenerateResponse = async () => {
-    // ... (This function is unchanged)
     if (loading || conversation.length === 0 || isTourOpen) return;
 
     const lastEntry = conversation[conversation.length - 1];
@@ -479,7 +493,6 @@ export default function HomeContent() {
   };
   
   const handleDeepDive = async (entry: ConversationEntry, index: number) => {
-    // ... (This function is unchanged)
     if (loading || isTourOpen) return;
     
     const originalQuestion = entry.question;
@@ -511,7 +524,6 @@ export default function HomeContent() {
 
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (isTourOpen) {
-      // --- UPDATED: Tell the parent to advance the step ---
       handleTourStepChange(5); // Go to step 6 (index 5)
       return;
     }
@@ -577,7 +589,6 @@ export default function HomeContent() {
 
         {isUmbil && (
           <div className="umbil-message-actions">
-            {/* ... (Share, Copy, Deep Dive, Regenerate buttons are unchanged) ... */}
             <button
               className="action-button"
               onClick={handleShare}
@@ -618,7 +629,6 @@ export default function HomeContent() {
               </button>
             )}
 
-            {/* --- UPDATED: onClick now advances tour step --- */}
             <button
               id={isTourOpen ? "tour-highlight-cpd-button" : undefined}
               className="action-button"
@@ -636,12 +646,14 @@ export default function HomeContent() {
 
   return (
     <>
-      <QuickTour 
-        isOpen={isTourOpen}
-        currentStep={tourStep} // <-- UPDATED: Pass state down
-        onClose={handleTourClose}
-        onStepChange={handleTourStepChange}
-      />
+      {isTourOpen && (
+        <QuickTour 
+          isOpen={isTourOpen}
+          currentStep={tourStep} 
+          onClose={handleTourClose}
+          onStepChange={handleTourStepChange}
+        />
+      )}
 
       <div
         ref={scrollContainerRef}
@@ -682,7 +694,6 @@ export default function HomeContent() {
                 />
                 <button
                   className="ask-bar-send-button"
-                  // --- UPDATED: onClick now advances tour step ---
                   onClick={isTourOpen ? () => handleTourStepChange(2) : ask} 
                   disabled={loading}
                 >
@@ -724,7 +735,6 @@ export default function HomeContent() {
               />
               <button
                 className="ask-bar-send-button"
-                // --- UPDATED: onClick now advances tour step ---
                 onClick={isTourOpen ? () => handleTourStepChange(2) : ask}
                 disabled={loading}
               >
@@ -765,16 +775,17 @@ export default function HomeContent() {
         )}
       </div>
 
-      {/* --- UPDATED: Check for tour step 4 --- */}
-      <div id={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined}>
-        <ReflectionModal
-          isOpen={isModalOpen}
-          onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)}
-          onSave={handleSaveCpd}
-          currentStreak={streakLoading ? 0 : currentStreak}
-          cpdEntry={currentCpdEntry}
-        />
-      </div>
+      {(isModalOpen || (isTourOpen && tourStep === 4)) && (
+        <div id={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined}>
+          <ReflectionModal
+            isOpen={isModalOpen}
+            onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)}
+            onSave={handleSaveCpd}
+            currentStreak={streakLoading ? 0 : currentStreak}
+            cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry}
+          />
+        </div>
+      )}
       
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </>

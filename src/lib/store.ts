@@ -46,6 +46,8 @@ export async function getCPD(): Promise<CPDEntry[]> {
     return [];
   }
   
+  // We cast here, knowing that other fields will be undefined
+  // This is fine as the streak hook only uses timestamp and tags
   return data as CPDEntry[]; 
 }
 
@@ -108,7 +110,6 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
       userId = user.id;
     }
   } catch (e) {
-    // --- FIX 3: Use the 'e' variable to fix the ESLint warning ---
     console.warn("Could not get user for analytics logging:", (e as Error).message);
   }
 

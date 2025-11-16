@@ -48,6 +48,12 @@ export default function AuthCallbackPage() {
         }
 
         if (session) {
+          // --- THIS IS THE FIX ---
+          // Set a flag in sessionStorage to indicate a fresh login.
+          // HomeContent will read this to decide if it should start the tour.
+          sessionStorage.setItem("justLoggedIn", "true");
+          // -----------------------
+
           // If custom flow asks for profile redirect (for magic link 'forgot password'), go there
           if (customFlow === "profile_redirect") {
             router.replace("/profile");

@@ -511,17 +511,15 @@ a {
   position: relative;
   transition: background-color 0.3s;
   
-  /* MODAL SCROLLING FIX */
   max-height: 90vh; 
   overflow-y: auto; 
   display: flex;
   flex-direction: column;
 }
 
-/* MODAL SCROLLING FIX */
 .modal-content textarea.form-control {
   min-height: 120px;
-  max-height: 30vh; /* Max 30% of viewport height */
+  max-height: 30vh; 
 }
 
 .close-button {
@@ -614,7 +612,7 @@ a {
 }
 
 .sidebar-nav {
-    flex-grow: 1; /* Allows the nav to take up available space */
+    flex-grow: 1; 
 }
 
 .sidebar-nav a {
