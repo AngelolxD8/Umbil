@@ -1,7 +1,8 @@
 // src/components/QuickTour.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+// REMOVED: useState and useEffect, as parent now controls state
+import { /* useState, useEffect */ } from "react";
 
 // Define the steps of our tour
 const tourSteps = [
@@ -51,28 +52,28 @@ const tourSteps = [
 
 type QuickTourProps = {
   isOpen: boolean;
+  currentStep: number; // <-- UPDATED: This is now a prop
   onClose: () => void;
   onStepChange: (stepIndex: number) => void; // To tell HomeContent to update
 };
 
-export default function QuickTour({ isOpen, onClose, onStepChange }: QuickTourProps) {
-  const [currentStep, setCurrentStep] = useState(0);
+export default function QuickTour({ 
+  isOpen, 
+  currentStep, // <-- UPDATED: Read from props
+  onClose, 
+  onStepChange 
+}: QuickTourProps) {
+  // REMOVED: Internal state for currentStep
+  // const [currentStep, setCurrentStep] = useState(0);
 
-  // Reset step when tour is re-opened
-  useEffect(() => {
-    if (isOpen) {
-      setCurrentStep(0);
-      onStepChange(0);
-    }
-  }, [isOpen, onStepChange]);
-
+  // REMOVED: useEffect that reset internal state
+  
   const handleNext = () => {
     const nextStep = currentStep + 1;
     if (nextStep < tourSteps.length) {
-      setCurrentStep(nextStep);
-      onStepChange(nextStep); // Notify parent
+      // Tell parent to update the step
+      onStepChange(nextStep); 
     } else {
-      // Last step, close tour
       handleClose();
     }
   };
@@ -80,15 +81,14 @@ export default function QuickTour({ isOpen, onClose, onStepChange }: QuickTourPr
   const handleBack = () => {
     const prevStep = currentStep - 1;
     if (prevStep >= 0) {
-      setCurrentStep(prevStep);
-      onStepChange(prevStep); // Notify parent
+      // Tell parent to update the step
+      onStepChange(prevStep);
     }
   };
 
   const handleClose = () => {
-    setCurrentStep(0);
-    onStepChange(0); // Reset parent state
-    onClose(); // Tell parent to close
+    // Parent will handle resetting state
+    onClose();
   };
 
   if (!isOpen) return null;
@@ -104,27 +104,21 @@ export default function QuickTour({ isOpen, onClose, onStepChange }: QuickTourPr
   };
 
   if (rect) {
-    // Position box relative to the highlighted element
     if (step.id === 'step-6') {
-      // Special case for sidebar: position to the right
       boxStyle.top = `${rect.top + 20}px`;
       boxStyle.left = `${rect.right + 20}px`;
     } else if (rect.top > window.innerHeight / 2) {
-      // Element is in bottom half, position box above
       boxStyle.bottom = `${window.innerHeight - rect.top + 20}px`;
       boxStyle.left = `${rect.left}px`;
     } else {
-      // Element is in top half, position box below
       boxStyle.top = `${rect.bottom + 20}px`;
       boxStyle.left = `${rect.left}px`;
     }
-    // Ensure it doesn't go off-screen
     if (rect.left + 320 > window.innerWidth) {
       boxStyle.right = '20px';
       boxStyle.left = 'auto';
     }
   } else {
-    // Default: center screen for steps without a highlight
     boxStyle.top = '50%';
     boxStyle.left = '50%';
     boxStyle.transform = 'translate(-50%, -50%)';
@@ -132,9 +126,7 @@ export default function QuickTour({ isOpen, onClose, onStepChange }: QuickTourPr
 
   return (
     <>
-      {/* --- Tour Overlay --- */}
       <div className="tour-overlay" onClick={handleClose}>
-        {/* Highlight Box: This creates the "hole" in the overlay */}
         {rect && (
           <div
             className="tour-highlight-box"
@@ -148,10 +140,8 @@ export default function QuickTour({ isOpen, onClose, onStepChange }: QuickTourPr
         )}
       </div>
 
-      {/* --- Tour Content Box --- */}
       <div className="tour-content-box" style={boxStyle}>
         <button onClick={handleClose} className="tour-close-button">
-          {/* Close SVG */}
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
             <line x1="6" y1="6" x2="18" y2="18"></line>
