@@ -24,10 +24,8 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   const { email } = useUserEmail();
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
   
-  // <-- Fetch streak data
   const { currentStreak, loading: streaksLoading, hasLoggedToday } = useCpdStreaks();
 
-  // Load the user's full name and grade for display
   useEffect(() => {
     const loadProfile = async () => {
       if (email) {
@@ -40,26 +38,25 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     loadProfile();
   }, [email]);
 
-  /**
-   * Resets the chat history and navigates to the home page.
-   */
   const handleNewChat = () => {
     onClose();
-    // Use a unique key to force a state reset on the home page
     router.push(`/?new-chat=${Date.now()}`);
   };
   
-  /**
-   * Signs the user out of the application.
-   */
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     onClose();
-    // Redirect to home page after signing out to reset app state
     router.push("/"); 
   };
 
-  // --- REVERTED MENU ORDER with Feedback link in the list ---
+  // --- NEW: Handler for Quick Tour ---
+  const handleStartTour = () => {
+    onClose();
+    // Force tour, even if completed
+    router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`);
+  };
+  // ---------------------------------
+
   const menuItems = [
     { href: "/about", label: "About Umbil" },
     { href: "/cpd", label: "My CPD", requiresAuth: true },
@@ -67,23 +64,19 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     { href: "/profile", label: "My Profile", requiresAuth: true },
     { href: "/pro", label: "Umbil Pro ✨", requiresAuth: false }, 
     { href: "/settings", label: "Settings" },
-    // Reinstated in the list
     { href: "/settings/feedback", label: "Send Feedback" }, 
   ];
-  // -------------------------------------------------------------
 
-  // Only show auth-gated links if the user is logged in
   const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || userEmail);
 
   return (
     <>
-      {/* Dark overlay that closes the sidebar when clicked outside */}
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
-      <div className={`sidebar ${isOpen ? "is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
+      {/* --- ADD HIGHLIGHT ID FOR TOUR --- */}
+      <div id="tour-highlight-sidebar" className={`sidebar ${isOpen ? "is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="sidebar-header">
           <h3 className="text-lg font-semibold">Navigation</h3>
           <button onClick={onClose} className="menu-button">
-            {/* Close icon */}
             <svg
               xmlns="http://www.w3.org/2000/svg"
               width="24"
@@ -106,7 +99,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           New Chat
         </button>
 
-        {/* --- MODIFIED: Streak Display is now a Link --- */}
         {userEmail && !streaksLoading && currentStreak > 0 && (
             <Link
                 href="/profile"
@@ -119,7 +111,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                 </span>
             </Link>
         )}
-        {/* --- END MODIFICATION --- */}
         
         <nav className="sidebar-nav">
           {filteredMenuItems.map((item) => (
@@ -132,16 +123,26 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
               {item.label}
             </Link>
           ))}
+          
+          {/* --- NEW: QUICK TOUR BUTTON --- */}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleStartTour();
+            }}
+            className="quick-tour-button" // Apply link styling
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            Quick Tour
+          </a>
+          {/* ------------------------------ */}
         </nav>
         
-        {/* Removed: Dedicated Feedback Section footer-group */}
         
-        {/* START: User Profile and Sign Out Section */}
         {userEmail && profile && (
-            // Reinstated padding and top border on the profile section
             <div style={{ padding: '16px 0', borderTop: '1px solid var(--umbil-divider)', marginTop: 'auto' }}>
                 <div className="profile-info-sidebar">
-                    {/* Display Full Name if available, otherwise fallback to email/default */}
                     <span className="user-name">{profile.full_name || email || 'User Profile'}</span> 
                     {profile.grade && <span className="user-role">{profile.grade}</span>}
                 </div>
@@ -155,23 +156,39 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             </div>
         )}
 
-        {/* DARK MODE TOGGLE FIX: Restored the exact JSX structure required for the switch CSS */}
         <div style={{ padding: '12px 16px', borderTop: '1px solid var(--umbil-divider)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 500 }}>
               {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
             </span>
-            {/* CORRECTED SWITCH STRUCTURE */}
             <label className="switch">
               <input type="checkbox" checked={isDarkMode} onChange={toggleDarkMode} />
               <span className="slider round"></span>
             </label>
         </div>
-        {/* END: Footer Section */}
       </div>
       
-      {/* The switch CSS styles remain in the global JSX style block */}
       <style jsx global>{`
-        /* Custom styles for profile in sidebar */
+        /* ... (all existing styles remain) ... */
+
+        /* --- NEW: Style for Quick Tour button --- */
+        .quick-tour-button {
+          display: flex !important; /* Overrides 'a' tag */
+          align-items: center;
+          padding: 12px 16px;
+          font-size: 1rem;
+          font-weight: 500;
+          color: var(--umbil-text);
+          border-radius: var(--umbil-radius-sm);
+          transition: background-color 0.2s;
+          cursor: pointer;
+        }
+        .quick-tour-button:hover,
+        .quick-tour-button.active {
+          background-color: var(--umbil-hover-bg);
+          color: var(--umbil-brand-teal);
+        }
+        /* -------------------------------------- */
+        
         .profile-info-sidebar {
             display: flex;
             flex-direction: column;
@@ -189,7 +206,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             margin-top: 4px;
         }
         
-        /* NEW STREAK DISPLAY STYLE */
         .streak-display-sidebar {
             padding: 12px 16px;
             font-size: 1rem;
@@ -199,38 +215,28 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             margin: 0 0 16px 0;
             text-align: center;
             transition: opacity 0.3s, background-color 0.2s;
-            display: block; /* Make the link a block element */
-            text-decoration: none; /* Remove link underline */
+            display: block;
+            text-decoration: none;
             cursor: pointer;
         }
-
         .streak-display-sidebar:hover {
-            background-color: var(--umbil-divider); /* Add a subtle hover */
+            background-color: var(--umbil-divider);
         }
-
         .streak-display-sidebar.faded-streak {
-             opacity: 0.5; /* Fades the streak if today's log is missing */
+             opacity: 0.5;
         }
-        /* End NEW STREAK DISPLAY STYLE */
         
-        /* Removed: New style for the feedback button group to ensure spacing consistency */
-
-        /* The switch - the box around the slider */
         .switch {
           position: relative;
           display: inline-block;
           width: 40px;
           height: 24px;
         }
-
-        /* Hide default HTML checkbox */
         .switch input {
           opacity: 0;
           width: 0;
           height: 0;
         }
-
-        /* The slider */
         .slider {
           position: absolute;
           cursor: pointer;
@@ -242,7 +248,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           transition: 0.4s;
           border-radius: 24px;
         }
-
         .slider:before {
           position: absolute;
           content: "";
@@ -254,20 +259,15 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           transition: 0.4s;
           border-radius: 50%;
         }
-
         input:checked + .slider {
           background-color: var(--umbil-brand-teal);
         }
-
         input:checked + .slider:before {
           transform: translateX(16px);
         }
-        
-        /* Dark mode specific slider color */
         .dark .slider {
              background-color: var(--umbil-divider);
         }
-
         .dark .slider:before {
              background-color: var(--umbil-hover-bg);
         }

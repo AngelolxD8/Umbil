@@ -227,7 +227,7 @@ a {
   color: var(--umbil-muted);
 }
 
-/* Ask Bar */
+/* --- UPDATED: Ask Bar Styles --- */
 .ask-bar-container {
   max-width: 600px;
   width: 100%;
@@ -235,18 +235,20 @@ a {
   position: relative;
   display: flex;
   align-items: center;
+  /* --- NEW: Add gap for buttons --- */
+  gap: 8px; 
 }
 
 .ask-bar-input {
-  flex-grow: 1;
-  padding: 16px 60px 16px 20px;
+  flex-grow: 1; /* Input takes remaining space */
+  /* --- UPDATED: Reduced right padding for buttons --- */
+  padding: 16px 20px;
   font-size: 16px;
   border: 1px solid var(--umbil-card-border);
   border-radius: var(--umbil-radius-lg);
   background-color: var(--umbil-surface);
   box-shadow: var(--umbil-shadow-sm);
   transition: box-shadow 0.2s ease-in-out, background-color 0.3s;
-  /* Fix: Explicitly set input text color to inherit theme, fixing dark mode issue on home screen */
   color: var(--umbil-text); 
 }
 
@@ -256,10 +258,14 @@ a {
 }
 
 .ask-bar-send-button {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
+  /* --- UPDATED: No longer position: absolute --- */
+  position: relative;
+  right: auto;
+  top: auto;
+  transform: none;
+  /* --- NEW: Ensure it doesn't shrink --- */
+  flex-shrink: 0; 
+
   background-color: var(--umbil-brand-teal);
   color: var(--umbil-surface);
   border: none;
@@ -272,6 +278,8 @@ a {
   cursor: pointer;
   transition: background-color 0.2s ease-in-out;
 }
+/* --- END: Ask Bar Style Updates --- */
+
 
 .ask-bar-send-button:hover {
   background-color: #1a92a5;
@@ -280,9 +288,9 @@ a {
 
 /* Add a new keyframes animation for the send button */
 @keyframes pulseSend {
-  0% { transform: translateY(-50%) scale(1); }
-  50% { transform: translateY(-50%) scale(1.1); }
-  100% { transform: translateY(-50%) scale(1); }
+  0% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 .ask-bar-send-button:active {
@@ -293,6 +301,89 @@ a {
   background-color: #cccccc;
   cursor: not-allowed;
 }
+
+/* --- NEW: Answer Style Dropdown Styles --- */
+.style-dropdown-container {
+  position: relative;
+  flex-shrink: 0; /* Don't shrink */
+}
+
+.style-dropdown-button {
+  background-color: var(--umbil-hover-bg);
+  color: var(--umbil-text);
+  border: 1px solid var(--umbil-divider);
+  border-radius: var(--umbil-radius-sm);
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.style-dropdown-button:hover {
+  background-color: var(--umbil-hover-bg);
+  border-color: var(--umbil-muted);
+}
+
+.dark .style-dropdown-button {
+  background-color: var(--umbil-surface);
+}
+.dark .style-dropdown-button:hover {
+  background-color: var(--umbil-hover-bg);
+}
+
+.style-dropdown-menu {
+  position: absolute;
+  bottom: 110%; /* Position above the button */
+  right: 0;
+  min-width: 220px;
+  background-color: var(--umbil-surface);
+  border-radius: var(--umbil-radius-sm);
+  border: 1px solid var(--umbil-divider);
+  box-shadow: var(--umbil-shadow-lg);
+  z-index: 110; /* Above header */
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.style-dropdown-menu button {
+  background: none;
+  border: none;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--umbil-radius-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  color: var(--umbil-text);
+}
+
+.style-dropdown-menu button:hover {
+  background-color: var(--umbil-hover-bg);
+}
+
+.style-dropdown-menu button.active {
+  background-color: var(--umbil-hover-bg);
+  color: var(--umbil-brand-teal);
+}
+
+.style-dropdown-menu button strong {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.style-dropdown-menu button p {
+  font-size: 0.8rem;
+  color: var(--umbil-muted);
+  margin-top: 2px;
+}
+/* --- END: Answer Style Dropdown Styles --- */
+
 
 /* Conversation Mode Styles (after first question) */
 .conversation-container {
@@ -1050,37 +1141,11 @@ a {
 }
 /* --- END: Styles for Reflection Modal Additions --- */
 
-/* --- NEW: Answer Style Selector --- */
-.answer-style-selector {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 24px; /* Space above message thread */
-}
-
-.answer-style-selector .btn--style {
-  background-color: transparent;
-  color: var(--umbil-muted);
-  border: 1px solid var(--umbil-card-border);
-  padding: 6px 14px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border-radius: var(--umbil-radius-sm);
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-.answer-style-selector .btn--style:hover {
-  background-color: var(--umbil-hover-bg);
-  color: var(--umbil-text);
-}
-
-.answer-style-selector .btn--style.active {
-  background-color: var(--umbil-brand-teal);
-  color: var(--umbil-surface);
-  border-color: var(--umbil-brand-teal);
-  font-weight: 600;
-}
+/* --- REMOVED: Answer Style Selector (now a dropdown) --- */
+/* .answer-style-selector { ... } */
+/* .answer-style-selector .btn--style { ... } */
+/* .answer-style-selector .btn--style:hover { ... } */
+/* .answer-style-selector .btn--style.active { ... } */
 /* --- END: Answer Style Selector --- */
 
 
@@ -1101,77 +1166,19 @@ a {
   z-index: 50; /* Ensure it's above scrolling content */
 }
 
-/* Adjust selector margins for its new home */
-.answer-style-selector {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 16px; /* Space *above* the search bar */
-}
-
-.answer-style-selector .btn--style {
-  background-color: transparent;
-  color: var(--umbil-muted);
-  border: 1px solid var(--umbil-card-border);
-  padding: 6px 14px;
-  font-size: 0.9rem;
-  font-weight: 500;
-  border-radius: var(--umbil-radius-sm);
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-.answer-style-selector .btn--style:hover {
-  background-color: var(--umbil-hover-bg);
-  color: var(--umbil-text);
-}
-
-.answer-style-selector .btn--style.active {
-  background-color: var(--umbil-brand-teal);
-  color: var(--umbil-surface);
-  border-color: var(--umbil-brand-teal);
-  font-weight: 600;
-}
+/* --- REMOVED: Old Answer Style Selector from sticky wrapper --- */
+/* .answer-style-selector { ... } */
+/* .answer-style-selector .btn--style { ... } */
+/* .answer-style-selector .btn--style:hover { ... } */
+/* .answer-style-selector .btn--style.active { ... } */
 /* --- END: Answer Style Selector --- */
 
-/* --- NEW: Local Trust Input --- */
-.local-trust-container {
-  max-width: 600px;
-  width: 100%;
-  margin: 0 auto 24px auto; /* Margin below selector, above ask bar */
-  position: relative;
-}
-
-.local-trust-input {
-  width: 100%;
-  padding: 10px 16px;
-  font-size: 14px;
-  border: 1px dashed var(--umbil-divider);
-  border-radius: var(--umbil-radius-sm);
-  background-color: var(--umbil-surface);
-  color: var(--umbil-text);
-  text-align: center;
-  transition: all 0.2s ease-in-out;
-}
-
-.local-trust-input::placeholder {
-  color: var(--umbil-muted);
-  opacity: 1;
-}
-
-.local-trust-input:focus {
-  outline: none;
-  border-style: solid;
-  border-color: var(--umbil-brand-teal);
-  box-shadow: 0 0 0 3px var(--umbil-focus-ring);
-  background-color: var(--umbil-surface);
-}
-
-/* Adjust sticky wrapper to use this */
-.sticky-input-wrapper .local-trust-container {
-  max-width: 800px;
-  margin-bottom: 16px; /* Tighter margin in convo view */
-}
+/* --- REMOVED: Local Trust Input --- */
+/* .local-trust-container { ... } */
+/* .local-trust-input { ... } */
+/* .local-trust-input::placeholder { ... } */
+/* .local-trust-input:focus { ... } */
+/* .sticky-input-wrapper .local-trust-container { ... } */
 /* --- END: Local Trust Input --- */
 
 /* --- NEW: Style for Deep Dive Icon --- */
@@ -1183,3 +1190,156 @@ a {
 */
 /* .action-button svg.icon-zoom-in {} */
 /* --- END: Deep Dive Icon Style --- */
+
+/* ---
+  START OF PART 2 ADDITIONS
+--- */
+
+/* --- 1. MODAL SCROLLING FIX (Request 4) --- */
+
+.modal-content {
+  /* ... (all existing .modal-content styles) ... */
+
+  /* NEW: Add max-height and overflow */
+  max-height: 90vh; /* 90% of the viewport height */
+  overflow-y: auto; /* Make the *modal* scrollable, not the page */
+  
+  /* NEW: Ensure it's a flex column to manage content */
+  display: flex;
+  flex-direction: column;
+}
+
+/* NEW: Make the reflection textarea slightly smaller 
+  on very small screens to prevent it from dominating the modal
+*/
+.modal-content textarea.form-control {
+  min-height: 120px;
+  max-height: 30vh; /* Max 30% of viewport height */
+}
+
+/* --- END OF MODAL SCROLLING FIX --- */
+
+
+/* --- 2. QUICK TOUR STYLES (Request 3) --- */
+
+.tour-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+  backdrop-filter: blur(4px); /* Nice blur effect */
+  z-index: 1001;
+  cursor: pointer;
+}
+
+.tour-highlight-box {
+  position: absolute;
+  border-radius: var(--umbil-radius-sm);
+  /* This creates the "hole" by blending the highlight with the overlay */
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
+  border: 2px solid var(--umbil-brand-teal);
+  transition: all 0.3s ease-in-out;
+  pointer-events: none; /* Allows clicks to go "through" to overlay */
+}
+
+.tour-content-box {
+  position: fixed; /* Changed from absolute */
+  background-color: var(--umbil-surface);
+  color: var(--umbil-text);
+  border-radius: var(--umbil-radius-sm);
+  box-shadow: var(--umbil-shadow-lg);
+  padding: 24px;
+  width: 90%;
+  max-width: 320px;
+  z-index: 1002;
+  transition: all 0.3s ease-in-out;
+  border-top: 4px solid var(--umbil-brand-teal);
+}
+
+.tour-close-button {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  color: var(--umbil-muted);
+  opacity: 0.7;
+  transition: opacity 0.2s;
+  border-radius: 50%;
+}
+.tour-close-button:hover {
+  opacity: 1;
+  background-color: var(--umbil-hover-bg);
+}
+
+.tour-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--umbil-text);
+  margin-bottom: 12px;
+}
+
+.tour-text {
+  font-size: 0.95rem;
+  color: var(--umbil-muted);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+.tour-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--umbil-divider);
+  padding-top: 16px;
+  margin-top: 16px;
+}
+
+.tour-step-counter {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--umbil-muted);
+}
+
+.tour-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.tour-button-back {
+  background: none;
+  border: none;
+  color: var(--umbil-muted);
+  font-weight: 600;
+  padding: 8px 12px;
+  border-radius: var(--umbil-radius-sm);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.tour-button-back:hover {
+  background-color: var(--umbil-hover-bg);
+}
+
+.tour-button-next {
+  /* Re-use the .btn styles but apply them here */
+  padding: 8px 12px;
+  border-radius: var(--umbil-radius-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out, border-color 0.2s ease-in-out;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  background-color: var(--umbil-brand-teal);
+  color: var(--umbil-surface);
+  border: 1px solid var(--umbil-brand-teal);
+}
+.tour-button-next:hover {
+  background-color: #1a92a5;
+  border-color: #1a92a5;
+}
+
+/* --- END OF QUICK TOUR STYLES --- */

@@ -9,11 +9,10 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 
 // ---------- Types ----------
 type ClientMessage = { role: "user" | "assistant"; content: string };
-type AnswerStyle = "clinic" | "standard" | "deepDive"; // <-- NEW
+type AnswerStyle = "clinic" | "standard" | "deepDive";
 
 // ---------- Config ----------
 const API_KEY = process.env.TOGETHER_API_KEY!;
-// const TOGETHER_API_BASE_URL = "https://api.together.xyz/v1"; // Not needed
 const MODEL_SLUG = "openai/gpt-oss-120b";
 const CACHE_TABLE = "api_cache";
 const ANALYTICS_TABLE = "app_analytics";
@@ -21,7 +20,6 @@ const ANALYTICS_TABLE = "app_analytics";
 // Together AI client
 const together = createTogetherAI({
   apiKey: API_KEY,
-  // baseURL is not needed for the official provider
 });
 
 // ---------- Helpers ----------
@@ -113,21 +111,16 @@ export async function POST(req: NextRequest) {
 
   // --- FEATURE 2: Add main try...catch for API error logging ---
   try {
-    // --- UPDATED: Destructure new answerStyle and localTrust properties ---
-    const { messages, profile, answerStyle, localTrust } = await req.json();
+    // --- UPDATED: Removed localTrust ---
+    const { messages, profile, answerStyle } = await req.json();
 
     if (!messages?.length)
       return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
-    // --- NEW: Create conditional prompt for local trust ---
-    const localTrustPrompt = localTrust 
-      ? `The user is based in ${localTrust}. Where possible, you MUST tailor the answer to this specific NHS board/ICB/trust, referencing their local guidelines or formulary *in addition* to national ones (NICE, CKS). State if local guidance could not be found.`
-      : "";
-
-    // --- UPDATED: Construct system prompt with style modifier and local trust ---
+    // --- UPDATED: Construct system prompt with style modifier ---
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
-    const systemPrompt = `${BASE_PROMPT} ${styleModifier} ${gradeNote} ${localTrustPrompt}`.trim();
+    const systemPrompt = `${BASE_PROMPT} ${styleModifier} ${gradeNote}`.trim();
     // --- END OF UPDATE ---
 
     const latestUserMessage = messages[messages.length - 1];
@@ -135,12 +128,11 @@ export async function POST(req: NextRequest) {
     // 1. Use the *normalized* query for the cache key
     const normalizedQuery = sanitizeAndNormalizeQuery(latestUserMessage.content);
     
-    // 2. --- UPDATED: Define the full cache key content (includes style and trust) ---
+    // 2. --- UPDATED: Define the full cache key content (removed trust) ---
     const cacheKeyContent = JSON.stringify({ 
       model: MODEL_SLUG, 
       query: normalizedQuery, 
       style: answerStyle || 'standard', // Ensure default is cached
-      trust: localTrust || null // <-- ADDED LOCAL TRUST TO CACHE KEY
     });
     const cacheKey = sha256(cacheKeyContent);
 
@@ -157,7 +149,6 @@ export async function POST(req: NextRequest) {
         input_tokens: 0,
         output_tokens: 0,
         style: answerStyle || 'standard',
-        trust: localTrust || null, // <-- ADDED TO ANALYTICS
       });
       return NextResponse.json({ answer: cached.answer });
     }
@@ -185,7 +176,6 @@ export async function POST(req: NextRequest) {
           total_tokens: usage.totalTokens,
           model: MODEL_SLUG,
           style: answerStyle || 'standard',
-          trust: localTrust || null, // <-- ADDED TO ANALYTICS
         });
 
         if (answer.length > 50) {

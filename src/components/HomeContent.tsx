@@ -6,9 +6,11 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import ReflectionModal from "@/components/ReflectionModal";
 import Toast from "@/components/Toast";
+import QuickTour from "@/components/QuickTour"; // <-- 1. IMPORT QUICKTOUR
 import { addCPD, CPDEntry } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
-import { useSearchParams } from "next/navigation";
+// --- FIX 1: Import useRouter ---
+import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
@@ -16,6 +18,12 @@ import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 // --- Types ---
 
 type AnswerStyle = "clinic" | "standard" | "deepDive";
+
+const styleDisplayNames: Record<AnswerStyle, string> = {
+  clinic: "Clinic",
+  standard: "Standard",
+  deepDive: "Deep Dive",
+};
 
 type AskResponse = {
   answer?: string;
@@ -33,57 +41,71 @@ type ClientMessage = {
   content: string;
 };
 
-// --- NEW: Answer Style Button Component ---
-const AnswerStyleSelector: React.FC<{
+// --- Answer Style Dropdown Component ---
+const AnswerStyleDropdown: React.FC<{
   currentStyle: AnswerStyle;
   onStyleChange: (style: AnswerStyle) => void;
 }> = ({ currentStyle, onStyleChange }) => {
-  return (
-    <div className="answer-style-selector">
-      <button
-        className={`btn--style ${currentStyle === "clinic" ? "active" : ""}`}
-        onClick={() => onStyleChange("clinic")}
-        title="Concise bullets: 4-6 key points for quick reading."
-      >
-        Clinic
-      </button>
-      <button
-        className={`btn--style ${currentStyle === "standard" ? "active" : ""}`}
-        onClick={() => onStyleChange("standard")}
-        title="Standard balanced answer (default)."
-      >
-        Standard
-      </button>
-      <button
-        className={`btn--style ${currentStyle === "deepDive" ? "active" : ""}`}
-        onClick={() => onStyleChange("deepDive")}
-        title="Comprehensive details suitable for teaching or in-depth learning."
-      >
-        Deep Dive
-      </button>
-    </div>
-  );
-};
-// --- END: Answer Style Button Component ---
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-// --- NEW: Local Trust Input Component ---
-const LocalTrustInput: React.FC<{
-  value: string;
-  onChange: (value: string) => void;
-}> = ({ value, onChange }) => {
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (style: AnswerStyle) => {
+    onStyleChange(style);
+    setIsOpen(false);
+  };
+
   return (
-    <div className="local-trust-container">
-      <input
-        type="text"
-        className="local-trust-input"
-        placeholder="Optional: Enter NHS Board / ICB / Trust for local guidance..."
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      />
+    <div className="style-dropdown-container" ref={dropdownRef}>
+      <button
+        className="style-dropdown-button"
+        onClick={() => setIsOpen(!isOpen)}
+        title="Change answer style"
+      >
+        {styleDisplayNames[currentStyle]}
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.7 }}>
+          <path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="style-dropdown-menu">
+          <button
+            className={currentStyle === "standard" ? "active" : ""}
+            onClick={() => handleSelect("standard")}
+          >
+            <strong>Standard</strong>
+            <p>Balanced, detailed answer.</p>
+          </button>
+          <button
+            className={currentStyle === "clinic" ? "active" : ""}
+            onClick={() => handleSelect("clinic")}
+          >
+            <strong>Clinic</strong>
+            <p>Concise, bulleted key actions.</p>
+          </button>
+          <button
+            className={currentStyle === "deepDive" ? "active" : ""}
+            onClick={() => handleSelect("deepDive")}
+          >
+            <strong>Deep Dive</strong>
+            <p>Comprehensive, in-depth explanation.</p>
+          </button>
+        </div>
+      )}
     </div>
   );
 };
-// --- END: Local Trust Input Component ---
+// --- END: Answer Style Dropdown Component ---
 
 
 // --- Helpers ---
@@ -111,6 +133,27 @@ const loadingMessages = [
   "Crafting your response...",
 ];
 
+// --- DUMMY TOUR CONTENT ---
+const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
+  {
+    type: "user",
+    content: "What are the red flags for a headache?",
+    question: "What are the red flags for a headache?",
+  },
+  {
+    type: "umbil",
+    content: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional",
+    question: "What are the red flags for a headache?",
+  }
+];
+
+const DUMMY_CPD_ENTRY = {
+  question: "What are the red flags for a headache?",
+  answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional",
+};
+// ------------------------------
+
+
 // --- Component ---
 
 export default function HomeContent() {
@@ -131,12 +174,18 @@ export default function HomeContent() {
 
   const { email } = useUserEmail();
   const searchParams = useSearchParams();
+  // --- FIX 1: Initialize router ---
+  const router = useRouter(); 
   const [profile, setProfile] = useState<Profile | null>(null);
 
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
 
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
-  const [localTrust, setLocalTrust] = useState<string>(""); // <-- NEW STATE FOR LOCAL TRUST
+  
+  // --- TOUR STATE ---
+  const [isTourOpen, setIsTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
+  // ---------------------
 
   // --- Effects ---
 
@@ -150,11 +199,29 @@ export default function HomeContent() {
     }
   }, [email]);
 
+  // --- START TOUR LOGIC ---
   useEffect(() => {
     if (searchParams.get("new-chat")) {
       setConversation([]);
     }
-  }, [searchParams]);
+    // Check if tour should start
+    if (searchParams.get("tour")) {
+      // Check if user is logged in, if not, redirect to login first
+      if (!email) {
+        // --- FIX 1: Use router (now defined) ---
+        router.push("/auth"); 
+        return;
+      }
+      
+      const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour");
+      if (hasCompletedTour !== "true" || searchParams.get("forceTour")) {
+        setIsTourOpen(true);
+        setTourStep(0);
+      }
+    }
+  // --- FIX 1: Add router to dependency array ---
+  }, [searchParams, email, router]);
+  // -------------------------
 
   const scrollToBottom = (instant = false) => {
     const container = document.querySelector(".main-content");
@@ -190,16 +257,56 @@ export default function HomeContent() {
     }
   }, [loading]);
 
-  // --- Core API Logic ---
+  
+  // --- TOUR STEP HANDLER ---
+  const handleTourStepChange = (stepIndex: number) => {
+    setTourStep(stepIndex);
+    
+    // Step 2: "Ask Your Question" -> "Get Your Answer"
+    if (stepIndex === 2) { 
+      // This is step 3 (index 2), show dummy message
+      // Handled by `convoToShow`
+    }
+    // Step 4: "Add to CPD" -> "Reflect & Save"
+    if (stepIndex === 4) {
+      // This is step 5 (index 4), open the modal
+      setCurrentCpdEntry(DUMMY_CPD_ENTRY); // Use dummy data
+      setIsModalOpen(true);
+    } else {
+      // Close modal if not on step 5
+      if(isModalOpen) setIsModalOpen(false);
+    }
 
-  /**
-   * Fetches a response from the API.
-   * @param currentConversation The conversation history to send.
-   * @param styleOverride (Optional) Force a specific answer style for this request.
-   */
+    // Step 5: "Reflect & Save" -> "Explore Your Logs"
+    if (stepIndex === 5) {
+      // This is step 6 (index 5), open the sidebar
+      const menuButton = document.getElementById("tour-highlight-sidebar-button");
+      menuButton?.click(); // Programmatically click the sidebar button
+    }
+  };
+
+  const handleTourClose = () => {
+    setIsTourOpen(false);
+    setTourStep(0);
+    setIsModalOpen(false); // Ensure modal is closed
+    setCurrentCpdEntry(null);
+    localStorage.setItem("hasCompletedQuickTour", "true");
+    
+    // Close sidebar if it was opened by tour
+    const sidebar = document.querySelector('.sidebar.is-open');
+    if (sidebar) {
+       // Find the close button inside the sidebar and click it
+       const closeButton = sidebar.querySelector('.sidebar-header button') as HTMLButtonElement;
+       closeButton?.click();
+    }
+  };
+  // --------------------------
+
+
+  // --- Core API Logic ---
   const fetchUmbilResponse = async (
     currentConversation: ConversationEntry[],
-    styleOverride: AnswerStyle | null = null // <-- NEW: Allow style override
+    styleOverride: AnswerStyle | null = null
   ) => {
     setLoading(true);
     
@@ -218,7 +325,6 @@ export default function HomeContent() {
         })
       );
       
-      // Use the override if provided, otherwise use the state
       const styleToUse = styleOverride || answerStyle;
 
       const res = await fetch("/api/ask", {
@@ -230,8 +336,7 @@ export default function HomeContent() {
         body: JSON.stringify({ 
           messages: messagesToSend, 
           profile, 
-          answerStyle: styleToUse, // <-- Use the determined style
-          localTrust: localTrust.trim() || null 
+          answerStyle: styleToUse,
         }),
       });
 
@@ -243,7 +348,6 @@ export default function HomeContent() {
       const contentType = res.headers.get("Content-Type");
 
       if (contentType?.includes("application/json")) {
-        // Handle non-streamed (cached) response
         const data: AskResponse = await res.json();
         setConversation((prev) => [
           ...prev,
@@ -255,12 +359,10 @@ export default function HomeContent() {
         ]);
       } 
       else if (contentType?.includes("text/plain")) {
-        // Handle streamed response
         if (!res.body) {
           throw new Error("Response body is empty for streaming.");
         }
         
-        // Add a new, empty message bubble to stream into
         setConversation((prev) => [
           ...prev,
           {
@@ -279,7 +381,6 @@ export default function HomeContent() {
           
           const chunk = decoder.decode(value);
           
-          // Append the chunk to the *last* message bubble in the conversation
           setConversation((prev) => {
             const newConversation = [...prev];
             const lastMessage = newConversation[newConversation.length - 1];
@@ -304,7 +405,7 @@ export default function HomeContent() {
   };
 
   const ask = async () => {
-    if (!q.trim() || loading) return;
+    if (!q.trim() || loading || isTourOpen) return;
 
     const newQuestion = q;
     setQ("");
@@ -316,11 +417,13 @@ export default function HomeContent() {
 
     setConversation(updatedConversation);
     scrollToBottom(true);
-    // Call with no style override (uses state)
     await fetchUmbilResponse(updatedConversation, null); 
   };
 
-  // --- Action Button Handlers ---
+  // --- 
+  // --- FIX 2: Restore function bodies ---
+  // --- 
+  const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
 
   const handleCopyMessage = (content: string) => {
     navigator.clipboard
@@ -335,7 +438,8 @@ export default function HomeContent() {
   };
 
   const formatConversationAsText = (): string => {
-    return conversation
+    // --- FIX 2.1: Use convoToShow ---
+    return convoToShow
       .map((entry) => {
         const prefix = entry.type === "user" ? "You" : "Umbil";
         return `${prefix}:\n${entry.content}\n\n--------------------\n`;
@@ -375,24 +479,20 @@ export default function HomeContent() {
   };
 
   const handleRegenerateResponse = async () => {
-    if (loading || conversation.length === 0) return;
+    // --- FIX 2.2: Add isTourOpen check ---
+    if (loading || conversation.length === 0 || isTourOpen) return;
 
     const lastEntry = conversation[conversation.length - 1];
     if (lastEntry.type !== "umbil") return;
 
-    // Get conversation *before* the last Umbil response
     const conversationForRegen = conversation.slice(0, -1);
-    
-    // Set the state to this truncated conversation
     setConversation(conversationForRegen);
-    
-    // Fetch a new response based on the truncated history
     await fetchUmbilResponse(conversationForRegen, null);
   };
   
-  // --- NEW: Deep Dive Handler ---
   const handleDeepDive = async (entry: ConversationEntry, index: number) => {
-    if (loading) return;
+    // --- FIX 2.3: Add isTourOpen check ---
+    if (loading || isTourOpen) return;
     
     const originalQuestion = entry.question;
     
@@ -401,20 +501,16 @@ export default function HomeContent() {
         return;
     }
     
-    // Get the conversation history *up to and including* the user prompt that generated this answer
-    // The 'entry' is at 'index', so the user question is at 'index - 1'
-    // We slice up to 'index' (exclusive of 'index') to get [User, Umbil, User]
     const historyForDeepDive = conversation.slice(0, index);
-
-    // Call fetchUmbilResponse, passing the truncated history and forcing the 'deepDive' style
     await fetchUmbilResponse(historyForDeepDive, 'deepDive');
   };
-  // --- END: Deep Dive Handler ---
+  // --- END FIX 2 ---
 
 
   // --- CPD Handlers ---
-
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
+    if (isTourOpen) return;
+    
     if (!email) {
       setToastMessage("Please sign in to add CPD entries.");
       return;
@@ -427,6 +523,12 @@ export default function HomeContent() {
   };
 
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
+    if (isTourOpen) {
+      const tourNextButton = document.querySelector('.tour-button-next') as HTMLButtonElement;
+      tourNextButton?.click();
+      return;
+    }
+
     if (!currentCpdEntry) return;
 
     const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { 
@@ -456,13 +558,15 @@ export default function HomeContent() {
 
   const renderMessage = (entry: ConversationEntry, index: number) => {
     const isUmbil = entry.type === "umbil";
-    const isLastMessage = index === conversation.length - 1;
+    const isLastMessage = index === convoToShow.length - 1;
     const className = `message-bubble ${
       isUmbil ? "umbil-message" : "user-message"
     }`;
 
+    const highlightId = isTourOpen && isUmbil ? "tour-highlight-message" : undefined;
+
     return (
-      <div key={index} className={className}>
+      <div key={index} id={highlightId} className={className}>
         {isUmbil ? (
           <div className="markdown-content-wrapper">
             <ReactMarkdown
@@ -504,8 +608,6 @@ export default function HomeContent() {
               Copy
             </button>
             
-            {/* --- NEW: Deep Dive Button --- */}
-            {/* Show if it's the last message, not loading, AND has a question */}
             {isLastMessage && !loading && entry.question && (
               <button
                 className="action-button"
@@ -516,7 +618,6 @@ export default function HomeContent() {
                 Deep Dive
               </button>
             )}
-            {/* --- END: Deep Dive Button --- */}
 
             {isLastMessage && !loading && (
               <button
@@ -530,8 +631,9 @@ export default function HomeContent() {
             )}
 
             <button
+              id={isTourOpen ? "tour-highlight-cpd-button" : undefined}
               className="action-button"
-              onClick={() => handleOpenAddCpdModal(entry)}
+              onClick={() => isTourOpen ? handleTourStepChange(4) : handleOpenAddCpdModal(entry)}
               title="Add reflection to your CPD log"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
@@ -545,16 +647,22 @@ export default function HomeContent() {
 
   return (
     <>
+      <QuickTour 
+        isOpen={isTourOpen}
+        onClose={handleTourClose}
+        onStepChange={handleTourStepChange}
+      />
+
       <div
         ref={scrollContainerRef}
         className="main-content"
       >
-        {conversation.length > 0 ? (
+        {(convoToShow.length > 0) ? (
           // Conversation Mode
           <>
             <div className="conversation-container">
               <div className="message-thread">
-                {conversation.map(renderMessage)}
+                {convoToShow.map(renderMessage)}
                 {loading && (
                   <div className="loading-indicator">
                     {loadingMsg}
@@ -566,25 +674,24 @@ export default function HomeContent() {
                 <div ref={messagesEndRef} />
               </div>
             </div>
-            {/* --- STICKY WRAPPER --- */}
+            
             <div className="sticky-input-wrapper">
-              <AnswerStyleSelector
-                currentStyle={answerStyle}
-                onStyleChange={setAnswerStyle}
-              />
-              <LocalTrustInput value={localTrust} onChange={setLocalTrust} />
-
-              <div className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px' }}>
+              <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px' }}>
                 <input
                   className="ask-bar-input"
                   placeholder="Ask a follow-up question..."
-                  value={q}
+                  value={isTourOpen ? "What are the red flags for a headache?" : q}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && ask()}
+                  disabled={isTourOpen} // Disable input during tour
+                />
+                <AnswerStyleDropdown
+                  currentStyle={answerStyle}
+                  onStyleChange={setAnswerStyle}
                 />
                 <button
                   className="ask-bar-send-button"
-                  onClick={ask}
+                  onClick={isTourOpen ? () => handleTourStepChange(2) : ask} // Go to next step
                   disabled={loading}
                 >
                   <svg
@@ -609,24 +716,22 @@ export default function HomeContent() {
           <div className="hero">
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
 
-            <AnswerStyleSelector
-              currentStyle={answerStyle}
-              onStyleChange={setAnswerStyle}
-            />
-            
-            <LocalTrustInput value={localTrust} onChange={setLocalTrust} />
-
-            <div className="ask-bar-container" style={{ marginTop: "24px" }}>
+            <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: "24px" }}>
               <input
                 className="ask-bar-input"
                 placeholder="Ask anything — clinical, reflective, or educational..."
-                value={q}
+                value={isTourOpen ? "What are the red flags for a headache?" : q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && ask()}
+                disabled={isTourOpen} // Disable input during tour
+              />
+              <AnswerStyleDropdown
+                currentStyle={answerStyle}
+                onStyleChange={setAnswerStyle}
               />
               <button
                 className="ask-bar-send-button"
-                onClick={ask}
+                onClick={isTourOpen ? () => handleTourStepChange(2) : ask} // Go to next step
                 disabled={loading}
               >
                 <svg
@@ -666,13 +771,15 @@ export default function HomeContent() {
         )}
       </div>
 
-      <ReflectionModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSaveCpd}
-        currentStreak={streakLoading ? 0 : currentStreak}
-        cpdEntry={currentCpdEntry}
-      />
+      <div id={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined}>
+        <ReflectionModal
+          isOpen={isModalOpen}
+          onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} // Prevent closing during tour
+          onSave={handleSaveCpd}
+          currentStreak={streakLoading ? 0 : currentStreak}
+          cpdEntry={currentCpdEntry}
+        />
+      </div>
       
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </>
