@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 
 // --- Constants ---
+// Must match ReflectionModal exactly (no commas)
 const GMC_DOMAINS = [
   "Knowledge Skills & Performance",
   "Safety & Quality",
@@ -33,30 +34,23 @@ type TimeFilter = 'week' | 'month' | 'year' | 'all';
 
 // --- Helper Functions ---
 
-// Smart function to check if a tag is a GMC domain (full or partial/legacy)
-// Returns the Full GMC Domain string if matched, or null if it's a regular tag.
 const mapToGmcDomain = (tag: string): string | null => {
   const t = tag.toLowerCase().trim();
   
-  // Domain 1: Knowledge Skills & Performance
   if (t.includes("knowledge") || t.includes("skills & performance") || t.includes("skills and performance")) {
     return GMC_DOMAINS[0];
   }
-  // Domain 2: Safety & Quality
   if (t.includes("safety") || t.includes("quality")) {
-    // Be careful not to match "patient safety" if used as a specific tag, but usually safe here
     return GMC_DOMAINS[1];
   }
-  // Domain 3: Communication Partnership & Teamwork
   if (t.includes("communication") || t.includes("partnership") || t.includes("teamwork")) {
     return GMC_DOMAINS[2];
   }
-  // Domain 4: Maintaining Trust
   if (t.includes("maintaining") || t.includes("trust")) {
     return GMC_DOMAINS[3];
   }
 
-  return null; // It's a regular clinical tag
+  return null; 
 };
 
 const filterDataByTime = (entries: CPDEntry[], filter: TimeFilter): CPDEntry[] => {
@@ -83,10 +77,7 @@ const processTagData = (entries: CPDEntry[]) => {
   const tagCounts: Record<string, number> = {};
   for (const entry of entries) {
     for (const tag of entry.tags || []) {
-      // Check if this tag maps to a GMC domain
       const gmcMatch = mapToGmcDomain(tag);
-      
-      // ONLY count it if it is NOT a GMC domain (legacy or new)
       if (!gmcMatch) {
         const cleanTag = tag.trim();
         tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
@@ -109,10 +100,7 @@ const processGmcData = (entries: CPDEntry[]) => {
   
   for (const entry of entries) {
     for (const tag of entry.tags || []) {
-      // Check if this tag maps to a GMC domain (legacy or new)
       const gmcMatch = mapToGmcDomain(tag);
-      
-      // If it maps, increment the count for the FULL domain name
       if (gmcMatch) {
         gmcCounts[gmcMatch] = (gmcCounts[gmcMatch] || 0) + 1;
       }
@@ -244,13 +232,13 @@ function AnalyticsInner() {
           <h3 style={{ marginBottom: 20 }}>GMC Domain Coverage</h3>
           <div style={{ height: 300, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="60%" data={gmcDomainData}>
+              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={gmcDomainData}>
                 <PolarGrid stroke="var(--umbil-divider)" />
                 <PolarAngleAxis 
                   dataKey="domain" 
                   stroke="var(--umbil-muted)" 
                   style={{ fontSize: '10px', fontWeight: 600 }} 
-                  tickSize={15} 
+                  tickSize={10}
                 />
                 <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
                 <Radar 
@@ -270,7 +258,10 @@ function AnalyticsInner() {
       {/* Chart 3: Timeline */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card__body" style={{ padding: '20px' }}>
-          <h3 style={{ marginBottom: 20 }}>Activity Timeline</h3>
+          <h3 style={{ marginBottom: 8 }}>Activity Timeline</h3>
+          <p style={{fontSize: '0.85rem', color: 'var(--umbil-muted)', marginBottom: 20}}>
+            Number of CPD entries saved over time.
+          </p>
           {timelineData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={timelineData} margin={{ right: 20, left: -20 }}>
@@ -282,9 +273,12 @@ function AnalyticsInner() {
                   tickLine={false}
                   axisLine={false}
                   tickFormatter={(dateStr) => {
-                    if (timeFilter === 'week') return new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short' });
-                    if (timeFilter === 'month') return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-                    return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short' });
+                    const date = new Date(dateStr);
+                    if (timeFilter === 'week') {
+                      return date.toLocaleDateString('en-GB', { weekday: 'short' });
+                    }
+                    // For Month/Year/All, show "Day Month" (e.g. "12 Oct") to distinguish points
+                    return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
                   }}
                 />
                 <YAxis allowDecimals={false} stroke="var(--umbil-muted)" style={{ fontSize: '11px' }} tickLine={false} axisLine={false} />
