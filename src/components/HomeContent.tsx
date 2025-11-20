@@ -43,7 +43,30 @@ type ClientMessage = {
   content: string;
 };
 
-// --- Answer Style Dropdown Component ---
+// --- Helper Components ---
+
+function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center', padding: '32px' }}>
+        <div style={{ fontSize: '40px', marginBottom: '16px' }}>👋</div>
+        <h2 style={{ marginBottom: '12px', fontSize: '1.5rem' }}>Welcome to Umbil</h2>
+        <p style={{ color: 'var(--umbil-muted)', marginBottom: '24px', lineHeight: '1.5' }}>
+          Your new clinical co-pilot is ready. Would you like a 60-second tour of the key features?
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <button className="btn btn--primary" onClick={onStart} style={{ width: '100%' }}>
+            Take the Tour
+          </button>
+          <button className="btn btn--outline" onClick={onSkip} style={{ width: '100%' }}>
+            Skip for Now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const AnswerStyleDropdown: React.FC<{
   currentStyle: AnswerStyle;
   onStyleChange: (style: AnswerStyle) => void;
@@ -67,7 +90,7 @@ const AnswerStyleDropdown: React.FC<{
   };
 
   return (
-    <div className="style-dropdown-container" ref={dropdownRef}>
+    <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef}>
       <button
         className="style-dropdown-button"
         onClick={() => setIsOpen(!isOpen)}
@@ -180,6 +203,7 @@ export default function HomeContent() {
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
   // --- TOUR STATE ---
+  const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
   // ---------------------
@@ -196,7 +220,6 @@ export default function HomeContent() {
     }
   }, [email]);
 
-  // --- START TOUR LOGIC (Combined) ---
   useEffect(() => {
     if (searchParams.get("new-chat")) {
       setConversation([]);
@@ -211,8 +234,7 @@ export default function HomeContent() {
         setIsTourOpen(true);
         setTourStep(0);
       } else if (justLoggedIn && !hasCompletedTour) {
-        setIsTourOpen(true);
-        setTourStep(0);
+        setShowWelcomeModal(true);
       }
 
       if (justLoggedIn) {
@@ -229,7 +251,6 @@ export default function HomeContent() {
     } else {
       checkTour();
     }
-    
   }, [searchParams, email, router]);
 
   const scrollToBottom = (instant = false) => {
@@ -266,11 +287,23 @@ export default function HomeContent() {
     }
   }, [loading]);
 
-  
-  // --- TOUR STEP HANDLER ---
+  // --- TOUR HANDLERS ---
+
+  const handleStartTour = () => {
+    setShowWelcomeModal(false);
+    setIsTourOpen(true);
+    setTourStep(0);
+  };
+
+  const handleSkipTour = () => {
+    setShowWelcomeModal(false);
+    localStorage.setItem("hasCompletedQuickTour", "true"); 
+  };
+
   const handleTourStepChange = useCallback((stepIndex: number) => {
     setTourStep(stepIndex); 
     
+    // Step 4 corresponds to opening the modal in the new tour order
     if (stepIndex === 4) {
       setCurrentCpdEntry(DUMMY_CPD_ENTRY); 
       setIsModalOpen(true);
@@ -278,7 +311,8 @@ export default function HomeContent() {
       setIsModalOpen(false);
     }
 
-    if (stepIndex === 5) {
+    // Step 6 corresponds to the sidebar highlight
+    if (stepIndex === 6) {
       const menuButton = document.getElementById("tour-highlight-sidebar-button");
       menuButton?.click(); 
     }
@@ -299,28 +333,22 @@ export default function HomeContent() {
     }
   }, []);
 
+  // --- API & Chat Logic ---
 
-  // --- Core API Logic ---
   const fetchUmbilResponse = async (
     currentConversation: ConversationEntry[],
     styleOverride: AnswerStyle | null = null
   ) => {
     setLoading(true);
-    
-    const lastUserQuestion = [...currentConversation]
-      .reverse()
-      .find((e) => e.type === "user")?.question;
+    const lastUserQuestion = [...currentConversation].reverse().find((e) => e.type === "user")?.question;
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
-
-      const messagesToSend: ClientMessage[] = currentConversation.map(
-        (entry) => ({
+      const messagesToSend: ClientMessage[] = currentConversation.map((entry) => ({
           role: entry.type === "user" ? "user" : "assistant",
           content: entry.content,
-        })
-      );
+      }));
       
       const styleToUse = styleOverride || answerStyle;
 
@@ -348,36 +376,22 @@ export default function HomeContent() {
         const data: AskResponse = await res.json();
         setConversation((prev) => [
           ...prev,
-          {
-            type: "umbil",
-            content: data.answer ?? "",
-            question: lastUserQuestion,
-          },
+          { type: "umbil", content: data.answer ?? "", question: lastUserQuestion },
         ]);
       } 
       else if (contentType?.includes("text/plain")) {
-        if (!res.body) {
-          throw new Error("Response body is empty for streaming.");
-        }
-        
+        if (!res.body) throw new Error("Response body is empty.");
         setConversation((prev) => [
           ...prev,
-          {
-            type: "umbil",
-            content: "", 
-            question: lastUserQuestion,
-          },
+          { type: "umbil", content: "", question: lastUserQuestion },
         ]);
         
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        
         while (true) {
           const { done, value } = await reader.read();
           if (done) break; 
-          
           const chunk = decoder.decode(value);
-          
           setConversation((prev) => {
             const newConversation = [...prev];
             const lastMessage = newConversation[newConversation.length - 1];
@@ -390,7 +404,6 @@ export default function HomeContent() {
       } else {
         throw new Error(`Unexpected Content-Type: ${contentType}`);
       }
-
     } catch (err: unknown) {
       setConversation((prev) => [
         ...prev,
@@ -403,81 +416,58 @@ export default function HomeContent() {
 
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
-
     const newQuestion = q;
     setQ("");
-
     const updatedConversation: ConversationEntry[] = [
       ...conversation,
       { type: "user", content: newQuestion, question: newQuestion },
     ];
-
     setConversation(updatedConversation);
     scrollToBottom(true);
     await fetchUmbilResponse(updatedConversation, null); 
   };
 
-  // --- Action Button Handlers ---
+  // --- Utility Handlers ---
+
   const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
 
   const handleCopyMessage = (content: string) => {
-    navigator.clipboard
-      .writeText(content)
-      .then(() => {
-        setToastMessage("Copied to clipboard!");
-      })
+    navigator.clipboard.writeText(content)
+      .then(() => setToastMessage("Copied to clipboard!"))
       .catch((err) => {
-        console.error("Failed to copy text: ", err);
+        console.error(err);
         setToastMessage("❌ Failed to copy text.");
       });
   };
 
-  const formatConversationAsText = (): string => {
-    return convoToShow
-      .map((entry) => {
+  const handleShare = async () => {
+    const textContent = convoToShow.map((entry) => {
         const prefix = entry.type === "user" ? "You" : "Umbil";
         return `${prefix}:\n${entry.content}\n\n--------------------\n`;
-      })
-      .join("\n");
-  };
-
-  const downloadConversationAsTxt = () => {
-    const textContent = formatConversationAsText();
-    const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "umbil_conversation.txt";
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    setToastMessage("Conversation downloading...");
-  };
-
-  const handleShare = async () => {
-    const textContent = formatConversationAsText();
+      }).join("\n");
 
     if (navigator.share) {
       try {
-        await navigator.share({
-          title: "Umbil Conversation",
-          text: textContent,
-        });
-      } catch (err) {
-        console.log("Share API error or cancelled:", err);
-      }
+        await navigator.share({ title: "Umbil Conversation", text: textContent });
+      } catch (err) { console.log(err); }
     } else {
-      downloadConversationAsTxt();
+       // Fallback download
+       const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
+       const url = URL.createObjectURL(blob);
+       const a = document.createElement("a");
+       a.href = url;
+       a.download = "umbil_conversation.txt";
+       document.body.appendChild(a);
+       a.click();
+       document.body.removeChild(a);
+       setToastMessage("Conversation downloading...");
     }
   };
 
   const handleRegenerateResponse = async () => {
     if (loading || conversation.length === 0 || isTourOpen) return;
-
     const lastEntry = conversation[conversation.length - 1];
     if (lastEntry.type !== "umbil") return;
-
     const conversationForRegen = conversation.slice(0, -1);
     setConversation(conversationForRegen);
     await fetchUmbilResponse(conversationForRegen, null);
@@ -485,23 +475,16 @@ export default function HomeContent() {
   
   const handleDeepDive = async (entry: ConversationEntry, index: number) => {
     if (loading || isTourOpen) return;
-    
-    const originalQuestion = entry.question;
-    
-    if (!originalQuestion) {
+    if (!entry.question) {
         setToastMessage("❌ Cannot deep-dive on this message.");
         return;
     }
-    
     const historyForDeepDive = conversation.slice(0, index);
     await fetchUmbilResponse(historyForDeepDive, 'deepDive');
   };
 
-
-  // --- CPD Handlers ---
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
     if (isTourOpen) return;
-    
     if (!email) {
       setToastMessage("Please sign in to add CPD entries.");
       return;
@@ -515,7 +498,7 @@ export default function HomeContent() {
 
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (isTourOpen) {
-      handleTourStepChange(5); // Go to step 6 (index 5)
+      handleTourStepChange(5); // Go to Step 5 (PDP Info)
       return;
     }
 
@@ -530,29 +513,22 @@ export default function HomeContent() {
     };
     
     const { error } = await addCPD(cpdEntry);
-
     if (error) {
       console.error("Failed to save CPD entry:", error);
-      setToastMessage(
-        "❌ Failed to save CPD entry. Please check the console for details."
-      );
+      setToastMessage("❌ Failed to save CPD entry.");
     } else {
       setToastMessage("✅ CPD entry saved remotely!");
     }
-
     setIsModalOpen(false);
     setCurrentCpdEntry(null);
   };
 
-  // --- Render Logic ---
+  // --- Render Message Function ---
 
   const renderMessage = (entry: ConversationEntry, index: number) => {
     const isUmbil = entry.type === "umbil";
     const isLastMessage = index === convoToShow.length - 1;
-    const className = `message-bubble ${
-      isUmbil ? "umbil-message" : "user-message"
-    }`;
-
+    const className = `message-bubble ${isUmbil ? "umbil-message" : "user-message"}`;
     const highlightId = isTourOpen && isUmbil ? "tour-highlight-message" : undefined;
 
     return (
@@ -562,59 +538,37 @@ export default function HomeContent() {
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                table: ({ ...props }) => (
-                  <div className="table-scroll-wrapper">
-                    <table {...props} />
-                  </div>
-                ),
+                table: ({ ...props }) => <div className="table-scroll-wrapper"><table {...props} /></div>,
               }}
             >
               {entry.content}
             </ReactMarkdown>
           </div>
         ) : (
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>
-            {entry.content}
-          </ReactMarkdown>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown>
         )}
 
         {isUmbil && (
           <div className="umbil-message-actions">
-            <button
-              className="action-button"
-              onClick={handleShare}
-              title="Share conversation"
-            >
+            <button className="action-button" onClick={handleShare} title="Share conversation">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
               Share
             </button>
 
-            <button
-              className="action-button"
-              onClick={() => handleCopyMessage(entry.content)}
-              title="Copy this message"
-            >
+            <button className="action-button" onClick={() => handleCopyMessage(entry.content)} title="Copy this message">
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
               Copy
             </button>
             
             {isLastMessage && !loading && entry.question && (
-              <button
-                className="action-button"
-                onClick={() => handleDeepDive(entry, index)}
-                title="Deep dive on this topic"
-              >
+              <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic">
                 <svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
                 Deep Dive
               </button>
             )}
 
             {isLastMessage && !loading && (
-              <button
-                className="action-button"
-                onClick={handleRegenerateResponse}
-                title="Regenerate response"
-              >
+              <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg>
                 Regenerate
               </button>
@@ -646,22 +600,15 @@ export default function HomeContent() {
         />
       )}
 
-      <div
-        ref={scrollContainerRef}
-        className="main-content"
-      >
+      <div ref={scrollContainerRef} className="main-content">
         {(convoToShow.length > 0) ? (
-          // Conversation Mode
           <>
             <div className="conversation-container">
               <div className="message-thread">
                 {convoToShow.map(renderMessage)}
                 {loading && (
                   <div className="loading-indicator">
-                    {loadingMsg}
-                    <span>•</span>
-                    <span>•</span>
-                    <span>•</span>
+                    {loadingMsg}<span>•</span><span>•</span><span>•</span>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
@@ -688,28 +635,14 @@ export default function HomeContent() {
                   onClick={isTourOpen ? () => handleTourStepChange(2) : ask} 
                   disabled={loading}
                 >
-                  <svg
-                    width="24"
-                    height="24"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <line x1="22" y1="2" x2="11" y2="13"></line>
-                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                  </svg>
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                 </button>
               </div>
             </div>
           </>
         ) : (
-          // Home Screen
           <div className="hero">
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
-
             <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: "24px", position: 'relative' }}>
               <input
                 className="ask-bar-input"
@@ -729,42 +662,20 @@ export default function HomeContent() {
                 onClick={isTourOpen ? () => handleTourStepChange(2) : ask}
                 disabled={loading}
               >
-                <svg
-                  width="24"
-                  height="24"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="22" y1="2" x2="11" y2="13"></line>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-                </svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
               </button>
             </div>
-
             <p className="disclaimer" style={{ marginTop: "36px" }}>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 16v-4M12 8h.01"></path>
-              </svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
               Please don’t enter any patient-identifiable information.
             </p>
           </div>
         )}
       </div>
+
+      {showWelcomeModal && (
+        <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />
+      )}
 
       {(isModalOpen || (isTourOpen && tourStep === 4)) && (
         <div id={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined}>

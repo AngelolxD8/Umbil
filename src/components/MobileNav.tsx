@@ -3,18 +3,19 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase"; // Import supabase for sign out
+import { supabase } from "@/lib/supabase"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
+import Toast from "@/components/Toast";
 
 type MobileNavProps = {
   isOpen: boolean;
   onClose: () => void;
   userEmail: string | null;
-  isDarkMode: boolean; // <-- Added
-  toggleDarkMode: () => void; // <-- Added
+  isDarkMode: boolean; 
+  toggleDarkMode: () => void; 
 };
 
 export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, toggleDarkMode }: MobileNavProps) {
@@ -23,6 +24,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   
   const { email } = useUserEmail();
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null); // Local toast state
   
   const { currentStreak, loading: streaksLoading, hasLoggedToday } = useCpdStreaks();
 
@@ -49,13 +51,33 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     router.push("/"); 
   };
 
-  // --- NEW: Handler for Quick Tour ---
   const handleStartTour = () => {
     onClose();
-    // Force tour, even if completed
     router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`);
   };
-  // ---------------------------------
+
+  // --- INVITE FRIEND HANDLER ---
+  const handleInvite = async () => {
+    const shareData = {
+      title: "Join me on Umbil",
+      text: "I'm using Umbil to turn my clinical questions into verified CPD instantly. It even tracks my learning stats and GMC domains! You should try it:",
+      url: "https://umbil.co.uk"
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+      } catch (err) {
+        console.log("Share cancelled/failed", err);
+      }
+    } else {
+      // Fallback for desktop
+      const textToCopy = `${shareData.text} ${shareData.url}`;
+      navigator.clipboard.writeText(textToCopy).then(() => {
+        setToastMessage("Invite link copied to clipboard!");
+      });
+    }
+  };
 
   const menuItems = [
     { href: "/about", label: "About Umbil" },
@@ -72,25 +94,11 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   return (
     <>
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
-      {/* --- ADD HIGHLIGHT ID FOR TOUR --- */}
       <div id="tour-highlight-sidebar" className={`sidebar ${isOpen ? "is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="sidebar-header">
           <h3 className="text-lg font-semibold">Navigation</h3>
           <button onClick={onClose} className="menu-button">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
 
@@ -124,21 +132,33 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             </Link>
           ))}
           
-          {/* --- NEW: QUICK TOUR BUTTON --- */}
+          {/* --- INVITE BUTTON --- */}
+          <a
+            href="#"
+            onClick={(e) => {
+              e.preventDefault();
+              handleInvite();
+            }}
+            className="quick-tour-button" 
+            style={{color: 'var(--umbil-brand-teal)'}}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+            Invite a Colleague
+          </a>
+
+          {/* QUICK TOUR BUTTON */}
           <a
             href="#"
             onClick={(e) => {
               e.preventDefault();
               handleStartTour();
             }}
-            className="quick-tour-button" // Apply link styling
+            className="quick-tour-button" 
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
             Quick Tour
           </a>
-          {/* ------------------------------ */}
         </nav>
-        
         
         {userEmail && profile && (
             <div style={{ padding: '16px 0', borderTop: '1px solid var(--umbil-divider)', marginTop: 'auto' }}>
@@ -167,12 +187,12 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         </div>
       </div>
       
-      <style jsx global>{`
-        /* ... (all existing styles remain) ... */
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
 
-        /* --- NEW: Style for Quick Tour button --- */
+      <style jsx global>{`
+        /* ... (styles remain unchanged) ... */
         .quick-tour-button {
-          display: flex !important; /* Overrides 'a' tag */
+          display: flex !important; 
           align-items: center;
           padding: 12px 16px;
           font-size: 1rem;
@@ -185,9 +205,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         .quick-tour-button:hover,
         .quick-tour-button.active {
           background-color: var(--umbil-hover-bg);
-          color: var(--umbil-brand-teal);
         }
-        /* -------------------------------------- */
         
         .profile-info-sidebar {
             display: flex;

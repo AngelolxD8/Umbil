@@ -1,77 +1,83 @@
 // src/components/QuickTour.tsx
 "use client";
 
-// REMOVED: useState and useEffect, as parent now controls state
-import { /* useState, useEffect */ } from "react";
-
 // Define the steps of our tour
 const tourSteps = [
+  // STEP 0: Ask
+  {
+    id: "step-0",
+    title: "1. Ask Your Question",
+    text: "Start here. You can ask anything—clinical questions, drug dosages, or reflective prompts.",
+    highlightId: "tour-highlight-askbar", // Highlights the input bar
+  },
+  // STEP 1: Styles (NEW)
   {
     id: "step-1",
-    title: "Welcome to Umbil!",
-    text: "Let's take a 1-minute tour to see how to get the most out of your new clinical co-pilot.",
-    highlightId: null, // No specific element for the welcome message
+    title: "2. Choose Your Depth",
+    text: "Need a quick answer for the ward or a detailed explanation for study? Switch between 'Clinic', 'Standard', and 'Deep Dive' modes here.",
+    highlightId: "tour-highlight-style-dropdown", // Highlights the new dropdown
   },
+  // STEP 2: Answer
   {
     id: "step-2",
-    title: "1. Ask Your Question",
-    text: "This is where you ask anything—clinical, educational, or reflective. Let's see what happens.",
-    highlightId: "tour-highlight-askbar", // ID of the ask bar container
+    title: "3. Get Your Answer",
+    text: "Umbil provides a concise, evidence-based answer. Now, let's turn this knowledge into a permanent record.",
+    highlightId: "tour-highlight-message", // Highlights the dummy response
   },
+  // STEP 3: Log
   {
     id: "step-3",
-    title: "2. Get Your Answer",
-    text: "Umbil provides a concise, evidence-based answer. Now for the best part: turning this into CPD.",
-    highlightId: "tour-highlight-message", // ID of the dummy message
+    title: "4. Log Learning",
+    text: "Click 'Log learning (CPD)' to save this interaction. This builds your professional portfolio automatically.",
+    highlightId: "tour-highlight-cpd-button", // Highlights the CPD button
   },
+  // STEP 4: Reflect
   {
     id: "step-4",
-    title: "3. Add to CPD",
-    text: "Click 'Log learning (CPD)' on any of Umbil's answers to open the reflection modal.",
-    highlightId: "tour-highlight-cpd-button", // ID of the dummy CPD button
+    title: "5. Reflect & Save",
+    text: "Write your own notes or click 'Generate' to let AI create a GMC-compliant reflection for you. Click 'Save' to finish.",
+    highlightId: "tour-highlight-modal", // Highlights the open modal
   },
+  // STEP 5: PDP Info (NEW - No highlight, just info centered)
   {
     id: "step-5",
-    title: "4. Reflect & Save",
-    text: "You can write your own reflection, or click 'Generate' to let AI create a GMC-style reflection and suggest tags for you. Click 'Save' to log it.",
-    highlightId: "tour-highlight-modal", // ID of the (now open) modal
+    title: "6. Automated PDP Goals",
+    text: "Umbil works in the background. If you tag a topic (e.g., 'Asthma') 7 times, we'll automatically suggest a Personal Development Plan goal to help formalize your learning.",
+    highlightId: null, // Center screen
   },
+  // STEP 6: Sidebar
   {
     id: "step-6",
-    title: "5. Explore Your Logs",
-    text: "That's it! You can find all your saved entries, export them, and track your learning streaks from the navigation menu.",
-    highlightId: "tour-highlight-sidebar", // ID for the sidebar (will be opened)
+    title: "7. Explore Your Logs",
+    text: "Find all your saved entries, export reports, and track your learning streaks here in the menu.",
+    highlightId: "tour-highlight-sidebar", // Highlights sidebar
   },
+  // STEP 7: Finish
   {
     id: "step-7",
     title: "You're all set!",
-    text: "You can re-take this tour any time from the 'Quick Tour' button in the navigation menu. Happy learning!",
+    text: "You can re-take this tour anytime from the menu. Happy learning!",
     highlightId: null,
   },
 ];
 
 type QuickTourProps = {
   isOpen: boolean;
-  currentStep: number; // <-- UPDATED: This is now a prop
+  currentStep: number;
   onClose: () => void;
-  onStepChange: (stepIndex: number) => void; // To tell HomeContent to update
+  onStepChange: (stepIndex: number) => void; 
 };
 
 export default function QuickTour({ 
   isOpen, 
-  currentStep, // <-- UPDATED: Read from props
+  currentStep, 
   onClose, 
   onStepChange 
 }: QuickTourProps) {
-  // REMOVED: Internal state for currentStep
-  // const [currentStep, setCurrentStep] = useState(0);
-
-  // REMOVED: useEffect that reset internal state
   
   const handleNext = () => {
     const nextStep = currentStep + 1;
     if (nextStep < tourSteps.length) {
-      // Tell parent to update the step
       onStepChange(nextStep); 
     } else {
       handleClose();
@@ -81,13 +87,11 @@ export default function QuickTour({
   const handleBack = () => {
     const prevStep = currentStep - 1;
     if (prevStep >= 0) {
-      // Tell parent to update the step
       onStepChange(prevStep);
     }
   };
 
   const handleClose = () => {
-    // Parent will handle resetting state
     onClose();
   };
 
@@ -104,7 +108,7 @@ export default function QuickTour({
   };
 
   if (rect) {
-    if (step.id === 'step-6') {
+    if (step.id === 'step-6') { // Sidebar specific positioning
       boxStyle.top = `${rect.top + 20}px`;
       boxStyle.left = `${rect.right + 20}px`;
     } else if (rect.top > window.innerHeight / 2) {
@@ -114,11 +118,13 @@ export default function QuickTour({
       boxStyle.top = `${rect.bottom + 20}px`;
       boxStyle.left = `${rect.left}px`;
     }
+    // Prevent overflow on right edge
     if (rect.left + 320 > window.innerWidth) {
       boxStyle.right = '20px';
       boxStyle.left = 'auto';
     }
   } else {
+    // Center screen fallback
     boxStyle.top = '50%';
     boxStyle.left = '50%';
     boxStyle.transform = 'translate(-50%, -50%)';
@@ -131,7 +137,7 @@ export default function QuickTour({
           <div
             className="tour-highlight-box"
             style={{
-              top: `${rect.top - 8}px`, // 8px padding
+              top: `${rect.top - 8}px`, 
               left: `${rect.left - 8}px`,
               width: `${rect.width + 16}px`,
               height: `${rect.height + 16}px`,

@@ -22,6 +22,7 @@ import {
 } from 'recharts';
 
 // --- Constants ---
+// These must match the tags in ReflectionModal.tsx EXACTLY
 const GMC_DOMAINS = [
   "Knowledge, Skills & Performance",
   "Safety & Quality",
@@ -33,9 +34,6 @@ type TimeFilter = 'week' | 'month' | 'year' | 'all';
 
 // --- Helper Functions ---
 
-/**
- * Filters CPD entries based on the selected time filter.
- */
 const filterDataByTime = (entries: CPDEntry[], filter: TimeFilter): CPDEntry[] => {
   const now = new Date();
   if (filter === 'all') return entries;
@@ -56,29 +54,25 @@ const filterDataByTime = (entries: CPDEntry[], filter: TimeFilter): CPDEntry[] =
   return entries.filter(entry => new Date(entry.timestamp) >= startDate);
 };
 
-/**
- * Processes filtered data to count tag occurrences.
- */
 const processTagData = (entries: CPDEntry[]) => {
   const tagCounts: Record<string, number> = {};
   for (const entry of entries) {
     for (const tag of entry.tags || []) {
-      // Exclude GMC domains from this chart
-      if (!GMC_DOMAINS.includes(tag)) {
-        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      // STRICT EXCLUSION: Only count tags that are NOT in the GMC list
+      if (!GMC_DOMAINS.includes(tag.trim())) {
+        const cleanTag = tag.trim();
+        tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
       }
     }
   }
   return Object.entries(tagCounts)
     .map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count) // Sort descending
-    .slice(0, 10); // Take top 10
+    .sort((a, b) => b.count - a.count) 
+    .slice(0, 10); 
 };
 
-/**
- * Processes filtered data to count GMC domain occurrences.
- */
 const processGmcData = (entries: CPDEntry[]) => {
+  // Initialize with 0 so the radar chart always has shape
   const gmcCounts: Record<string, number> = {
     "Knowledge, Skills & Performance": 0,
     "Safety & Quality": 0,
@@ -88,26 +82,32 @@ const processGmcData = (entries: CPDEntry[]) => {
   
   for (const entry of entries) {
     for (const tag of entry.tags || []) {
-      if (GMC_DOMAINS.includes(tag)) {
-        gmcCounts[tag] = (gmcCounts[tag] || 0) + 1;
+      // STRICT INCLUSION: Only count tags that ARE in the GMC list
+      const cleanTag = tag.trim();
+      if (GMC_DOMAINS.includes(cleanTag)) {
+        gmcCounts[cleanTag] = (gmcCounts[cleanTag] || 0) + 1;
       }
     }
   }
   
-  // Format for RadarChart
-  return Object.entries(gmcCounts).map(([name, count]) => ({
-    domain: name.split(',')[0], // Shorten name for chart
-    count: count,
-  }));
+  // Map to chart format, shortening names for better display
+  return Object.entries(gmcCounts).map(([name, count]) => {
+    let shortName = name;
+    if (name.includes("Knowledge")) shortName = "Knowledge";
+    if (name.includes("Safety")) shortName = "Safety";
+    if (name.includes("Communication")) shortName = "Communication";
+    if (name.includes("Trust")) shortName = "Trust";
+
+    return {
+      domain: shortName,
+      fullDomain: name,
+      count: count,
+    };
+  });
 };
 
-/**
- * Processes filtered data for the timeline chart.
- */
-const processTimelineData = (entries: CPDEntry[]) => {
+const processTimelineData = (entries: CPDEntry[], filter: TimeFilter) => {
   const timelineMap: Record<string, number> = {};
-
-  // Helper to get the date key (YYYY-MM-DD)
   const toDateKey = (date: Date) => date.toISOString().split('T')[0];
   
   for (const entry of entries) {
@@ -117,7 +117,7 @@ const processTimelineData = (entries: CPDEntry[]) => {
   
   return Object.entries(timelineMap)
     .map(([date, count]) => ({ date, count }))
-    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort ascending by date
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
 
 
@@ -127,12 +127,9 @@ function AnalyticsInner() {
   const [allEntries, setAllEntries] = useState<CPDEntry[]>([]);
   const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
 
-  // 1. Fetch all CPD data on mount
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      // getCPD is optimized to only fetch timestamp and tags,
-      // which is exactly what we need for these charts.
       const entries = await getCPD(); 
       setAllEntries(entries);
       setLoading(false);
@@ -140,31 +137,22 @@ function AnalyticsInner() {
     fetchData();
   }, []);
 
-  // 2. Memoize filtered data
   const filteredData = useMemo(() => {
     return filterDataByTime(allEntries, timeFilter);
   }, [allEntries, timeFilter]);
 
-  // 3. Memoize data processing for each chart
   const tagData = useMemo(() => processTagData(filteredData), [filteredData]);
   const gmcDomainData = useMemo(() => processGmcData(filteredData), [filteredData]);
-  const timelineData = useMemo(() => processTimelineData(filteredData), [filteredData]);
+  const timelineData = useMemo(() => processTimelineData(filteredData, timeFilter), [filteredData, timeFilter]);
 
-  if (loading) {
-    return <p>Loading analytics data...</p>;
-  }
+  if (loading) return <p>Loading analytics...</p>;
 
   if (allEntries.length === 0) {
     return (
-      <div className="card">
-        <div className="card__body">
-          <p>No CPD entries found. Once you add reflections and tags, your analytics will appear here.</p>
-        </div>
-      </div>
+      <div className="card"><div className="card__body">No CPD entries found yet.</div></div>
     );
   }
   
-  // Custom Tooltip for charts
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -186,7 +174,6 @@ function AnalyticsInner() {
 
   return (
     <>
-      {/* Time Filter Toggle */}
       <div style={{ marginBottom: 24, maxWidth: '200px' }}>
         <label className="form-label" style={{fontSize: '0.875rem'}}>Time Period</label>
         <select
@@ -204,109 +191,102 @@ function AnalyticsInner() {
       {/* Chart 1: CPD by Tag (Horizontal Bar Chart) */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card__body" style={{ padding: '20px' }}>
-          <h3 style={{ marginBottom: 20 }}>Top 10 CPD Tags</h3>
+          <h3 style={{ marginBottom: 20 }}>Clinical Topics (Top 10)</h3>
+          <p style={{fontSize: '0.85rem', color: 'var(--umbil-muted)', marginBottom: 16}}>
+            Excludes GMC domains to focus on clinical subjects.
+          </p>
           {tagData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={tagData} layout="vertical" margin={{ left: 100 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--umbil-divider)" />
-                <XAxis type="number" allowDecimals={false} stroke="var(--umbil-muted)" />
+              <BarChart data={tagData} layout="vertical" margin={{ left: 10, right: 30, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--umbil-divider)" horizontal={false} />
+                <XAxis type="number" allowDecimals={false} hide />
                 <YAxis 
                   type="category" 
                   dataKey="name" 
-                  width={150} 
-                  stroke="var(--umbil-muted)" 
-                  style={{ fontSize: '12px' }}
+                  width={100} 
+                  stroke="var(--umbil-text)" 
+                  style={{ fontSize: '11px', fontWeight: 500 }}
+                  tickLine={false}
                 />
-                <Tooltip content={<CustomTooltip />} cursor={{ fill: 'var(--umbil-hover-bg)' }} />
-                <Bar dataKey="count" fill="var(--umbil-brand-teal)" barSize={20} />
+                <Tooltip cursor={{ fill: 'var(--umbil-hover-bg)' }} content={<CustomTooltip />} />
+                <Bar dataKey="count" fill="var(--umbil-brand-teal)" barSize={24} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
-          ) : <p>No tag data for this period.</p>}
+          ) : <p style={{color: 'var(--umbil-muted)', fontStyle: 'italic'}}>No clinical tags found in this period.</p>}
         </div>
       </div>
 
       {/* Chart 2: GMC Domains (Radar Chart) */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card__body" style={{ padding: '20px' }}>
-          <h3 style={{ marginBottom: 20 }}>GMC Domain Focus</h3>
-          {gmcDomainData.some(d => d.count > 0) ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <RadarChart cx="50%" cy="50%" outerRadius="80%" data={gmcDomainData}>
+          <h3 style={{ marginBottom: 20 }}>GMC Domain Coverage</h3>
+          <div style={{ height: 300, width: '100%' }}>
+            <ResponsiveContainer width="100%" height="100%">
+              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={gmcDomainData}>
                 <PolarGrid stroke="var(--umbil-divider)" />
                 <PolarAngleAxis 
                   dataKey="domain" 
-                  stroke="var(--umbil-text)" 
-                  style={{ fontSize: '12px' }}
+                  stroke="var(--umbil-muted)" 
+                  style={{ fontSize: '11px', fontWeight: 600 }} 
+                  tickSize={10}
                 />
                 <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
                 <Radar 
-                  name="Domains" 
+                  name="Entries" 
                   dataKey="count" 
                   stroke="var(--umbil-brand-teal)" 
                   fill="var(--umbil-brand-teal)" 
-                  fillOpacity={0.6} 
+                  fillOpacity={0.5} 
                 />
                 <Tooltip content={<CustomTooltip />} />
               </RadarChart>
             </ResponsiveContainer>
-          ) : <p>No GMC domain data for this period.</p>}
+          </div>
         </div>
       </div>
 
       {/* Chart 3: Timeline (Line Chart) */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card__body" style={{ padding: '20px' }}>
-          <h3 style={{ marginBottom: 20 }}>CPD Activity Timeline</h3>
+          <h3 style={{ marginBottom: 20 }}>Activity Timeline</h3>
           {timelineData.length > 0 ? (
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={timelineData} margin={{ right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--umbil-divider)" />
+              <LineChart data={timelineData} margin={{ right: 20, left: -20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--umbil-divider)" vertical={false} />
                 <XAxis 
                   dataKey="date" 
                   stroke="var(--umbil-muted)" 
-                  style={{ fontSize: '12px' }}
+                  style={{ fontSize: '11px' }}
+                  tickLine={false}
+                  axisLine={false}
                   tickFormatter={(dateStr) => {
-                    // Show more detail for shorter time frames
-                    if (timeFilter === 'week' || timeFilter === 'month') {
-                      return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-                    }
-                    return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short', year: '2-digit' });
+                    if (timeFilter === 'week') return new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short' });
+                    if (timeFilter === 'month') return new Date(dateStr).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                    return new Date(dateStr).toLocaleDateString('en-GB', { month: 'short' });
                   }}
                 />
-                <YAxis allowDecimals={false} stroke="var(--umbil-muted)" />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--umbil-divider)' }} />
+                <YAxis allowDecimals={false} stroke="var(--umbil-muted)" style={{ fontSize: '11px' }} tickLine={false} axisLine={false} />
+                <Tooltip content={<CustomTooltip />} />
                 <Line 
                   type="monotone" 
                   dataKey="count" 
                   stroke="var(--umbil-brand-teal)" 
-                  strokeWidth={2} 
-                  dot={{ r: 4, fill: 'var(--umbil-brand-teal)' }}
+                  strokeWidth={3} 
+                  dot={{ r: 4, fill: 'var(--umbil-surface)', stroke: 'var(--umbil-brand-teal)', strokeWidth: 2 }}
                   activeDot={{ r: 6 }}
                 />
               </LineChart>
             </ResponsiveContainer>
-          ) : <p>No timeline data for this period.</p>}
+          ) : <p style={{color: 'var(--umbil-muted)', fontStyle: 'italic'}}>No activity in this period.</p>}
         </div>
       </div>
     </>
   );
 }
 
-// Wrapper component to check for user authentication
 export default function CPDAnalyticsPage() {
   const { email, loading } = useUserEmail();
-
-  if (loading) return null; // Wait for auth state
-  
-  if (!email) {
-    return (
-      <div className="card">
-        <div className="card__body">
-          Please <a href="/auth" className="link">sign in</a> to view this page.
-        </div>
-      </div>
-    );
-  }
-
+  if (loading) return null; 
+  if (!email) return <div className="card"><div className="card__body">Please sign in to view analytics.</div></div>;
   return <AnalyticsInner />;
 }
