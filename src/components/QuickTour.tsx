@@ -8,49 +8,49 @@ const tourSteps = [
     id: "step-0",
     title: "1. Ask Your Question",
     text: "Start here. You can ask anything—clinical questions, drug dosages, or reflective prompts.",
-    highlightId: "tour-highlight-askbar", // Highlights the input bar
+    highlightId: "tour-highlight-askbar", 
   },
-  // STEP 1: Styles (NEW)
+  // STEP 1: Styles
   {
     id: "step-1",
     title: "2. Choose Your Depth",
     text: "Need a quick answer for the ward or a detailed explanation for study? Switch between 'Clinic', 'Standard', and 'Deep Dive' modes here.",
-    highlightId: "tour-highlight-style-dropdown", // Highlights the new dropdown
+    highlightId: "tour-highlight-style-dropdown", 
   },
   // STEP 2: Answer
   {
     id: "step-2",
     title: "3. Get Your Answer",
     text: "Umbil provides a concise, evidence-based answer. Now, let's turn this knowledge into a permanent record.",
-    highlightId: "tour-highlight-message", // Highlights the dummy response
+    highlightId: "tour-highlight-message", 
   },
-  // STEP 3: Log
+  // STEP 3: Log (UPDATED TEXT)
   {
     id: "step-3",
     title: "4. Log Learning",
-    text: "Click 'Log learning (CPD)' to save this interaction. This builds your professional portfolio automatically.",
-    highlightId: "tour-highlight-cpd-button", // Highlights the CPD button
+    text: "Click 'Log learning (CPD)' to save this interaction. This keeps your streak alive and builds your professional portfolio automatically.",
+    highlightId: "tour-highlight-cpd-button", 
   },
   // STEP 4: Reflect
   {
     id: "step-4",
     title: "5. Reflect & Save",
     text: "Write your own notes or click 'Generate' to let AI create a GMC-compliant reflection for you. Click 'Save' to finish.",
-    highlightId: "tour-highlight-modal", // Highlights the open modal
+    highlightId: "tour-highlight-modal", 
   },
-  // STEP 5: PDP Info (NEW - No highlight, just info centered)
+  // STEP 5: PDP Info
   {
     id: "step-5",
     title: "6. Automated PDP Goals",
     text: "Umbil works in the background. If you tag a topic (e.g., 'Asthma') 7 times, we'll automatically suggest a Personal Development Plan goal to help formalize your learning.",
-    highlightId: null, // Center screen
+    highlightId: null, 
   },
-  // STEP 6: Sidebar
+  // STEP 6: Sidebar (UPDATED TEXT)
   {
     id: "step-6",
-    title: "7. Explore Your Logs",
-    text: "Find all your saved entries, export reports, and track your learning streaks here in the menu.",
-    highlightId: "tour-highlight-sidebar", // Highlights sidebar
+    title: "7. Explore Analytics",
+    text: "Open the menu to see your learning turn into visual charts. Track your GMC domain coverage, clinical topics, and maintain your streaks!",
+    highlightId: "tour-highlight-sidebar", 
   },
   // STEP 7: Finish
   {

@@ -276,65 +276,65 @@ a {
   cursor: not-allowed;
 }
 
-/* Answer Style Dropdown Styles */
+/* --- Answer Style Dropdown (Gemini Aesthetic) --- */
+
 .style-dropdown-container {
   position: absolute;
-  right: 60px; /* 10px (gap) + 40px (send button) + 10px (gap) */
+  right: 60px; /* Positioned to the left of the send button */
   top: 50%;
   transform: translateY(-50%);
-  z-index: 5; /* Sits above the input */
+  z-index: 5; 
   flex-shrink: 0; 
 }
 
 .style-dropdown-button {
-  background-color: var(--umbil-hover-bg);
-  color: var(--umbil-text);
-  border: 1px solid var(--umbil-divider);
+  background-color: transparent; /* Transparent background */
+  color: var(--umbil-muted);     /* Muted text for minimal look */
+  border: none;                  /* No borders */
   border-radius: var(--umbil-radius-sm);
-  padding: 8px 12px;
-  font-size: 0.9rem;
+  padding: 6px 10px;             /* Compact padding */
+  font-size: 0.85rem;            /* Smaller, unobtrusive font */
   font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
-  transition: background-color 0.2s, border-color 0.2s;
+  gap: 4px;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .style-dropdown-button:hover {
-  background-color: var(--umbil-hover-bg);
-  border-color: var(--umbil-muted);
+  background-color: var(--umbil-hover-bg); /* Subtle hover bubble */
+  color: var(--umbil-text);                /* Darker text on hover */
 }
 
-.dark .style-dropdown-button {
-  background-color: var(--umbil-surface);
-}
-.dark .style-dropdown-button:hover {
-  background-color: var(--umbil-hover-bg);
+.style-dropdown-button svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
 }
 
 .style-dropdown-menu {
   position: absolute;
-  bottom: 110%; /* Position above the button */
+  bottom: 130%; /* Floats above the input bar */
   right: 0;
-  min-width: 220px;
+  min-width: 200px;
   background-color: var(--umbil-surface);
   border-radius: var(--umbil-radius-sm);
   border: 1px solid var(--umbil-divider);
   box-shadow: var(--umbil-shadow-lg);
-  z-index: 110; /* Above header */
-  padding: 8px;
+  z-index: 110;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .style-dropdown-menu button {
   background: none;
   border: none;
   width: 100%;
-  padding: 10px 12px;
-  border-radius: var(--umbil-radius-sm);
+  padding: 8px 12px;
+  border-radius: 4px;
   text-align: left;
   cursor: pointer;
   transition: background-color 0.2s;
@@ -351,14 +351,15 @@ a {
 }
 
 .style-dropdown-menu button strong {
+  display: block;
   font-weight: 600;
   font-size: 0.9rem;
 }
 
 .style-dropdown-menu button p {
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--umbil-muted);
-  margin-top: 2px;
+  margin: 2px 0 0 0;
 }
 
 

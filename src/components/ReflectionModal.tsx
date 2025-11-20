@@ -16,10 +16,11 @@ type ReflectionModalProps = {
 };
 
 // --- Constants ---
+// UPDATED: Commas removed to prevent splitting in analytics/charts
 const GMC_CLUSTERS = [
-  "Knowledge, Skills & Performance",
+  "Knowledge Skills & Performance", 
   "Safety & Quality",
-  "Communication, Partnership & Teamwork",
+  "Communication Partnership & Teamwork",
   "Maintaining Trust",
 ];
 
@@ -38,11 +39,9 @@ export default function ReflectionModal({
   cpdEntry,
 }: ReflectionModalProps) {
   const [reflection, setReflection] = useState("");
-  const [tags, setTags] = useState(""); // This is the comma-separated STRING from the input
+  const [tags, setTags] = useState(""); // Comma-separated string input
   
-  // New state for AI generation
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
-  // REMOVED: isGeneratingTags
   const [generatedTags, setGeneratedTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -69,7 +68,7 @@ export default function ReflectionModal({
   };
 
   /**
-   * 3. Handles AI Reflection & Tag Generation (Streaming)
+   * Handles AI Reflection & Tag Generation (Streaming)
    */
   const handleGenerateReflection = async () => {
     if (!cpdEntry) return;
@@ -78,7 +77,7 @@ export default function ReflectionModal({
     setReflection("");
     setGeneratedTags([]);
 
-    let fullText = ""; // Accumulate the full streamed response here
+    let fullText = ""; 
 
     try {
       const res = await fetch("/api/generate-reflection", {
@@ -104,40 +103,37 @@ export default function ReflectionModal({
         
         fullText += decoder.decode(value);
 
-        // As we stream, only show the user the part *before* the tags.
         if (fullText.includes("---TAGS---")) {
           const parts = fullText.split("---TAGS---");
-          setReflection(parts[0]); // Only show reflection
+          setReflection(parts[0]); 
         } else {
-          setReflection(fullText); // Show everything so far
+          setReflection(fullText); 
         }
       }
 
       // --- Stream is finished, now parse the tags ---
       if (fullText.includes("---TAGS---")) {
         const parts = fullText.split("---TAGS---");
-        setReflection(parts[0].trim()); // Set final clean reflection
+        setReflection(parts[0].trim()); 
         
         const tagText = parts[1].trim();
         
         try {
-          // Try to parse as JSON array (e.g., ["tag1", "tag2"])
           const parsedTags = JSON.parse(tagText);
           if (Array.isArray(parsedTags)) {
             const newTags = parsedTags.filter((t: string) => t);
             setGeneratedTags(newTags);
           }
         } catch (e) {
-          // Fallback: AI failed to send JSON, treat as comma-separated
+          // Fallback
           const fallbackTags = tagText
-            .replace(/[\[\]"]/g, "") // Remove brackets/quotes
+            .replace(/[\[\]"]/g, "") 
             .split(",")
             .map((t: string) => t.trim())
             .filter((t: string) => t);
           setGeneratedTags(fallbackTags);
         }
       }
-      // If no delimiter, we just get the reflection and no tags.
       
     } catch (err) {
       setError(`⚠️ ${getErrorMessage(err)}`);
@@ -145,10 +141,6 @@ export default function ReflectionModal({
       setIsGeneratingReflection(false);
     }
   };
-
-  /**
-   * 4. REMOVED: handleGenerateTags() function
-   */
 
   /**
    * Main save handler
@@ -166,24 +158,10 @@ export default function ReflectionModal({
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Add Reflection to CPD</h3>
           <button onClick={onClose} className="close-button">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <line x1="18" y1="6" x2="6" y2="18"></line>
-              <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
         
-        {/* 1. Streak Display (with subtitle) */}
         <div className="streak-display-modal">
           <div>
             🔥 Current Learning Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
@@ -195,7 +173,6 @@ export default function ReflectionModal({
 
         {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
 
-        {/* Reflection Box */}
         <div className="form-group">
           <label className="form-label">Your Reflection (GMC-style)</label>
           <textarea
@@ -208,7 +185,6 @@ export default function ReflectionModal({
           />
         </div>
 
-        {/* 3. Generate Reflection Button */}
         <div className="generate-button-container">
           <button
             className="generate-button"
@@ -227,7 +203,6 @@ export default function ReflectionModal({
         </div>
 
 
-        {/* 2. GMC Cluster Tags */}
         <div className="form-group">
           <label className="form-label">GMC Domain Tags (Click to add)</label>
           <div className="gmc-cluster-container">
@@ -239,7 +214,6 @@ export default function ReflectionModal({
           </div>
         </div>
 
-        {/* Tag Input */}
         <div className="form-group">
           <label className="form-label">Tags (comma-separated)</label>
           <input
@@ -249,7 +223,6 @@ export default function ReflectionModal({
             onChange={(e) => setTags(e.target.value)}
             placeholder="e.g., gynaecology, diabetes"
           />
-          {/* 4. Auto-generated tags container */}
           {generatedTags.length > 0 && (
             <>
               <div className="tag-button-container">
@@ -264,9 +237,6 @@ export default function ReflectionModal({
           )}
         </div>
         
-        {/* 4. REMOVED: Generate Tags Button */}
-
-
         <div className="flex justify-end mt-4">
           <button onClick={handleSave} className="btn btn--primary">
             Save to My CPD
