@@ -19,7 +19,7 @@ export default function AuthPage() {
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_IN") {
-        // --- FIX: Set the flag so HomeContent knows to show the tour ---
+        // Set flag for standard email/password login
         sessionStorage.setItem("justLoggedIn", "true");
         router.push("/");
       }
@@ -53,6 +53,9 @@ export default function AuthPage() {
           data: {
             grade: grade || null, 
           },
+          // --- FIX: Redirect verification links to the callback page ---
+          // This ensures the session is handled and the 'justLoggedIn' flag is set
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
       error = signUpError;
