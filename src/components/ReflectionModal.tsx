@@ -13,10 +13,10 @@ type ReflectionModalProps = {
     question: string;
     answer: string;
   } | null;
+  tourId?: string; // <-- NEW PROP
 };
 
 // --- Constants ---
-// UPDATED: Commas removed to prevent splitting in analytics/charts
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance", 
   "Safety & Quality",
@@ -37,9 +37,10 @@ export default function ReflectionModal({
   onSave,
   currentStreak,
   cpdEntry,
+  tourId, // <-- Destructure new prop
 }: ReflectionModalProps) {
   const [reflection, setReflection] = useState("");
-  const [tags, setTags] = useState(""); // Comma-separated string input
+  const [tags, setTags] = useState(""); 
   
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
   const [generatedTags, setGeneratedTags] = useState<string[]>([]);
@@ -56,9 +57,6 @@ export default function ReflectionModal({
     }
   }, [isOpen]);
 
-  /**
-   * Appends a tag to the tags input field, avoiding duplicates.
-   */
   const addTag = (tagToAdd: string) => {
     const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     if (!tagList.includes(tagToAdd)) {
@@ -67,9 +65,6 @@ export default function ReflectionModal({
     setGeneratedTags(prev => prev.filter((t: string) => t !== tagToAdd));
   };
 
-  /**
-   * Handles AI Reflection & Tag Generation (Streaming)
-   */
   const handleGenerateReflection = async () => {
     if (!cpdEntry) return;
     setIsGeneratingReflection(true);
@@ -100,9 +95,7 @@ export default function ReflectionModal({
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        
         fullText += decoder.decode(value);
-
         if (fullText.includes("---TAGS---")) {
           const parts = fullText.split("---TAGS---");
           setReflection(parts[0]); 
@@ -111,13 +104,10 @@ export default function ReflectionModal({
         }
       }
 
-      // --- Stream is finished, now parse the tags ---
       if (fullText.includes("---TAGS---")) {
         const parts = fullText.split("---TAGS---");
         setReflection(parts[0].trim()); 
-        
         const tagText = parts[1].trim();
-        
         try {
           const parsedTags = JSON.parse(tagText);
           if (Array.isArray(parsedTags)) {
@@ -125,16 +115,10 @@ export default function ReflectionModal({
             setGeneratedTags(newTags);
           }
         } catch (e) {
-          // Fallback
-          const fallbackTags = tagText
-            .replace(/[\[\]"]/g, "") 
-            .split(",")
-            .map((t: string) => t.trim())
-            .filter((t: string) => t);
+          const fallbackTags = tagText.replace(/[\[\]"]/g, "").split(",").map((t) => t.trim()).filter(Boolean);
           setGeneratedTags(fallbackTags);
         }
       }
-      
     } catch (err) {
       setError(`⚠️ ${getErrorMessage(err)}`);
     } finally {
@@ -142,9 +126,6 @@ export default function ReflectionModal({
     }
   };
 
-  /**
-   * Main save handler
-   */
   const handleSave = () => {
     const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
     onSave(reflection, tagList);
@@ -154,7 +135,8 @@ export default function ReflectionModal({
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content">
+      {/* Attach the tourId directly to the content box */}
+      <div className="modal-content" id={tourId}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Add Reflection to CPD</h3>
           <button onClick={onClose} className="close-button">
@@ -201,7 +183,6 @@ export default function ReflectionModal({
             )}
           </button>
         </div>
-
 
         <div className="form-group">
           <label className="form-label">GMC Domain Tags (Click to add)</label>

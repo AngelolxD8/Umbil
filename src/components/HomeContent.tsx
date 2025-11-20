@@ -132,15 +132,9 @@ const AnswerStyleDropdown: React.FC<{
 };
 
 // --- Helpers ---
-
 const getErrorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
-  if (
-    typeof err === "object" &&
-    err !== null &&
-    "message" in err &&
-    typeof (err as { message: unknown }).message === "string"
-  ) {
+  if (typeof err === "object" && err !== null && "message" in err && typeof (err as { message: unknown }).message === "string") {
     return (err as { message: string }).message;
   }
   if (typeof err === "string") return err;
@@ -176,7 +170,6 @@ const DUMMY_CPD_ENTRY = {
 };
 
 // --- Component ---
-
 export default function HomeContent() {
   const [q, setQ] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -192,25 +185,19 @@ export default function HomeContent() {
   } | null>(null);
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // FIX: Get 'loading' state from useUserEmail
   const { email, loading: userLoading } = useUserEmail();
   const searchParams = useSearchParams();
   const router = useRouter(); 
   const [profile, setProfile] = useState<Profile | null>(null);
-
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
-
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
   // --- TOUR STATE ---
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
-  // ---------------------
 
   // --- Effects ---
-
   useEffect(() => {
     const fetchProfile = async () => {
       const userProfile = await getMyProfile();
@@ -221,15 +208,11 @@ export default function HomeContent() {
     }
   }, [email]);
 
-  // --- START TOUR LOGIC (Combined) ---
   useEffect(() => {
-    // FIX: Return early if auth is still loading to prevent premature redirect
     if (userLoading) return;
-
     if (searchParams.get("new-chat")) {
       setConversation([]);
     }
-
     const checkTour = () => {
       const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
       const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
@@ -241,12 +224,10 @@ export default function HomeContent() {
       } else if (justLoggedIn && !hasCompletedTour) {
         setShowWelcomeModal(true);
       }
-
       if (justLoggedIn) {
         sessionStorage.removeItem("justLoggedIn");
       }
     };
-
     if (searchParams.get("tour")) {
       if (!email) {
         router.push("/auth"); 
@@ -256,8 +237,7 @@ export default function HomeContent() {
     } else {
       checkTour();
     }
-    
-  }, [searchParams, email, router, userLoading]); // Added userLoading dependency
+  }, [searchParams, email, router, userLoading]);
 
   const scrollToBottom = (instant = false) => {
     const container = document.querySelector(".main-content");
@@ -294,7 +274,6 @@ export default function HomeContent() {
   }, [loading]);
 
   // --- TOUR HANDLERS ---
-
   const handleStartTour = () => {
     setShowWelcomeModal(false);
     setIsTourOpen(true);
@@ -308,14 +287,12 @@ export default function HomeContent() {
 
   const handleTourStepChange = useCallback((stepIndex: number) => {
     setTourStep(stepIndex); 
-    
     if (stepIndex === 4) {
       setCurrentCpdEntry(DUMMY_CPD_ENTRY); 
       setIsModalOpen(true);
     } else if (isModalOpen) {
       setIsModalOpen(false);
     }
-
     if (stepIndex === 6) {
       const menuButton = document.getElementById("tour-highlight-sidebar-button");
       menuButton?.click(); 
@@ -328,7 +305,6 @@ export default function HomeContent() {
     setIsModalOpen(false); 
     setCurrentCpdEntry(null);
     localStorage.setItem("hasCompletedQuickTour", "true");
-    
     const sidebar = document.querySelector('.sidebar.is-open');
     if (sidebar) {
        // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -337,7 +313,6 @@ export default function HomeContent() {
     }
   }, []);
 
-
   // --- API & Chat Logic ---
   const fetchUmbilResponse = async (
     currentConversation: ConversationEntry[],
@@ -345,7 +320,6 @@ export default function HomeContent() {
   ) => {
     setLoading(true);
     const lastUserQuestion = [...currentConversation].reverse().find((e) => e.type === "user")?.question;
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token;
@@ -353,9 +327,7 @@ export default function HomeContent() {
           role: entry.type === "user" ? "user" : "assistant",
           content: entry.content,
       }));
-      
       const styleToUse = styleOverride || answerStyle;
-
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: {
@@ -368,28 +340,23 @@ export default function HomeContent() {
           answerStyle: styleToUse,
         }),
       });
-
       if (!res.ok) {
         const data: AskResponse = await res.json();
         throw new Error(data.error || "Request failed");
       }
-
       const contentType = res.headers.get("Content-Type");
-
       if (contentType?.includes("application/json")) {
         const data: AskResponse = await res.json();
         setConversation((prev) => [
           ...prev,
           { type: "umbil", content: data.answer ?? "", question: lastUserQuestion },
         ]);
-      } 
-      else if (contentType?.includes("text/plain")) {
+      } else if (contentType?.includes("text/plain")) {
         if (!res.body) throw new Error("Response body is empty.");
         setConversation((prev) => [
           ...prev,
           { type: "umbil", content: "", question: lastUserQuestion },
         ]);
-        
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         while (true) {
@@ -432,16 +399,12 @@ export default function HomeContent() {
   };
 
   // --- Utility Handlers ---
-
   const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
 
   const handleCopyMessage = (content: string) => {
     navigator.clipboard.writeText(content)
       .then(() => setToastMessage("Copied to clipboard!"))
-      .catch((err) => {
-        console.error(err);
-        setToastMessage("❌ Failed to copy text.");
-      });
+      .catch((err) => { console.error(err); setToastMessage("❌ Failed to copy text."); });
   };
 
   const handleShare = async () => {
@@ -449,13 +412,9 @@ export default function HomeContent() {
         const prefix = entry.type === "user" ? "You" : "Umbil";
         return `${prefix}:\n${entry.content}\n\n--------------------\n`;
       }).join("\n");
-
     if (navigator.share) {
-      try {
-        await navigator.share({ title: "Umbil Conversation", text: textContent });
-      } catch (err) { console.log(err); }
+      try { await navigator.share({ title: "Umbil Conversation", text: textContent }); } catch (err) { console.log(err); }
     } else {
-       // Fallback download
        const blob = new Blob([textContent], { type: "text/plain;charset=utf-8" });
        const url = URL.createObjectURL(blob);
        const a = document.createElement("a");
@@ -479,35 +438,24 @@ export default function HomeContent() {
   
   const handleDeepDive = async (entry: ConversationEntry, index: number) => {
     if (loading || isTourOpen) return;
-    if (!entry.question) {
-        setToastMessage("❌ Cannot deep-dive on this message.");
-        return;
-    }
+    if (!entry.question) { setToastMessage("❌ Cannot deep-dive on this message."); return; }
     const historyForDeepDive = conversation.slice(0, index);
     await fetchUmbilResponse(historyForDeepDive, 'deepDive');
   };
 
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
     if (isTourOpen) return;
-    if (!email) {
-      setToastMessage("Please sign in to add CPD entries.");
-      return;
-    }
-    setCurrentCpdEntry({
-      question: entry.question || "", 
-      answer: entry.content,
-    });
+    if (!email) { setToastMessage("Please sign in to add CPD entries."); return; }
+    setCurrentCpdEntry({ question: entry.question || "", answer: entry.content });
     setIsModalOpen(true);
   };
 
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (isTourOpen) {
-      handleTourStepChange(5); // Go to Step 5 (PDP Info)
+      handleTourStepChange(5); 
       return;
     }
-
     if (!currentCpdEntry) return;
-
     const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { 
       timestamp: new Date().toISOString(),
       question: currentCpdEntry.question,
@@ -515,19 +463,12 @@ export default function HomeContent() {
       reflection,
       tags 
     };
-    
     const { error } = await addCPD(cpdEntry);
-    if (error) {
-      console.error("Failed to save CPD entry:", error);
-      setToastMessage("❌ Failed to save CPD entry.");
-    } else {
-      setToastMessage("✅ CPD entry saved remotely!");
-    }
+    if (error) { console.error("Failed to save CPD entry:", error); setToastMessage("❌ Failed to save CPD entry."); } 
+    else { setToastMessage("✅ CPD entry saved remotely!"); }
     setIsModalOpen(false);
     setCurrentCpdEntry(null);
   };
-
-  // --- Render Message Function ---
 
   const renderMessage = (entry: ConversationEntry, index: number) => {
     const isUmbil = entry.type === "umbil";
@@ -555,37 +496,28 @@ export default function HomeContent() {
         {isUmbil && (
           <div className="umbil-message-actions">
             <button className="action-button" onClick={handleShare} title="Share conversation">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
-              Share
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> Share
             </button>
-
             <button className="action-button" onClick={() => handleCopyMessage(entry.content)} title="Copy this message">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-              Copy
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy
             </button>
-            
             {isLastMessage && !loading && entry.question && (
               <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic">
-                <svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
-                Deep Dive
+                <svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive
               </button>
             )}
-
             {isLastMessage && !loading && (
               <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg>
-                Regenerate
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate
               </button>
             )}
-
             <button
               id={isTourOpen ? "tour-highlight-cpd-button" : undefined}
               className="action-button"
               onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)}
               title="Add reflection to your CPD log"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
-              Log learning (CPD)
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Log learning (CPD)
             </button>
           </div>
         )}
@@ -610,15 +542,10 @@ export default function HomeContent() {
             <div className="conversation-container">
               <div className="message-thread">
                 {convoToShow.map(renderMessage)}
-                {loading && (
-                  <div className="loading-indicator">
-                    {loadingMsg}<span>•</span><span>•</span><span>•</span>
-                  </div>
-                )}
+                {loading && <div className="loading-indicator">{loadingMsg}<span>•</span><span>•</span><span>•</span></div>}
                 <div ref={messagesEndRef} />
               </div>
             </div>
-            
             <div className="sticky-input-wrapper">
               <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px', position: 'relative' }}>
                 <input
@@ -630,15 +557,8 @@ export default function HomeContent() {
                   disabled={isTourOpen} 
                   style={{ paddingRight: '150px' }} 
                 />
-                <AnswerStyleDropdown
-                  currentStyle={answerStyle}
-                  onStyleChange={setAnswerStyle}
-                />
-                <button
-                  className="ask-bar-send-button"
-                  onClick={isTourOpen ? () => handleTourStepChange(2) : ask} 
-                  disabled={loading}
-                >
+                <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
+                <button className="ask-bar-send-button" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
                 </button>
               </div>
@@ -657,40 +577,29 @@ export default function HomeContent() {
                 disabled={isTourOpen}
                 style={{ paddingRight: '150px' }}
               />
-              <AnswerStyleDropdown
-                currentStyle={answerStyle}
-                onStyleChange={setAnswerStyle}
-              />
-              <button
-                className="ask-bar-send-button"
-                onClick={isTourOpen ? () => handleTourStepChange(2) : ask}
-                disabled={loading}
-              >
+              <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
+              <button className="ask-bar-send-button" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
               </button>
             </div>
             <p className="disclaimer" style={{ marginTop: "36px" }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg>
-              Please don’t enter any patient-identifiable information.
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg> Please don’t enter any patient-identifiable information.
             </p>
           </div>
         )}
       </div>
 
-      {showWelcomeModal && (
-        <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />
-      )}
-
+      {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
+      {/* REMOVED THE WRAPPER DIV, PASSING ID DIRECTLY */}
       {(isModalOpen || (isTourOpen && tourStep === 4)) && (
-        <div id={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined}>
-          <ReflectionModal
-            isOpen={isModalOpen}
-            onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)}
-            onSave={handleSaveCpd}
-            currentStreak={streakLoading ? 0 : currentStreak}
-            cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry}
-          />
-        </div>
+        <ReflectionModal
+          isOpen={isModalOpen}
+          onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)}
+          onSave={handleSaveCpd}
+          currentStreak={streakLoading ? 0 : currentStreak}
+          cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry}
+          tourId={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined}
+        />
       )}
       
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
