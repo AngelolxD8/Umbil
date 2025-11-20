@@ -22,7 +22,6 @@ import {
 } from 'recharts';
 
 // --- Constants ---
-// Must match ReflectionModal exactly (no commas)
 const GMC_DOMAINS = [
   "Knowledge Skills & Performance",
   "Safety & Quality",
@@ -128,6 +127,45 @@ const processTimelineData = (entries: CPDEntry[]) => {
   return Object.entries(timelineMap)
     .map(([date, count]) => ({ date, count }))
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+};
+
+// --- Custom Tick Component for Multi-line Text ---
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const RenderGmcTick = ({ payload, x, y, textAnchor, ...props }: any) => {
+  const label = payload.value;
+  let lines = [label];
+
+  // Manual word wrapping logic for specific GMC domains
+  if (label.includes("Communication")) {
+    lines = ["Communication", "Partnership", "& Teamwork"];
+  } else if (label.includes("Knowledge")) {
+    lines = ["Knowledge Skills", "& Performance"];
+  } else if (label.includes("Safety")) {
+    lines = ["Safety", "& Quality"];
+  } else if (label.includes("Maintaining")) {
+    lines = ["Maintaining", "Trust"];
+  }
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text
+        x={0}
+        y={0}
+        dy={0}
+        textAnchor={textAnchor}
+        fill="var(--umbil-muted)"
+        fontSize={10}
+        fontWeight={600}
+        {...props}
+      >
+        {lines.map((line, index) => (
+          <tspan x={0} dy={index === 0 ? 0 : 12} key={index}>
+            {line}
+          </tspan>
+        ))}
+      </text>
+    </g>
+  );
 };
 
 
@@ -236,9 +274,8 @@ function AnalyticsInner() {
                 <PolarGrid stroke="var(--umbil-divider)" />
                 <PolarAngleAxis 
                   dataKey="domain" 
-                  stroke="var(--umbil-muted)" 
-                  style={{ fontSize: '10px', fontWeight: 600 }} 
-                  tickSize={10}
+                  // Use custom tick component for wrapping
+                  tick={<RenderGmcTick />}
                 />
                 <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
                 <Radar 
