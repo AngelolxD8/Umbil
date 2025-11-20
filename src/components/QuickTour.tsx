@@ -27,7 +27,7 @@ const tourSteps = [
   {
     id: "step-4",
     title: "3. Add to CPD",
-    text: "Click 'Add to CPD' on any of Umbil's answers to open the reflection modal.",
+    text: "Click 'Log learning (CPD)' on any of Umbil's answers to open the reflection modal.",
     highlightId: "tour-highlight-cpd-button", // ID of the dummy CPD button
   },
   {

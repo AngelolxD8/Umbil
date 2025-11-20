@@ -5,11 +5,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from 'next/dynamic'; 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
-// --- THIS IS THE FIX ---
-import Toast from "@/components/Toast"; // <-- Re-added the missing import
-// ------------------------
-
+import Toast from "@/components/Toast";
 import { addCPD, CPDEntry } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -111,8 +107,6 @@ const AnswerStyleDropdown: React.FC<{
     </div>
   );
 };
-// --- END: Answer Style Dropdown Component ---
-
 
 // --- Helpers ---
 
@@ -157,8 +151,6 @@ const DUMMY_CPD_ENTRY = {
   question: "What are the red flags for a headache?",
   answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional",
 };
-// ------------------------------
-
 
 // --- Component ---
 
@@ -239,7 +231,6 @@ export default function HomeContent() {
     }
     
   }, [searchParams, email, router]);
-  // -------------------------
 
   const scrollToBottom = (instant = false) => {
     const container = document.querySelector(".main-content");
@@ -302,11 +293,11 @@ export default function HomeContent() {
     
     const sidebar = document.querySelector('.sidebar.is-open');
     if (sidebar) {
-       const closeButton = sidebar.querySelector('.sidebar-header button') as HTMLButtonElement;
+       // eslint-disable-next-line @typescript-eslint/no-explicit-any
+       const closeButton = sidebar.querySelector('.sidebar-header button') as any;
        closeButton?.click();
     }
   }, []);
-  // --------------------------
 
 
   // --- Core API Logic ---
@@ -636,7 +627,7 @@ export default function HomeContent() {
               title="Add reflection to your CPD log"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
-              Add to CPD
+              Log learning (CPD)
             </button>
           </div>
         )}
