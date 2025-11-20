@@ -22,11 +22,11 @@ import {
 } from 'recharts';
 
 // --- Constants ---
-// These must match the tags in ReflectionModal.tsx EXACTLY
+// Must match ReflectionModal exactly (no commas)
 const GMC_DOMAINS = [
-  "Knowledge, Skills & Performance",
+  "Knowledge Skills & Performance",
   "Safety & Quality",
-  "Communication, Partnership & Teamwork",
+  "Communication Partnership & Teamwork",
   "Maintaining Trust",
 ];
 
@@ -58,7 +58,7 @@ const processTagData = (entries: CPDEntry[]) => {
   const tagCounts: Record<string, number> = {};
   for (const entry of entries) {
     for (const tag of entry.tags || []) {
-      // STRICT EXCLUSION: Only count tags that are NOT in the GMC list
+      // STRICT EXCLUSION
       if (!GMC_DOMAINS.includes(tag.trim())) {
         const cleanTag = tag.trim();
         tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
@@ -72,17 +72,16 @@ const processTagData = (entries: CPDEntry[]) => {
 };
 
 const processGmcData = (entries: CPDEntry[]) => {
-  // Initialize with 0 so the radar chart always has shape
   const gmcCounts: Record<string, number> = {
-    "Knowledge, Skills & Performance": 0,
+    "Knowledge Skills & Performance": 0,
     "Safety & Quality": 0,
-    "Communication, Partnership & Teamwork": 0,
+    "Communication Partnership & Teamwork": 0,
     "Maintaining Trust": 0,
   };
   
   for (const entry of entries) {
     for (const tag of entry.tags || []) {
-      // STRICT INCLUSION: Only count tags that ARE in the GMC list
+      // STRICT INCLUSION
       const cleanTag = tag.trim();
       if (GMC_DOMAINS.includes(cleanTag)) {
         gmcCounts[cleanTag] = (gmcCounts[cleanTag] || 0) + 1;
@@ -90,23 +89,17 @@ const processGmcData = (entries: CPDEntry[]) => {
     }
   }
   
-  // Map to chart format, shortening names for better display
+  // Use FULL names for the chart axis
   return Object.entries(gmcCounts).map(([name, count]) => {
-    let shortName = name;
-    if (name.includes("Knowledge")) shortName = "Knowledge";
-    if (name.includes("Safety")) shortName = "Safety";
-    if (name.includes("Communication")) shortName = "Communication";
-    if (name.includes("Trust")) shortName = "Trust";
-
     return {
-      domain: shortName,
+      domain: name, // Full name used here
       fullDomain: name,
       count: count,
     };
   });
 };
 
-const processTimelineData = (entries: CPDEntry[], filter: TimeFilter) => {
+const processTimelineData = (entries: CPDEntry[]) => {
   const timelineMap: Record<string, number> = {};
   const toDateKey = (date: Date) => date.toISOString().split('T')[0];
   
@@ -143,7 +136,7 @@ function AnalyticsInner() {
 
   const tagData = useMemo(() => processTagData(filteredData), [filteredData]);
   const gmcDomainData = useMemo(() => processGmcData(filteredData), [filteredData]);
-  const timelineData = useMemo(() => processTimelineData(filteredData, timeFilter), [filteredData, timeFilter]);
+  const timelineData = useMemo(() => processTimelineData(filteredData), [filteredData]);
 
   if (loading) return <p>Loading analytics...</p>;
 
@@ -188,7 +181,7 @@ function AnalyticsInner() {
         </select>
       </div>
 
-      {/* Chart 1: CPD by Tag (Horizontal Bar Chart) */}
+      {/* Chart 1: CPD by Tag */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card__body" style={{ padding: '20px' }}>
           <h3 style={{ marginBottom: 20 }}>Clinical Topics (Top 10)</h3>
@@ -216,7 +209,7 @@ function AnalyticsInner() {
         </div>
       </div>
 
-      {/* Chart 2: GMC Domains (Radar Chart) */}
+      {/* Chart 2: GMC Domains */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card__body" style={{ padding: '20px' }}>
           <h3 style={{ marginBottom: 20 }}>GMC Domain Coverage</h3>
@@ -227,7 +220,7 @@ function AnalyticsInner() {
                 <PolarAngleAxis 
                   dataKey="domain" 
                   stroke="var(--umbil-muted)" 
-                  style={{ fontSize: '11px', fontWeight: 600 }} 
+                  style={{ fontSize: '10px', fontWeight: 600 }} 
                   tickSize={10}
                 />
                 <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
@@ -245,7 +238,7 @@ function AnalyticsInner() {
         </div>
       </div>
 
-      {/* Chart 3: Timeline (Line Chart) */}
+      {/* Chart 3: Timeline */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card__body" style={{ padding: '20px' }}>
           <h3 style={{ marginBottom: 20 }}>Activity Timeline</h3>

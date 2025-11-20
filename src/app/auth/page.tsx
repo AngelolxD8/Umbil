@@ -9,7 +9,7 @@ import type { AuthError } from "@supabase/supabase-js";
 export default function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [grade, setGrade] = useState(""); // <-- ADDED: State for the new grade field
+  const [grade, setGrade] = useState(""); 
   const [sending, setSending] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [mode, setMode] = useState<"signIn" | "signUp" | "forgotPassword">("signIn");
@@ -18,7 +18,11 @@ export default function AuthPage() {
   // Redirect user if already signed in
   useEffect(() => {
     const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") router.push("/");
+      if (event === "SIGNED_IN") {
+        // --- FIX: Set the flag so HomeContent knows to show the tour ---
+        sessionStorage.setItem("justLoggedIn", "true");
+        router.push("/");
+      }
     });
     return () => sub?.subscription.unsubscribe();
   }, [router]);
@@ -42,13 +46,12 @@ export default function AuthPage() {
       });
       error = signInError;
     } else if (mode === "signUp") {
-      // --- MODIFIED: Pass grade in options.data ---
       const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            grade: grade || null, // Pass the grade to be stored in user metadata
+            grade: grade || null, 
           },
         },
       });
@@ -65,7 +68,7 @@ export default function AuthPage() {
     }
   };
 
-  // --- FORGOT PASSWORD / MAGIC LINK HANDLER (FIX)
+  // --- FORGOT PASSWORD / MAGIC LINK HANDLER
   const handleForgotPassword = async () => {
     if (!email.trim()) {
       setMsg("Please enter your email address above.");
@@ -77,8 +80,6 @@ export default function AuthPage() {
 
     const baseUrl = window.location.origin;
 
-    // FIX: Send a Magic Link (Sign In with OTP) instead of a password reset link.
-    // The redirect URL is set to the callback page, which will then push to /profile.
     const { error } = await supabase.auth.signInWithOtp({
       email,
       options: {
@@ -100,7 +101,7 @@ export default function AuthPage() {
       ? "Sign in to Umbil"
       : mode === "signUp"
       ? "Create Account"
-      : "Forgot Password (Magic Link)"; // Updated title
+      : "Forgot Password (Magic Link)";
 
   return (
     <section className="main-content">
@@ -120,14 +121,13 @@ export default function AuthPage() {
               <input
                 className="form-control"
                 type="email"
-                placeholder="e.g., your.email@example.com" // <-- CHANGED: Placeholder
+                placeholder="e.g., your.email@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={sending}
               />
             </div>
 
-            {/* --- ADDED: Grade field only for sign up --- */}
             {mode === "signUp" && (
               <div className="form-group">
                 <label className="form-label">Position / Grade (Optional)</label>
@@ -141,7 +141,6 @@ export default function AuthPage() {
                 />
               </div>
             )}
-            {/* --- END OF ADDED FIELD --- */}
 
             {!isForgot && (
               <div className="form-group">

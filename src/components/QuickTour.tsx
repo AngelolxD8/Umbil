@@ -77,10 +77,8 @@ export default function QuickTour({
   onStepChange 
 }: QuickTourProps) {
   
-  // Use state to store the position so it triggers re-renders when it changes
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
 
-  // Helper to calculate position
   const updatePosition = () => {
     const step = tourSteps[currentStep];
     if (!step?.highlightId) {
@@ -90,26 +88,18 @@ export default function QuickTour({
     const element = document.getElementById(step.highlightId);
     if (element) {
       const rect = element.getBoundingClientRect();
-      // Only update if we have valid dimensions
       if (rect.width > 0 || rect.height > 0) {
         setHighlightRect(rect);
       }
     }
   };
 
-  // Effect: Recalculate position on mount, step change, resize, or scroll
   useLayoutEffect(() => {
     if (!isOpen) return;
-
     updatePosition();
-
-    // Retry briefly after mount to catch any layout shifts (animations/keyboard)
     const timer = setTimeout(updatePosition, 200);
-
-    // Add listeners for dynamic updates
     window.addEventListener("resize", updatePosition);
-    window.addEventListener("scroll", updatePosition, true); // 'true' captures nested scrolls
-
+    window.addEventListener("scroll", updatePosition, true);
     return () => {
       clearTimeout(timer);
       window.removeEventListener("resize", updatePosition);
@@ -141,8 +131,6 @@ export default function QuickTour({
 
   const step = tourSteps[currentStep];
 
-  // 1. Calculate Content Box Position
-  // Default center position
   const boxStyle: React.CSSProperties = {
     position: 'absolute',
     zIndex: 1002,
@@ -151,20 +139,30 @@ export default function QuickTour({
     transform: 'translate(-50%, -50%)',
   };
 
-  // If we have a highlight, position relative to it
   if (highlightRect) {
-    boxStyle.transform = 'none'; // Remove centering transform
+    boxStyle.transform = 'none'; 
 
-    if (step.id === 'step-6') { // Sidebar specific (Right side)
+    // Special Case: If highlighting the Modal (step 4), FORCE CENTER
+    // This fixes the scroll issue by overlaying the text box on the modal
+    if (step.highlightId === 'tour-highlight-modal') {
+       boxStyle.top = '50%';
+       boxStyle.left = '50%';
+       boxStyle.transform = 'translate(-50%, -50%)';
+       // We ignore highlightRect positioning but keep the highlight box visible
+    } 
+    // Special Case: Sidebar
+    else if (step.id === 'step-6') { 
       boxStyle.top = `${highlightRect.top + 20}px`;
       boxStyle.left = `${highlightRect.right + 20}px`;
       boxStyle.right = 'auto';
       boxStyle.bottom = 'auto';
-    } else if (highlightRect.top > window.innerHeight / 2) { // Bottom half -> Show above
+    } 
+    // Standard Positioning logic
+    else if (highlightRect.top > window.innerHeight / 2) { 
       boxStyle.bottom = `${window.innerHeight - highlightRect.top + 20}px`;
       boxStyle.left = `${highlightRect.left}px`;
       boxStyle.top = 'auto';
-    } else { // Top half -> Show below
+    } else { 
       boxStyle.top = `${highlightRect.bottom + 20}px`;
       boxStyle.left = `${highlightRect.left}px`;
       boxStyle.bottom = 'auto';
