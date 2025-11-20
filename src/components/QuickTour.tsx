@@ -1,6 +1,8 @@
 // src/components/QuickTour.tsx
 "use client";
 
+import { useState, useLayoutEffect } from "react";
+
 // Define the steps of our tour
 const tourSteps = [
   // STEP 0: Ask
@@ -24,7 +26,7 @@ const tourSteps = [
     text: "Umbil provides a concise, evidence-based answer. Now, let's turn this knowledge into a permanent record.",
     highlightId: "tour-highlight-message", 
   },
-  // STEP 3: Log (UPDATED TEXT)
+  // STEP 3: Log
   {
     id: "step-3",
     title: "4. Log Learning",
@@ -35,7 +37,7 @@ const tourSteps = [
   {
     id: "step-4",
     title: "5. Reflect & Save",
-    text: "Write your own notes or click 'Generate' to let AI create a GMC-compliant reflection for you. Click 'Save' to finish.",
+    text: "Write your own notes, add tags to organise your learning, or click 'Generate' to let AI create a GMC-compliant reflection for you. Click 'Save' to finish.",
     highlightId: "tour-highlight-modal", 
   },
   // STEP 5: PDP Info
@@ -45,7 +47,7 @@ const tourSteps = [
     text: "Umbil works in the background. If you tag a topic (e.g., 'Asthma') 7 times, we'll automatically suggest a Personal Development Plan goal to help formalize your learning.",
     highlightId: null, 
   },
-  // STEP 6: Sidebar (UPDATED TEXT)
+  // STEP 6: Sidebar
   {
     id: "step-6",
     title: "7. Explore Analytics",
@@ -75,6 +77,46 @@ export default function QuickTour({
   onStepChange 
 }: QuickTourProps) {
   
+  // Use state to store the position so it triggers re-renders when it changes
+  const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
+
+  // Helper to calculate position
+  const updatePosition = () => {
+    const step = tourSteps[currentStep];
+    if (!step?.highlightId) {
+      setHighlightRect(null);
+      return;
+    }
+    const element = document.getElementById(step.highlightId);
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      // Only update if we have valid dimensions
+      if (rect.width > 0 || rect.height > 0) {
+        setHighlightRect(rect);
+      }
+    }
+  };
+
+  // Effect: Recalculate position on mount, step change, resize, or scroll
+  useLayoutEffect(() => {
+    if (!isOpen) return;
+
+    updatePosition();
+
+    // Retry briefly after mount to catch any layout shifts (animations/keyboard)
+    const timer = setTimeout(updatePosition, 200);
+
+    // Add listeners for dynamic updates
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true); // 'true' captures nested scrolls
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
+    };
+  }, [currentStep, isOpen]);
+
   const handleNext = () => {
     const nextStep = currentStep + 1;
     if (nextStep < tourSteps.length) {
@@ -98,49 +140,54 @@ export default function QuickTour({
   if (!isOpen) return null;
 
   const step = tourSteps[currentStep];
-  const highlightElement = step.highlightId ? document.getElementById(step.highlightId) : null;
-  const rect = highlightElement?.getBoundingClientRect();
 
-  // Calculate position for the tour box
+  // 1. Calculate Content Box Position
+  // Default center position
   const boxStyle: React.CSSProperties = {
     position: 'absolute',
     zIndex: 1002,
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -50%)',
   };
 
-  if (rect) {
-    if (step.id === 'step-6') { // Sidebar specific positioning
-      boxStyle.top = `${rect.top + 20}px`;
-      boxStyle.left = `${rect.right + 20}px`;
-    } else if (rect.top > window.innerHeight / 2) {
-      boxStyle.bottom = `${window.innerHeight - rect.top + 20}px`;
-      boxStyle.left = `${rect.left}px`;
-    } else {
-      boxStyle.top = `${rect.bottom + 20}px`;
-      boxStyle.left = `${rect.left}px`;
+  // If we have a highlight, position relative to it
+  if (highlightRect) {
+    boxStyle.transform = 'none'; // Remove centering transform
+
+    if (step.id === 'step-6') { // Sidebar specific (Right side)
+      boxStyle.top = `${highlightRect.top + 20}px`;
+      boxStyle.left = `${highlightRect.right + 20}px`;
+      boxStyle.right = 'auto';
+      boxStyle.bottom = 'auto';
+    } else if (highlightRect.top > window.innerHeight / 2) { // Bottom half -> Show above
+      boxStyle.bottom = `${window.innerHeight - highlightRect.top + 20}px`;
+      boxStyle.left = `${highlightRect.left}px`;
+      boxStyle.top = 'auto';
+    } else { // Top half -> Show below
+      boxStyle.top = `${highlightRect.bottom + 20}px`;
+      boxStyle.left = `${highlightRect.left}px`;
+      boxStyle.bottom = 'auto';
     }
-    // Prevent overflow on right edge
-    if (rect.left + 320 > window.innerWidth) {
+
+    // Prevent horizontal overflow on mobile
+    if (highlightRect.left + 320 > window.innerWidth) {
       boxStyle.right = '20px';
       boxStyle.left = 'auto';
     }
-  } else {
-    // Center screen fallback
-    boxStyle.top = '50%';
-    boxStyle.left = '50%';
-    boxStyle.transform = 'translate(-50%, -50%)';
   }
 
   return (
     <>
       <div className="tour-overlay" onClick={handleClose}>
-        {rect && (
+        {highlightRect && (
           <div
             className="tour-highlight-box"
             style={{
-              top: `${rect.top - 8}px`, 
-              left: `${rect.left - 8}px`,
-              width: `${rect.width + 16}px`,
-              height: `${rect.height + 16}px`,
+              top: `${highlightRect.top - 8}px`, 
+              left: `${highlightRect.left - 8}px`,
+              width: `${highlightRect.width + 16}px`,
+              height: `${highlightRect.height + 16}px`,
             }}
           ></div>
         )}

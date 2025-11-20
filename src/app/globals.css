@@ -276,7 +276,7 @@ a {
   cursor: not-allowed;
 }
 
-/* --- Answer Style Dropdown (Gemini Aesthetic) --- */
+/* --- Answer Style Dropdown (Gemini Aesthetic with Solid Background) --- */
 
 .style-dropdown-container {
   position: absolute;
@@ -288,12 +288,12 @@ a {
 }
 
 .style-dropdown-button {
-  background-color: transparent; /* Transparent background */
-  color: var(--umbil-muted);     /* Muted text for minimal look */
-  border: none;                  /* No borders */
+  background-color: var(--umbil-surface); /* Solid background to hide text */
+  color: var(--umbil-muted);              /* Muted text for minimal look */
+  border: none;                           /* No borders */
   border-radius: var(--umbil-radius-sm);
-  padding: 6px 10px;             /* Compact padding */
-  font-size: 0.85rem;            /* Smaller, unobtrusive font */
+  padding: 6px 10px;                      /* Compact padding */
+  font-size: 0.85rem;                     /* Smaller, unobtrusive font */
   font-weight: 600;
   cursor: pointer;
   display: flex;
@@ -361,7 +361,6 @@ a {
   color: var(--umbil-muted);
   margin: 2px 0 0 0;
 }
-
 
 /* Conversation Mode Styles (after first question) */
 .conversation-container {

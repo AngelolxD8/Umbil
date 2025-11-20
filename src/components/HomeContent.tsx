@@ -193,7 +193,8 @@ export default function HomeContent() {
   
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const { email } = useUserEmail();
+  // FIX: Get 'loading' state from useUserEmail
+  const { email, loading: userLoading } = useUserEmail();
   const searchParams = useSearchParams();
   const router = useRouter(); 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -220,7 +221,11 @@ export default function HomeContent() {
     }
   }, [email]);
 
+  // --- START TOUR LOGIC (Combined) ---
   useEffect(() => {
+    // FIX: Return early if auth is still loading to prevent premature redirect
+    if (userLoading) return;
+
     if (searchParams.get("new-chat")) {
       setConversation([]);
     }
@@ -251,7 +256,8 @@ export default function HomeContent() {
     } else {
       checkTour();
     }
-  }, [searchParams, email, router]);
+    
+  }, [searchParams, email, router, userLoading]); // Added userLoading dependency
 
   const scrollToBottom = (instant = false) => {
     const container = document.querySelector(".main-content");
@@ -303,7 +309,6 @@ export default function HomeContent() {
   const handleTourStepChange = useCallback((stepIndex: number) => {
     setTourStep(stepIndex); 
     
-    // Step 4 corresponds to opening the modal in the new tour order
     if (stepIndex === 4) {
       setCurrentCpdEntry(DUMMY_CPD_ENTRY); 
       setIsModalOpen(true);
@@ -311,7 +316,6 @@ export default function HomeContent() {
       setIsModalOpen(false);
     }
 
-    // Step 6 corresponds to the sidebar highlight
     if (stepIndex === 6) {
       const menuButton = document.getElementById("tour-highlight-sidebar-button");
       menuButton?.click(); 
@@ -333,8 +337,8 @@ export default function HomeContent() {
     }
   }, []);
 
-  // --- API & Chat Logic ---
 
+  // --- API & Chat Logic ---
   const fetchUmbilResponse = async (
     currentConversation: ConversationEntry[],
     styleOverride: AnswerStyle | null = null
@@ -577,7 +581,7 @@ export default function HomeContent() {
             <button
               id={isTourOpen ? "tour-highlight-cpd-button" : undefined}
               className="action-button"
-              onClick={() => isTourOpen ? handleTourStepChange(4) : handleOpenAddCpdModal(entry)}
+              onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)}
               title="Add reflection to your CPD log"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
@@ -619,7 +623,7 @@ export default function HomeContent() {
               <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px', position: 'relative' }}>
                 <input
                   className="ask-bar-input"
-                  placeholder="Ask a follow-up question..."
+                  placeholder="Ask anything..."
                   value={isTourOpen ? "What are the red flags for a headache?" : q}
                   onChange={(e) => setQ(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && ask()}
@@ -646,7 +650,7 @@ export default function HomeContent() {
             <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: "24px", position: 'relative' }}>
               <input
                 className="ask-bar-input"
-                placeholder="Ask anything — clinical, reflective, or educational..."
+                placeholder="Ask anything..."
                 value={isTourOpen ? "What are the red flags for a headache?" : q}
                 onChange={(e) => setQ(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && ask()}
