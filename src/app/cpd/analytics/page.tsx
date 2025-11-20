@@ -22,7 +22,6 @@ import {
 } from 'recharts';
 
 // --- Constants ---
-// Must match ReflectionModal exactly (no commas)
 const GMC_DOMAINS = [
   "Knowledge Skills & Performance",
   "Safety & Quality",
@@ -33,6 +32,32 @@ const GMC_DOMAINS = [
 type TimeFilter = 'week' | 'month' | 'year' | 'all';
 
 // --- Helper Functions ---
+
+// Smart function to check if a tag is a GMC domain (full or partial/legacy)
+// Returns the Full GMC Domain string if matched, or null if it's a regular tag.
+const mapToGmcDomain = (tag: string): string | null => {
+  const t = tag.toLowerCase().trim();
+  
+  // Domain 1: Knowledge Skills & Performance
+  if (t.includes("knowledge") || t.includes("skills & performance") || t.includes("skills and performance")) {
+    return GMC_DOMAINS[0];
+  }
+  // Domain 2: Safety & Quality
+  if (t.includes("safety") || t.includes("quality")) {
+    // Be careful not to match "patient safety" if used as a specific tag, but usually safe here
+    return GMC_DOMAINS[1];
+  }
+  // Domain 3: Communication Partnership & Teamwork
+  if (t.includes("communication") || t.includes("partnership") || t.includes("teamwork")) {
+    return GMC_DOMAINS[2];
+  }
+  // Domain 4: Maintaining Trust
+  if (t.includes("maintaining") || t.includes("trust")) {
+    return GMC_DOMAINS[3];
+  }
+
+  return null; // It's a regular clinical tag
+};
 
 const filterDataByTime = (entries: CPDEntry[], filter: TimeFilter): CPDEntry[] => {
   const now = new Date();
@@ -58,8 +83,11 @@ const processTagData = (entries: CPDEntry[]) => {
   const tagCounts: Record<string, number> = {};
   for (const entry of entries) {
     for (const tag of entry.tags || []) {
-      // STRICT EXCLUSION
-      if (!GMC_DOMAINS.includes(tag.trim())) {
+      // Check if this tag maps to a GMC domain
+      const gmcMatch = mapToGmcDomain(tag);
+      
+      // ONLY count it if it is NOT a GMC domain (legacy or new)
+      if (!gmcMatch) {
         const cleanTag = tag.trim();
         tagCounts[cleanTag] = (tagCounts[cleanTag] || 0) + 1;
       }
@@ -73,26 +101,27 @@ const processTagData = (entries: CPDEntry[]) => {
 
 const processGmcData = (entries: CPDEntry[]) => {
   const gmcCounts: Record<string, number> = {
-    "Knowledge Skills & Performance": 0,
-    "Safety & Quality": 0,
-    "Communication Partnership & Teamwork": 0,
-    "Maintaining Trust": 0,
+    [GMC_DOMAINS[0]]: 0,
+    [GMC_DOMAINS[1]]: 0,
+    [GMC_DOMAINS[2]]: 0,
+    [GMC_DOMAINS[3]]: 0,
   };
   
   for (const entry of entries) {
     for (const tag of entry.tags || []) {
-      // STRICT INCLUSION
-      const cleanTag = tag.trim();
-      if (GMC_DOMAINS.includes(cleanTag)) {
-        gmcCounts[cleanTag] = (gmcCounts[cleanTag] || 0) + 1;
+      // Check if this tag maps to a GMC domain (legacy or new)
+      const gmcMatch = mapToGmcDomain(tag);
+      
+      // If it maps, increment the count for the FULL domain name
+      if (gmcMatch) {
+        gmcCounts[gmcMatch] = (gmcCounts[gmcMatch] || 0) + 1;
       }
     }
   }
   
-  // Use FULL names for the chart axis
   return Object.entries(gmcCounts).map(([name, count]) => {
     return {
-      domain: name, // Full name used here
+      domain: name, 
       fullDomain: name,
       count: count,
     };
@@ -215,13 +244,13 @@ function AnalyticsInner() {
           <h3 style={{ marginBottom: 20 }}>GMC Domain Coverage</h3>
           <div style={{ height: 300, width: '100%' }}>
             <ResponsiveContainer width="100%" height="100%">
-              <RadarChart cx="50%" cy="50%" outerRadius="70%" data={gmcDomainData}>
+              <RadarChart cx="50%" cy="50%" outerRadius="60%" data={gmcDomainData}>
                 <PolarGrid stroke="var(--umbil-divider)" />
                 <PolarAngleAxis 
                   dataKey="domain" 
                   stroke="var(--umbil-muted)" 
                   style={{ fontSize: '10px', fontWeight: 600 }} 
-                  tickSize={10}
+                  tickSize={15} 
                 />
                 <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
                 <Radar 
