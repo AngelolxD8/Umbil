@@ -8,7 +8,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
-import { getChatHistory, ChatHistoryItem } from "@/lib/store"; // Import history
+import { getChatHistory, ChatHistoryItem } from "@/lib/store"; 
 import Toast from "@/components/Toast";
 
 type MobileNavProps = {
@@ -25,7 +25,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   
   const { email } = useUserEmail();
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
-  const [history, setHistory] = useState<ChatHistoryItem[]>([]); // History state
+  const [history, setHistory] = useState<ChatHistoryItem[]>([]); 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
   const { currentStreak, loading: streaksLoading, hasLoggedToday } = useCpdStreaks();
@@ -44,7 +44,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         setHistory([]);
       }
     };
-    if (isOpen) { // Only fetch when sidebar is open to save resources
+    if (isOpen) {
         loadData();
     }
   }, [email, isOpen]);
@@ -65,10 +65,8 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`);
   };
 
-  // --- Load a history item ---
   const handleHistoryClick = (q: string) => {
       onClose();
-      // Pass question as URL param to be picked up by HomeContent
       const params = new URLSearchParams();
       params.set("history_q", q);
       router.push(`/?${params.toString()}`);
@@ -77,7 +75,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   const handleInvite = async () => {
     const shareData = {
       title: "Join me on Umbil",
-      text: "I'm using Umbil to turn my clinical questions into verified CPD instantly.",
+      text: "I'm using Umbil to turn my clinical questions into verified CPD instantly. It even tracks my learning stats and GMC domains! You should try it:",
       url: "https://umbil.co.uk"
     };
 
@@ -91,17 +89,24 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     }
   };
 
-  const menuItems = [
+  // --- Split Menu Items ---
+  const topMenuItems = [
     { href: "/about", label: "About Umbil" },
     { href: "/cpd", label: "My CPD", requiresAuth: true },
     { href: "/pdp", label: "My PDP", requiresAuth: true },
     { href: "/profile", label: "My Profile", requiresAuth: true },
+  ];
+
+  const bottomMenuItems = [
     { href: "/pro", label: "Umbil Pro ✨", requiresAuth: false }, 
     { href: "/settings", label: "Settings" },
     { href: "/settings/feedback", label: "Send Feedback" }, 
   ];
 
-  const filteredMenuItems = menuItems.filter(item => !item.requiresAuth || userEmail);
+  const filterItems = (items: typeof topMenuItems) => items.filter(item => !item.requiresAuth || userEmail);
+
+  const filteredTop = filterItems(topMenuItems);
+  const filteredBottom = filterItems(bottomMenuItems);
 
   return (
     <>
@@ -119,9 +124,35 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           New Chat
         </button>
 
-        {/* --- History Section --- */}
-        {userEmail && history.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
+        {userEmail && !streaksLoading && currentStreak > 0 && (
+            <Link
+                href="/profile"
+                className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`}
+                onClick={onClose}
+            >
+                <span style={{fontWeight: 700}}>
+                    🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
+                </span>
+            </Link>
+        )}
+        
+        <nav className="sidebar-nav" style={{ overflowY: 'auto' }}>
+          
+          {/* 1. Top Menu Items (About, CPD, PDP, Profile) */}
+          {filteredTop.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={pathname === item.href ? "active" : ""}
+              onClick={onClose}
+            >
+              {item.label}
+            </Link>
+          ))}
+
+          {/* 2. Chat History Section (Inserted Middle) */}
+          {userEmail && history.length > 0 && (
+            <div style={{ margin: '12px 0', padding: '12px 0', borderTop: '1px solid var(--umbil-divider)', borderBottom: '1px solid var(--umbil-divider)' }}>
                 <div style={{ 
                     fontSize: '0.75rem', 
                     fontWeight: 600, 
@@ -133,7 +164,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                 }}>
                     Recent (7 Days)
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '200px', overflowY: 'auto' }}>
                     {history.map((item) => (
                         <button
                             key={item.id}
@@ -150,7 +181,8 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 width: '100%',
-                                transition: 'background-color 0.2s'
+                                transition: 'background-color 0.2s',
+                                borderRadius: '4px'
                             }}
                             className="history-item"
                         >
@@ -159,22 +191,10 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                     ))}
                 </div>
             </div>
-        )}
+          )}
 
-        {userEmail && !streaksLoading && currentStreak > 0 && (
-            <Link
-                href="/profile"
-                className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`}
-                onClick={onClose}
-            >
-                <span style={{fontWeight: 700}}>
-                    🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-                </span>
-            </Link>
-        )}
-        
-        <nav className="sidebar-nav">
-          {filteredMenuItems.map((item) => (
+          {/* 3. Bottom Menu Items (Pro, Settings, Feedback) */}
+          {filteredBottom.map((item) => (
             <Link
               key={item.href}
               href={item.href}
@@ -185,15 +205,17 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             </Link>
           ))}
           
-          <a href="#" onClick={(e) => { e.preventDefault(); handleInvite(); }} className="quick-tour-button" style={{color: 'var(--umbil-brand-teal)'}}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
-            Invite a Colleague
-          </a>
+          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--umbil-divider)' }}>
+            <a href="#" onClick={(e) => { e.preventDefault(); handleInvite(); }} className="quick-tour-button" style={{color: 'var(--umbil-brand-teal)'}}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
+              Invite a Colleague
+            </a>
 
-          <a href="#" onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="quick-tour-button">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-            Quick Tour
-          </a>
+            <a href="#" onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="quick-tour-button">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              Quick Tour
+            </a>
+          </div>
         </nav>
         
         {userEmail && profile && (

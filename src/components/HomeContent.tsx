@@ -192,6 +192,10 @@ export default function HomeContent() {
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
+  // --- NEW: History Save Flag ---
+  // Tracks if the current conversation thread has been saved to history
+  const [isHistorySaved, setIsHistorySaved] = useState(false);
+
   // --- TOUR STATE ---
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
@@ -210,9 +214,24 @@ export default function HomeContent() {
 
   useEffect(() => {
     if (userLoading) return;
+    
     if (searchParams.get("new-chat")) {
       setConversation([]);
+      setQ("");
+      setIsHistorySaved(false); // Reset for new chat
     }
+
+    // --- NEW: Handle History Restore ---
+    const historyQ = searchParams.get("history_q");
+    if (historyQ) {
+        setConversation([]); 
+        setQ(historyQ);      
+        setIsHistorySaved(false); 
+        // Optional: Clean URL
+        window.history.replaceState({}, document.title, "/");
+    }
+    // -----------------------------------
+
     const checkTour = () => {
       const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
       const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
@@ -328,6 +347,10 @@ export default function HomeContent() {
           content: entry.content,
       }));
       const styleToUse = styleOverride || answerStyle;
+      
+      // --- NEW: Only save if not already saved in this session ---
+      const shouldSaveToHistory = !isHistorySaved;
+
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: {
@@ -338,8 +361,15 @@ export default function HomeContent() {
           messages: messagesToSend, 
           profile, 
           answerStyle: styleToUse,
+          saveToHistory: shouldSaveToHistory // <-- SEND FLAG
         }),
       });
+
+      // Mark as saved if successful so we don't save subsequent messages
+      if (res.ok && shouldSaveToHistory) {
+          setIsHistorySaved(true);
+      }
+
       if (!res.ok) {
         const data: AskResponse = await res.json();
         throw new Error(data.error || "Request failed");
@@ -590,7 +620,7 @@ export default function HomeContent() {
       </div>
 
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
-      {/* REMOVED THE WRAPPER DIV, PASSING ID DIRECTLY */}
+      
       {(isModalOpen || (isTourOpen && tourStep === 4)) && (
         <ReflectionModal
           isOpen={isModalOpen}
