@@ -1,4 +1,4 @@
-// src/app/api/auth/delete-account/route.ts
+// src/app/auth/delete-account/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabaseService";
 import { supabase } from "@/lib/supabase";
@@ -20,11 +20,13 @@ export async function DELETE(req: NextRequest) {
     const userId = user.id;
 
     // 2. Explicitly delete associated data first
+    // FIX: Added 'pdp_goals' to this list so they don't block deletion
     await Promise.allSettled([
       supabaseService.from('cpd_entries').delete().eq('user_id', userId),
       supabaseService.from('profiles').delete().eq('id', userId),
       supabaseService.from('app_analytics').delete().eq('user_id', userId),
-      supabaseService.from('chat_history').delete().eq('user_id', userId), // Clean up history too
+      supabaseService.from('chat_history').delete().eq('user_id', userId),
+      supabaseService.from('pdp_goals').delete().eq('user_id', userId), 
     ]);
 
     // 3. Use the Service Role client to delete the user from auth.users.
@@ -32,12 +34,12 @@ export async function DELETE(req: NextRequest) {
 
     if (deleteError) {
       console.error("Delete user error:", deleteError);
+      // Pass the actual database error message back to the frontend
       throw new Error(deleteError.message);
     }
 
     return NextResponse.json({ success: true });
   } catch (err: unknown) {
-    // FIX: Use 'unknown' instead of 'any' and safely check for Error object
     console.error("Delete account exception:", err);
     const msg = err instanceof Error ? err.message : "Server error";
     return NextResponse.json({ error: msg }, { status: 500 });
