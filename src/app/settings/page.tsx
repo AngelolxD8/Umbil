@@ -28,7 +28,7 @@ export default function SettingsPage() {
     alert("Local data cleared.");
   };
     
-  // --- UPDATED: Real Account Deletion Logic ---
+  // --- Account Deletion Logic ---
   const deleteAccount = async () => {
       if (!confirm("Are you sure you want to permanently delete your Umbil account? This action cannot be undone and all your CPD data will be lost.")) return;
       
@@ -50,7 +50,6 @@ export default function SettingsPage() {
             return;
         }
 
-        // Call our new API route
         const res = await fetch("/api/auth/delete-account", {
             method: "DELETE",
             headers: {
@@ -63,16 +62,17 @@ export default function SettingsPage() {
             throw new Error(errData.error || "Failed to delete account");
         }
 
-        // Cleanup local state
         clearAll();
         await supabase.auth.signOut();
         
         alert("Your account has been deleted. You will now be redirected.");
         router.push("/");
 
-      } catch (err: any) {
+      } catch (err: unknown) {
+          // FIX: Use 'unknown' type and cast safely
           console.error(err);
-          alert(`Error: ${err.message}`);
+          const msg = err instanceof Error ? err.message : "An unknown error occurred";
+          alert(`Error: ${msg}`);
           setIsDeleting(false);
       }
   }
@@ -84,7 +84,6 @@ export default function SettingsPage() {
       <div className="container">
         <h2>Settings</h2>
 
-        {/* GDPR Safety and Consent Check */}
         <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12}}>GDPR / Data Safety Checklist</h3>
@@ -111,7 +110,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Local Data Management */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 8}}>Data Management: Local Browser Storage</h3>
@@ -120,7 +118,6 @@ export default function SettingsPage() {
           </div>
         </div>
         
-        {/* Account Deletion */}
         <div className="card">
           <div className="card__body">
             <h3 style={{marginBottom: 8}}>Account Deletion (Remote Data Erasure)</h3>

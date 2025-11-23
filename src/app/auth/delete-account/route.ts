@@ -19,11 +19,15 @@ export async function DELETE(req: NextRequest) {
   try {
     const userId = user.id;
 
-    // 2. Use the Service Role client to delete the user from auth.users.
-    // IMPORTANT: Your PostgreSQL database should have "ON DELETE CASCADE" set up 
-    // for the foreign keys in 'cpd_entries' and 'profiles'. 
-    // If not, this will fail or leave orphaned data.
-    
+    // 2. Explicitly delete associated data first
+    await Promise.allSettled([
+      supabaseService.from('cpd_entries').delete().eq('user_id', userId),
+      supabaseService.from('profiles').delete().eq('id', userId),
+      supabaseService.from('app_analytics').delete().eq('user_id', userId),
+      supabaseService.from('chat_history').delete().eq('user_id', userId), // Clean up history too
+    ]);
+
+    // 3. Use the Service Role client to delete the user from auth.users.
     const { error: deleteError } = await supabaseService.auth.admin.deleteUser(userId);
 
     if (deleteError) {
@@ -32,8 +36,10 @@ export async function DELETE(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    // FIX: Use 'unknown' instead of 'any' and safely check for Error object
     console.error("Delete account exception:", err);
-    return NextResponse.json({ error: err.message || "Server error" }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "Server error";
+    return NextResponse.json({ error: msg }, { status: 500 });
   }
 }

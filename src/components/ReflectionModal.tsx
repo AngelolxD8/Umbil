@@ -3,7 +3,6 @@
 
 import { useState, useEffect } from "react";
 
-// --- Types ---
 type ReflectionModalProps = {
   isOpen: boolean;
   onClose: () => void;
@@ -13,10 +12,9 @@ type ReflectionModalProps = {
     question: string;
     answer: string;
   } | null;
-  tourId?: string; // <-- NEW PROP
+  tourId?: string;
 };
 
-// --- Constants ---
 const GMC_CLUSTERS = [
   "Knowledge Skills & Performance", 
   "Safety & Quality",
@@ -24,20 +22,18 @@ const GMC_CLUSTERS = [
   "Maintaining Trust",
 ];
 
-// --- Helper Functions ---
 const getErrorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
   return "An unexpected error occurred.";
 };
 
-// --- Component ---
 export default function ReflectionModal({
   isOpen,
   onClose,
   onSave,
   currentStreak,
   cpdEntry,
-  tourId, // <-- Destructure new prop
+  tourId,
 }: ReflectionModalProps) {
   const [reflection, setReflection] = useState("");
   const [tags, setTags] = useState(""); 
@@ -46,7 +42,6 @@ export default function ReflectionModal({
   const [generatedTags, setGeneratedTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  // Clear state when modal is closed
   useEffect(() => {
     if (!isOpen) {
       setReflection("");
@@ -114,7 +109,8 @@ export default function ReflectionModal({
             const newTags = parsedTags.filter((t: string) => t);
             setGeneratedTags(newTags);
           }
-        } catch (e) {
+        } catch {
+          // FIX: Removed 'e' from catch block since it was unused
           const fallbackTags = tagText.replace(/[\[\]"]/g, "").split(",").map((t) => t.trim()).filter(Boolean);
           setGeneratedTags(fallbackTags);
         }
@@ -135,7 +131,6 @@ export default function ReflectionModal({
 
   return (
     <div className="modal-overlay">
-      {/* Attach the tourId directly to the content box */}
       <div className="modal-content" id={tourId}>
         <div className="flex justify-between items-center mb-4">
           <h3 className="text-xl font-semibold">Add Reflection to CPD</h3>
