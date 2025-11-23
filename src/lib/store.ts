@@ -54,15 +54,14 @@ export async function getCPDPage(options: { page: number; limit: number; q?: str
 
   let query = supabase.from(CPD_TABLE).select('*', { count: 'exact' });
 
-  // Apply text search if present
   if (q) {
     query = query.or(`question.ilike.%${q}%,answer.ilike.%${q}%,reflection.ilike.%${q}%`);
   }
   
-  // Apply tag filter if present
   if (tag) {
-    // Using 'contains' checks if the 'tags' array column includes the selected tag
-    query = query.contains('tags', [tag]);
+    // FIX: Switched to 'overlaps' (&& operator) which is often more reliable for array columns
+    // in Supabase/Postgres when checking if an array contains a specific value.
+    query = query.overlaps('tags', [tag]);
   }
 
   query = query.order("timestamp", { ascending: false }).range(from, to);
