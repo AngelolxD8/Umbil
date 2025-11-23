@@ -1,10 +1,10 @@
 // src/lib/resendService.ts
 
 import { Resend } from 'resend';
-import { generateStreakReminderEmail, generateStreakReminderPlainText, type StreakEmailData} from './emailTemplates';
+import { generateStreakReminderEmail, generateStreakReminderPlainText, type StreakEmailData} from './emailTemplate';
 
 // use resend with API keys
-const resend = process.env.RESEND_API_KEY;
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export interface SendStreakReminderParams {
   to: string;
