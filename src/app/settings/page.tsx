@@ -3,9 +3,13 @@
 
 import { clearAll } from "@/lib/store";
 import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 export default function SettingsPage() {
   const [accepted, setAccepted] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -24,19 +28,56 @@ export default function SettingsPage() {
     alert("Local data cleared.");
   };
     
-  // --- New function: Simulate GDPR action for remote account deletion ---
-  const deleteAccount = () => {
-      if (!confirm("Are you sure you want to permanently delete your Umbil account and all associated remote data? This action cannot be undone.")) return;
+  // --- UPDATED: Real Account Deletion Logic ---
+  const deleteAccount = async () => {
+      if (!confirm("Are you sure you want to permanently delete your Umbil account? This action cannot be undone and all your CPD data will be lost.")) return;
       
-      alert("Account deletion request initiated. Please clear your local data using the button below to complete the erasure process.");
+      const confirmText = prompt("To confirm, please type 'DELETE' below:");
+      if (confirmText !== "DELETE") {
+          alert("Deletion cancelled.");
+          return;
+      }
+
+      setIsDeleting(true);
+
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token;
+
+        if (!token) {
+            alert("You are not logged in.");
+            setIsDeleting(false);
+            return;
+        }
+
+        // Call our new API route
+        const res = await fetch("/api/auth/delete-account", {
+            method: "DELETE",
+            headers: {
+                "Authorization": `Bearer ${token}`
+            }
+        });
+
+        if (!res.ok) {
+            const errData = await res.json();
+            throw new Error(errData.error || "Failed to delete account");
+        }
+
+        // Cleanup local state
+        clearAll();
+        await supabase.auth.signOut();
+        
+        alert("Your account has been deleted. You will now be redirected.");
+        router.push("/");
+
+      } catch (err: any) {
+          console.error(err);
+          alert(`Error: ${err.message}`);
+          setIsDeleting(false);
+      }
   }
 
-  // Dummy change handler for the informational checkboxes
-  const handleInformationalChange = () => {
-    // This function does nothing as these checkboxes are for information only.
-    // However, including it makes the checkbox clickable and visually responsive.
-  };
-
+  const handleInformationalChange = () => { };
 
   return (
     <section className="main-content">
@@ -51,7 +92,6 @@ export default function SettingsPage() {
                 Your safety and data privacy is our priority. Please review and confirm your understanding of our data practices:
             </p>
             
-            {/* Checklist items visually represent compliance - FIXED UNESCAPED QUOTES */}
             <div style={{ marginBottom: 16, paddingTop: 8 }}>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={accepted} onChange={(e)=>setAccepted(e.target.checked)} />
@@ -59,7 +99,7 @@ export default function SettingsPage() {
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={true} onChange={handleInformationalChange} />
-                    <label>I know that my conversations are logged as CPD and can be exported as a CSV from the &apos;My CPD&apos; page (Right to Data Portability).</label> {/* FIXED QUOTES */}
+                    <label>I know that my conversations are logged as CPD and can be exported as a CSV from the &apos;My CPD&apos; page (Right to Data Portability).</label>
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={true} onChange={handleInformationalChange} />
@@ -71,7 +111,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Local Data Management (Right to Erasure / Data Portability - Local Scope) */}
+        {/* Local Data Management */}
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 8}}>Data Management: Local Browser Storage</h3>
@@ -80,15 +120,20 @@ export default function SettingsPage() {
           </div>
         </div>
         
-        {/* Account Deletion (Right to Erasure - Remote Scope) */}
+        {/* Account Deletion */}
         <div className="card">
           <div className="card__body">
             <h3 style={{marginBottom: 8}}>Account Deletion (Remote Data Erasure)</h3>
-            <p className="section-description" style={{marginBottom: 12}}>Permanently delete your Umbil user profile and associated remote data (e.g., full name, grade).</p>
-            <button className="btn btn--outline" style={{backgroundColor: 'var(--umbil-hover-bg)', color: '#dc3545', borderColor: '#dc3545'}} onClick={deleteAccount}>
-                ⚠️ Request Account Deletion (Right to Erasure)
+            <p className="section-description" style={{marginBottom: 12}}>Permanently delete your Umbil user profile and all associated remote data.</p>
+            <button 
+                className="btn btn--outline" 
+                style={{backgroundColor: 'var(--umbil-hover-bg)', color: '#dc3545', borderColor: '#dc3545'}} 
+                onClick={deleteAccount}
+                disabled={isDeleting}
+            >
+                {isDeleting ? "Deleting..." : "⚠️ Permanently Delete Account"}
             </button>
-            <p style={{marginTop: '8px', fontSize: '0.8rem', color: 'var(--umbil-muted)'}}>Note: This action is irreversible. You must also clear local data separately using the button above.</p>
+            <p style={{marginTop: '8px', fontSize: '0.8rem', color: 'var(--umbil-muted)'}}>Note: This action is irreversible.</p>
           </div>
         </div>
         

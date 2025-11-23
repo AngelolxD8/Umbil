@@ -2,9 +2,10 @@
 import { supabase } from "@/lib/supabase";
 import { type PostgrestError } from "@supabase/supabase-js";
 
-// Type definition for CPD entries matching the new database table
+// --- Types ---
+
+// Type definition for CPD entries
 export type CPDEntry = {
-  // These fields are optional because they are database-generated/managed
   id?: string; 
   user_id?: string;
   timestamp: string;
@@ -21,38 +22,39 @@ export type PDPGoal = {
   activities: string[];
 };
 
+// NEW: Type for Chat History
+export type ChatHistoryItem = {
+  id: string;
+  question: string;
+  created_at: string;
+};
+
 const CPD_TABLE = "cpd_entries";
-const ANALYTICS_TABLE = "app_analytics"; // For logging
+const HISTORY_TABLE = "chat_history"; // NEW table
+const ANALYTICS_TABLE = "app_analytics";
 const PDP_GOALS_KEY = "pdp_goals";
 
-// --- Remote CPD Functions ---
+// --- Remote Functions (CPD & History) ---
 
 /**
  * Fetches ALL CPD entries for the current logged-in user.
  * Used for PDP suggestions and Streak calculations.
  */
 export async function getCPD(): Promise<CPDEntry[]> {
-  // --- THIS IS THE FIX ---
-  // We only select 'timestamp' and 'tags' instead of '*'
-  // This is much faster as it avoids fetching large text fields.
   const { data, error } = await supabase
     .from(CPD_TABLE)
-    .select("timestamp, tags") // <-- MODIFIED
-    // Order by newest first
+    .select("timestamp, tags") 
     .order("timestamp", { ascending: false }); 
 
   if (error) {
     console.error("Error fetching all CPD logs:", error);
     return [];
   }
-  
-  // We cast here, knowing that other fields will be undefined
-  // This is fine as the streak hook only uses timestamp and tags
   return data as CPDEntry[]; 
 }
 
 /**
- * NEW: Fetches a single page of CPD entries with server-side filtering and pagination.
+ * Fetches a single page of CPD entries with server-side filtering and pagination.
  * Used by the main CPD log page.
  */
 export async function getCPDPage(options: {
@@ -66,14 +68,12 @@ export async function getCPDPage(options: {
   const from = page * limit;
   const to = from + limit - 1;
 
-  // Start building the query. We request 'count' to get the total number of filtered items.
   let query = supabase
     .from(CPD_TABLE)
     .select('*', { count: 'exact' });
 
   // Add search filter (q)
   if (q) {
-    // Searches 'question', 'answer', and 'reflection' columns
     query = query.or(`question.ilike.%${q}%,answer.ilike.%${q}%,reflection.ilike.%${q}%`);
   }
 
@@ -87,7 +87,6 @@ export async function getCPDPage(options: {
     .order("timestamp", { ascending: false })
     .range(from, to);
 
-  // Execute the query
   const { data, error, count } = await query;
 
   return {
@@ -97,6 +96,17 @@ export async function getCPDPage(options: {
   };
 }
 
+/**
+ * Deletes a specific CPD entry by ID.
+ */
+export async function deleteCPD(id: string): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from(CPD_TABLE)
+    .delete()
+    .eq('id', id);
+
+  return { error };
+}
 
 /**
  * Adds a new CPD entry to the remote database.
@@ -119,7 +129,7 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
     answer: entry.answer,
     reflection: entry.reflection || null, 
     tags: entry.tags || [],
-    ...(userId && { user_id: userId }) // Add user_id if we have it
+    ...(userId && { user_id: userId }) 
   };
 
   const { data, error } = await supabase
@@ -130,7 +140,6 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
     
   // Log analytics event on success
   if (!error && userId) {
-    // We don't await this, let it run in the background.
     supabase
       .from(ANALYTICS_TABLE)
       .insert({
@@ -151,6 +160,24 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
   return { data: data as CPDEntry | null, error };
 }
 
+/**
+ * NEW: Fetches recent chat history (last 7 days) for the sidebar.
+ */
+export async function getChatHistory(): Promise<ChatHistoryItem[]> {
+  const { data, error } = await supabase
+    .from(HISTORY_TABLE)
+    .select("id, question, created_at")
+    .order("created_at", { ascending: false })
+    .limit(20); // Limit to 20 most recent for UI cleanliness
+
+  if (error) {
+    console.error("Error fetching chat history:", error);
+    return [];
+  }
+  
+  return data as ChatHistoryItem[];
+}
+
 // --- Local PDP Functions (Kept in localStorage for simplicity) ---
 
 const isBrowser = typeof window !== "undefined";
@@ -165,14 +192,8 @@ export function savePDP(list: PDPGoal[]) {
   localStorage.setItem(PDP_GOALS_KEY, JSON.stringify(list));
 }
 
-// --- Local Clear Function Update ---
-
-/**
- * Clears all local data (PDP goals).
- */
 export function clearAll() {
   if (!isBrowser) return;
-  // Note: We leave the old cpd_log key here just in case a user has legacy data
   localStorage.removeItem("cpd_log"); 
   localStorage.removeItem(PDP_GOALS_KEY);
 }

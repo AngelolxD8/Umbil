@@ -1,9 +1,9 @@
 // src/app/cpd/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-// Import BOTH getCPD (for tags) and getCPDPage (for pagination)
-import { CPDEntry, getCPD, getCPDPage } from "@/lib/store"; 
+import { useEffect, useState } from "react";
+// Import deleteCPD here
+import { CPDEntry, getCPD, getCPDPage, deleteCPD } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -13,19 +13,15 @@ const PAGE_SIZE = 10;
 
 /**
  * Converts the CPD log array into a CSV string for easy export.
- * @param rows - The array of CPD entries to convert.
- * @returns A string representing the CSV content.
  */
 function toCSV(rows: CPDEntry[]) {
   const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
   const body = rows.map((r) =>
     [
       r.timestamp,
-      // Wrap fields in quotes and escape existing quotes ("" instead of ")
       `"${(r.question || "").replace(/"/g, '""')}"`,
       `"${(r.answer || "").replace(/"/g, '""')}"`,
       `"${(r.reflection || "").replace(/"/g, '""')}"`,
-      // Join tags with a semicolon inside the field to avoid conflict with CSV commas
       `"${(r.tags || []).join("; ")}"`,
     ].join(",")
   );
@@ -51,17 +47,20 @@ function CPDInner() {
 
   // State for CSV downloading
   const [isDownloading, setIsDownloading] = useState(false);
+  
+  // State for Deleting
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   // Debounced filter values
   const [debouncedQ, setDebouncedQ] = useState(q);
   const [debouncedTag, setDebouncedTag] = useState(tag);
 
-  // 1. Debounce text and tag filters to avoid excessive API calls
+  // 1. Debounce text and tag filters
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedQ(q);
       setDebouncedTag(tag);
-    }, 500); // 500ms delay
+    }, 500); 
     return () => clearTimeout(handler);
   }, [q, tag]);
 
@@ -70,19 +69,19 @@ function CPDInner() {
     setCurrentPage(0);
   }, [debouncedQ, debouncedTag]);
 
-  // 3. Fetch all unique tags ONCE on component mount
+  // 3. Fetch all unique tags ONCE
   useEffect(() => {
     const fetchAllTags = async () => {
       setTagsLoading(true);
-      const allEntries = await getCPD(); // Fetches all entries
+      const allEntries = await getCPD(); 
       const tags = Array.from(new Set(allEntries.flatMap((e) => e.tags || []))).sort();
       setAllTags(tags);
       setTagsLoading(false);
     };
     fetchAllTags();
-  }, []); // Empty dependency array = runs once
+  }, []); 
 
-  // 4. Fetch the appropriate page of data when page or filters change
+  // 4. Fetch the appropriate page of data
   useEffect(() => {
     const fetchPage = async () => {
       setLoading(true);
@@ -105,17 +104,13 @@ function CPDInner() {
     };
 
     fetchPage();
-  }, [currentPage, debouncedQ, debouncedTag]); // Re-fetch on page or filter change
+  }, [currentPage, debouncedQ, debouncedTag]); 
 
   // Calculate total pages
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  /**
-   * Generates a CSV file from ALL filtered entries and triggers a browser download.
-   */
   const download = async () => {
     setIsDownloading(true);
-    // Fetch ALL entries that match the current filter (limit: 10000)
     const { entries, error } = await getCPDPage({
       page: 0,
       limit: 10000, 
@@ -124,7 +119,6 @@ function CPDInner() {
     });
 
     if (error) {
-      console.error("Error fetching data for CSV:", error);
       alert("Failed to download CSV data.");
       setIsDownloading(false);
       return;
@@ -132,7 +126,6 @@ function CPDInner() {
 
     const csvContent = toCSV(entries);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
-    
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -140,12 +133,28 @@ function CPDInner() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    
     URL.revokeObjectURL(url);
     setIsDownloading(false);
   };
 
-  // Display a friendly message while data is loading
+  // --- Handle Delete ---
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this entry? This cannot be undone.")) return;
+    
+    setDeletingId(id);
+    const { error } = await deleteCPD(id);
+    
+    if (error) {
+        alert("Failed to delete entry. Please try again.");
+        console.error(error);
+    } else {
+        // Remove from local state immediately for UI responsiveness
+        setList(prev => prev.filter(item => item.id !== id));
+        setTotalCount(prev => prev - 1);
+    }
+    setDeletingId(null);
+  };
+
   if (loading && list.length === 0) {
     return (
         <section className="main-content">
@@ -197,11 +206,31 @@ function CPDInner() {
           {!loading && list.map((e, idx) => (
             <div key={e.id || idx} className="card" style={{ marginBottom: 24 }}>
               <div className="card__body" style={{ padding: '20px' }}>
-                <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16 }}>
-                  <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>
-                    {new Date(e.timestamp).toLocaleString()}
+                <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>
+                      {new Date(e.timestamp).toLocaleString()}
+                    </div>
+                    <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem' }}>{e.question}</div>
                   </div>
-                  <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem' }}>{e.question}</div>
+                  
+                  {e.id && (
+                      <button 
+                        onClick={() => handleDelete(e.id!)}
+                        disabled={deletingId === e.id}
+                        style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: 'var(--umbil-muted)',
+                            opacity: deletingId === e.id ? 0.5 : 1,
+                            padding: '4px'
+                        }}
+                        title="Delete Entry"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                      </button>
+                  )}
                 </div>
                 <div style={{ fontSize: '0.9rem' }}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
@@ -213,18 +242,7 @@ function CPDInner() {
                 )}
                 <div style={{ marginTop: 12 }}>
                   {(e.tags || []).map((t) => (
-                    <span 
-                        key={t} 
-                        style={{ 
-                            marginRight: 8, 
-                            padding: '4px 8px', 
-                            borderRadius: 12, 
-                            backgroundColor: 'var(--umbil-hover-bg)', 
-                            fontSize: '0.8rem', 
-                            color: 'var(--umbil-text)',
-                            fontWeight: 500
-                        }}
-                    >
+                    <span key={t} style={{ marginRight: 8, padding: '4px 8px', borderRadius: 12, backgroundColor: 'var(--umbil-hover-bg)', fontSize: '0.8rem', color: 'var(--umbil-text)', fontWeight: 500 }}>
                       {t}
                     </span>
                   ))}
@@ -234,7 +252,6 @@ function CPDInner() {
           ))}
         </div>
 
-        {/* --- NEW: Pagination Controls --- */}
         {totalPages > 1 && (
           <div className="pagination-controls" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 24 }}>
             <button 
@@ -262,7 +279,6 @@ function CPDInner() {
   );
 }
 
-// Wrapper component to check for user authentication before displaying the log
 export default function CPDPage() {
   const { email, loading } = useUserEmail();
 

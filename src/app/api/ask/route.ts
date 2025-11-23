@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { createHash } from "crypto";
-// We only need streamText from 'ai'
 import { streamText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
 
@@ -16,6 +15,7 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const MODEL_SLUG = "openai/gpt-oss-120b";
 const CACHE_TABLE = "api_cache";
 const ANALYTICS_TABLE = "app_analytics";
+const HISTORY_TABLE = "chat_history"; // NEW table for Part 2
 
 // Together AI client
 const together = createTogetherAI({
@@ -23,20 +23,18 @@ const together = createTogetherAI({
 });
 
 // ---------- Helpers ----------
-// --- FIX 1: Renamed function from `sha26` to `sha256` ---
 function sha256(str: string): string {
   return createHash("sha256").update(str).digest("hex");
 }
 
-// --- NEW (Restored): Function specifically for cache key generation ---
 function sanitizeAndNormalizeQuery(q: string): string {
   return q
     .replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
     .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date")
     .replace(/\b\d{6,10}\b/g, "an identifier")
     .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient")
-    .toLowerCase() // Normalizes case
-    .replace(/\s+/g, " ") // Normalizes whitespace
+    .toLowerCase() 
+    .replace(/\s+/g, " ") 
     .trim();
 }
 
@@ -48,7 +46,6 @@ function sanitizeQuery(q: string): string {
     .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
-// --- UPDATED: Base prompt with artifact fix and answer style logic ---
 const BASE_PROMPT = `
 You are Umbil, a UK clinical assistant. Use UK English and markdown formatting.
 NEVER use HTML tags like <br>. Use new lines for spacing.
@@ -56,7 +53,6 @@ Reference UK clinical guidance (NICE, SIGN, CKS, BNF).
 Start with a concise summary, then use bullet points for key details, and end with a helpful follow-up or differential.
 `.trim();
 
-// --- UPDATED: Using word limits for style ---
 const getStyleModifier = (style: AnswerStyle | null): string => {
   switch (style) {
     case 'clinic':
@@ -68,7 +64,6 @@ const getStyleModifier = (style: AnswerStyle | null): string => {
       return "Provide a standard, balanced answer, ideally under 400 words. Be clear and comprehensive but not excessively long.";
   }
 };
-// --- END OF PROMPT UPDATES ---
 
 async function getUserId(req: NextRequest): Promise<string | null> {
   try {
@@ -106,33 +101,51 @@ export async function POST(req: NextRequest) {
   if (!API_KEY)
     return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500 });
 
-  // Get User ID for logging (available in both try and catch)
   const userId = await getUserId(req);
 
-  // --- FEATURE 2: Add main try...catch for API error logging ---
   try {
-    // --- UPDATED: Removed localTrust ---
     const { messages, profile, answerStyle } = await req.json();
 
     if (!messages?.length)
       return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
-    // --- UPDATED: Construct system prompt with style modifier ---
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
     const systemPrompt = `${BASE_PROMPT} ${styleModifier} ${gradeNote}`.trim();
-    // --- END OF UPDATE ---
 
     const latestUserMessage = messages[messages.length - 1];
     
-    // 1. Use the *normalized* query for the cache key
+    // --- NEW: Save to History & Auto-delete old entries ---
+    if (userId && latestUserMessage.role === 'user') {
+        // 1. Fire-and-forget save to history
+        const originalQuestion = latestUserMessage.content;
+        
+        // 2. Calculate 7 days ago
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        // 3. Run DB operations in background (Insert new, Delete old)
+        // We use supabaseService here to ensure it always runs even if RLS rules are tricky,
+        // though normal supabase client would also work with RLS.
+        Promise.allSettled([
+            supabaseService.from(HISTORY_TABLE).insert({ 
+                user_id: userId, 
+                question: originalQuestion 
+            }),
+            supabaseService.from(HISTORY_TABLE)
+                .delete()
+                .eq('user_id', userId)
+                .lt('created_at', sevenDaysAgo.toISOString())
+        ]).catch(err => console.error("History sync error:", err));
+    }
+    // -----------------------------------------------------
+
     const normalizedQuery = sanitizeAndNormalizeQuery(latestUserMessage.content);
     
-    // 2. --- UPDATED: Define the full cache key content (removed trust) ---
     const cacheKeyContent = JSON.stringify({ 
       model: MODEL_SLUG, 
       query: normalizedQuery, 
-      style: answerStyle || 'standard', // Ensure default is cached
+      style: answerStyle || 'standard', 
     });
     const cacheKey = sha256(cacheKeyContent);
 
@@ -157,7 +170,7 @@ export async function POST(req: NextRequest) {
     const result = await streamText({
       model: together(MODEL_SLUG), 
       messages: [
-        { role: "system", content: systemPrompt }, // Pass the new combined prompt
+        { role: "system", content: systemPrompt }, 
         ...messages.map((m: ClientMessage) => ({
           ...m,
           content: m.role === "user" ? sanitizeQuery(m.content) : m.content,
@@ -179,7 +192,6 @@ export async function POST(req: NextRequest) {
         });
 
         if (answer.length > 50) {
-          // 3. Add `full_query_key` back to the cache entry
           await supabaseService.from(CACHE_TABLE).upsert({
             query_hash: cacheKey,
             answer,
@@ -194,7 +206,6 @@ export async function POST(req: NextRequest) {
     });
 
   } catch (err: unknown) {
-    // --- This is the new catch block for logging API errors ---
     console.error("[Umbil] Fatal Error:", err);
     
     await logAnalytics(userId, 'api_error', { 
@@ -205,5 +216,4 @@ export async function POST(req: NextRequest) {
     const msg = (err as Error).message || "Internal server error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
-  // --- END FEATURE 2 ---
 }

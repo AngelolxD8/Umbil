@@ -210,9 +210,22 @@ export default function HomeContent() {
 
   useEffect(() => {
     if (userLoading) return;
+    
     if (searchParams.get("new-chat")) {
       setConversation([]);
+      setQ("");
     }
+
+    // --- NEW: Handle History Restore ---
+    const historyQ = searchParams.get("history_q");
+    if (historyQ) {
+        setConversation([]); // Clear old chat
+        setQ(historyQ);      // Pre-fill input with history question
+        // Optional: Remove the param so it doesn't stick on refresh
+        window.history.replaceState({}, document.title, "/");
+    }
+    // -----------------------------------
+
     const checkTour = () => {
       const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
       const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
@@ -590,7 +603,7 @@ export default function HomeContent() {
       </div>
 
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
-      {/* REMOVED THE WRAPPER DIV, PASSING ID DIRECTLY */}
+      
       {(isModalOpen || (isTourOpen && tourStep === 4)) && (
         <ReflectionModal
           isOpen={isModalOpen}
