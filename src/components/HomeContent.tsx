@@ -60,8 +60,8 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
   }, []);
   const handleSelect = (style: AnswerStyle) => { onStyleChange(style); setIsOpen(false); };
   return (
-    // FIX: Added inline style to move dropdown to the left, making room for microphone
-    <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef} style={{ right: '100px' }}>
+    // FIX: Adjusted 'right' to 85px to bring it closer to the microphone
+    <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef} style={{ right: '85px' }}>
       <button className="style-dropdown-button" onClick={() => setIsOpen(!isOpen)} title="Change answer style">
         {styleDisplayNames[currentStyle]}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.7 }}><path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -452,13 +452,13 @@ export default function HomeContent() {
                     onChange={(e) => setQ(e.target.value)} 
                     onKeyDown={(e) => e.key === "Enter" && ask()} 
                     disabled={isTourOpen} 
-                    // FIX: Increased padding to prevent text hiding behind buttons
-                    style={{ paddingRight: '220px' }} 
+                    // FIX: Adjusted padding for tighter layout
+                    style={{ paddingRight: '190px' }} 
                 />
                 
                 <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
                 
-                {/* Microphone Button - FIX: Positioned at right: 60px (between Send and Dropdown) */}
+                {/* Microphone Button - FIX: Positioned at right: 56px */}
                 <button 
                     className={`ask-bar-mic-button ${isRecording ? "recording" : ""}`}
                     onClick={handleMicClick}
@@ -466,7 +466,7 @@ export default function HomeContent() {
                     title={isRecording ? "Stop Recording" : "Start Dictation"}
                     style={{
                         position: 'absolute',
-                        right: '60px',
+                        right: '56px',
                         top: '50%',
                         transform: 'translateY(-50%)',
                         background: 'none',
@@ -500,8 +500,8 @@ export default function HomeContent() {
                 onChange={(e) => setQ(e.target.value)} 
                 onKeyDown={(e) => e.key === "Enter" && ask()} 
                 disabled={isTourOpen} 
-                // FIX: Increased padding to prevent text hiding behind buttons
-                style={{ paddingRight: '220px' }} 
+                // FIX: Adjusted padding for tighter layout
+                style={{ paddingRight: '190px' }} 
               />
               <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
               
@@ -513,7 +513,7 @@ export default function HomeContent() {
                     title={isRecording ? "Stop Recording" : "Start Dictation"}
                     style={{
                         position: 'absolute',
-                        right: '60px',
+                        right: '56px',
                         top: '50%',
                         transform: 'translateY(-50%)',
                         background: 'none',
