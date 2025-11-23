@@ -22,6 +22,13 @@ type AskResponse = { answer?: string; error?: string; };
 type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; };
 type ClientMessage = { role: "user" | "assistant"; content: string; };
 
+// --- Types for Speech Recognition ---
+// We extend the window interface locally to avoid global type conflicts
+interface IWindow extends Window {
+  webkitSpeechRecognition: any;
+  SpeechRecognition: any;
+}
+
 function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
   return (
     <div className="modal-overlay">
@@ -107,6 +114,10 @@ export default function HomeContent() {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
 
+  // --- Microphone / Dictation State ---
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any>(null);
+
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
@@ -165,10 +176,24 @@ export default function HomeContent() {
     }
   }, [searchParams, email, router, userLoading]);
 
+  // --- Keyboard/Viewport Fix (Gemini Effect) ---
+  useEffect(() => {
+    // This handles the mobile keyboard pop-up.
+    // When the keyboard opens, visualViewport resizes. We must scroll to bottom immediately.
+    if (typeof window !== 'undefined' && window.visualViewport) {
+      const handleResize = () => {
+        scrollToBottom(true);
+      };
+      window.visualViewport.addEventListener('resize', handleResize);
+      return () => window.visualViewport?.removeEventListener('resize', handleResize);
+    }
+  }, [conversation]);
+
   const scrollToBottom = (instant = false) => {
     const container = scrollContainerRef.current;
     if (container) {
-      const isNearBottom = container.scrollHeight - container.scrollTop < container.clientHeight + 200;
+      // Adjusted threshold for smoother auto-scroll
+      const isNearBottom = container.scrollHeight - container.scrollTop < container.clientHeight + 300;
       if (isNearBottom || instant) {
         messagesEndRef.current?.scrollIntoView({ behavior: instant ? "auto" : "smooth" });
       }
@@ -194,6 +219,50 @@ export default function HomeContent() {
       setLoadingMsg(loadingMessages[0]);
     }
   }, [loading]);
+
+  // --- Microphone Handler ---
+  const handleMicClick = useCallback(() => {
+    if (isRecording) {
+      recognitionRef.current?.stop();
+      setIsRecording(false);
+      return;
+    }
+
+    const w = window as unknown as IWindow;
+    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setToastMessage("Speech recognition not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = 'en-GB'; // UK English
+
+    recognition.onstart = () => {
+      setIsRecording(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setQ((prev) => (prev ? prev + " " + transcript : transcript));
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsRecording(false);
+      setToastMessage("Microphone error. Please check permissions.");
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [isRecording]);
 
   const handleStartTour = () => { setShowWelcomeModal(false); setIsTourOpen(true); setTourStep(0); };
   const handleSkipTour = () => { setShowWelcomeModal(false); localStorage.setItem("hasCompletedQuickTour", "true"); };
@@ -371,11 +440,48 @@ export default function HomeContent() {
               </div>
             </div>
 
+            {/* Sticky Input Bar with Microphone and Answer Style */}
             <div className="sticky-input-wrapper" style={{ position: 'relative', flexShrink: 0, background: 'var(--umbil-bg)', borderTop: '1px solid var(--umbil-divider)', zIndex: 50, padding: '20px' }}>
               <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px', margin: '0 auto', position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {/* FIX: Updated placeholder text */}
-                <input className="ask-bar-input" placeholder="Ask Umbil anything..." value={isTourOpen ? "What are the red flags for a headache?" : q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()} disabled={isTourOpen} style={{ paddingRight: '150px' }} />
+                <input 
+                    className="ask-bar-input" 
+                    placeholder="Ask Umbil anything..." 
+                    value={isTourOpen ? "What are the red flags for a headache?" : q} 
+                    onChange={(e) => setQ(e.target.value)} 
+                    onKeyDown={(e) => e.key === "Enter" && ask()} 
+                    disabled={isTourOpen} 
+                    style={{ paddingRight: '150px' }} 
+                />
+                
                 <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
+                
+                {/* Microphone Button */}
+                <button 
+                    className={`ask-bar-mic-button ${isRecording ? "recording" : ""}`}
+                    onClick={handleMicClick}
+                    disabled={loading || isTourOpen}
+                    title={isRecording ? "Stop Recording" : "Start Dictation"}
+                    style={{
+                        position: 'absolute',
+                        right: '55px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: isRecording ? '#ef4444' : 'var(--umbil-muted)',
+                        transition: 'color 0.2s'
+                    }}
+                >
+                    {isRecording ? (
+                        <div className="recording-pulse">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                        </div>
+                    ) : (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    )}
+                </button>
+
                 <button className="ask-bar-send-button" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
               </div>
             </div>
@@ -384,9 +490,44 @@ export default function HomeContent() {
           <div className="hero" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
             <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: "24px", position: 'relative' }}>
-              {/* FIX: Updated placeholder text */}
-              <input className="ask-bar-input" placeholder="Ask Umbil anything..." value={isTourOpen ? "What are the red flags for a headache?" : q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()} disabled={isTourOpen} style={{ paddingRight: '150px' }} />
+              <input 
+                className="ask-bar-input" 
+                placeholder="Ask Umbil anything..." 
+                value={isTourOpen ? "What are the red flags for a headache?" : q} 
+                onChange={(e) => setQ(e.target.value)} 
+                onKeyDown={(e) => e.key === "Enter" && ask()} 
+                disabled={isTourOpen} 
+                style={{ paddingRight: '150px' }} 
+              />
               <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
+              
+              {/* Microphone Button (Hero) */}
+                <button 
+                    className={`ask-bar-mic-button ${isRecording ? "recording" : ""}`}
+                    onClick={handleMicClick}
+                    disabled={loading || isTourOpen}
+                    title={isRecording ? "Stop Recording" : "Start Dictation"}
+                    style={{
+                        position: 'absolute',
+                        right: '55px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: isRecording ? '#ef4444' : 'var(--umbil-muted)',
+                        transition: 'color 0.2s'
+                    }}
+                >
+                    {isRecording ? (
+                        <div className="recording-pulse">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                        </div>
+                    ) : (
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                    )}
+                </button>
+
               <button className="ask-bar-send-button" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
             </div>
             <p className="disclaimer" style={{ marginTop: "36px" }}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg> Please don’t enter any patient-identifiable information.</p>
@@ -398,6 +539,24 @@ export default function HomeContent() {
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined} />
       )}
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      
+      {/* CSS for Recording Pulse Animation */}
+      <style jsx>{`
+        @keyframes pulse-red {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        .recording-pulse {
+            animation: pulse-red 1.5s infinite;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ask-bar-mic-button:hover {
+            color: var(--umbil-text) !important;
+        }
+      `}</style>
     </>
   );
 }
