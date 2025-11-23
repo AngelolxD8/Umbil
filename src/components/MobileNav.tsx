@@ -33,10 +33,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   useEffect(() => {
     const loadData = async () => {
       if (email) {
-        const [userProfile, historyData] = await Promise.all([
-            getMyProfile(),
-            getChatHistory()
-        ]);
+        const [userProfile, historyData] = await Promise.all([getMyProfile(), getChatHistory()]);
         setProfile(userProfile);
         setHistory(historyData);
       } else {
@@ -44,69 +41,39 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         setHistory([]);
       }
     };
-    if (isOpen) {
-        loadData();
-    }
+    if (isOpen) loadData();
   }, [email, isOpen]);
 
-  const handleNewChat = () => {
-    onClose();
-    router.push(`/?new-chat=${Date.now()}`);
-  };
-  
-  const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    onClose();
-    router.push("/"); 
-  };
+  const handleNewChat = () => { onClose(); router.push(`/?new-chat=${Date.now()}`); };
+  const handleSignOut = async () => { await supabase.auth.signOut(); onClose(); router.push("/"); };
+  const handleStartTour = () => { onClose(); router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`); };
 
-  const handleStartTour = () => {
-    onClose();
-    router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`);
-  };
-
-  const handleHistoryClick = (q: string) => {
+  // --- FIX: Use ID instead of text ---
+  const handleHistoryClick = (id: string) => {
       onClose();
       const params = new URLSearchParams();
-      params.set("history_q", q);
+      params.set("history_id", id); // Passing ID now
       router.push(`/?${params.toString()}`);
   };
 
   const handleInvite = async () => {
-    const shareData = {
-      title: "Join me on Umbil",
-      text: "I'm using Umbil to turn my clinical questions into verified CPD instantly. It even tracks my learning stats and GMC domains! You should try it:",
-      url: "https://umbil.co.uk"
-    };
-
-    if (navigator.share) {
-      try { await navigator.share(shareData); } catch (err) { console.log(err); }
-    } else {
-      const textToCopy = `${shareData.text} ${shareData.url}`;
-      navigator.clipboard.writeText(textToCopy).then(() => {
-        setToastMessage("Invite link copied to clipboard!");
-      });
-    }
+    const shareData = { title: "Join me on Umbil", text: "I'm using Umbil...", url: "https://umbil.co.uk" };
+    if (navigator.share) { try { await navigator.share(shareData); } catch (err) { console.log(err); } }
+    else { navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`).then(() => setToastMessage("Invite link copied!")); }
   };
 
-  // --- Split Menu Items ---
   const topMenuItems = [
     { href: "/about", label: "About Umbil" },
     { href: "/cpd", label: "My CPD", requiresAuth: true },
     { href: "/pdp", label: "My PDP", requiresAuth: true },
     { href: "/profile", label: "My Profile", requiresAuth: true },
   ];
-
   const bottomMenuItems = [
     { href: "/pro", label: "Umbil Pro ✨", requiresAuth: false }, 
     { href: "/settings", label: "Settings" },
     { href: "/settings/feedback", label: "Send Feedback" }, 
   ];
-
   const filterItems = (items: typeof topMenuItems) => items.filter(item => !item.requiresAuth || userEmail);
-
-  const filteredTop = filterItems(topMenuItems);
-  const filteredBottom = filterItems(bottomMenuItems);
 
   return (
     <>
@@ -114,78 +81,32 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
       <div id="tour-highlight-sidebar" className={`sidebar ${isOpen ? "is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
         <div className="sidebar-header">
           <h3 className="text-lg font-semibold">Navigation</h3>
-          <button onClick={onClose} className="menu-button">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-          </button>
+          <button onClick={onClose} className="menu-button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
         </div>
 
         <button className="new-chat-button" onClick={handleNewChat}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg>
-          New Chat
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> New Chat
         </button>
 
         {userEmail && !streaksLoading && currentStreak > 0 && (
-            <Link
-                href="/profile"
-                className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`}
-                onClick={onClose}
-            >
-                <span style={{fontWeight: 700}}>
-                    🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
-                </span>
+            <Link href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
+                <span style={{fontWeight: 700}}>🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
             </Link>
         )}
         
         <nav className="sidebar-nav" style={{ overflowY: 'auto' }}>
-          
-          {/* 1. Top Menu Items (About, CPD, PDP, Profile) */}
-          {filteredTop.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={pathname === item.href ? "active" : ""}
-              onClick={onClose}
-            >
+          {filterItems(topMenuItems).map((item) => (
+            <Link key={item.href} href={item.href} className={pathname === item.href ? "active" : ""} onClick={onClose}>
               {item.label}
             </Link>
           ))}
 
-          {/* 2. Chat History Section (Inserted Middle) */}
           {userEmail && history.length > 0 && (
-            <div style={{ margin: '12px 0', padding: '12px 0', borderTop: '1px solid var(--umbil-divider)', borderBottom: '1px solid var(--umbil-divider)' }}>
-                <div style={{ 
-                    fontSize: '0.75rem', 
-                    fontWeight: 600, 
-                    color: 'var(--umbil-muted)', 
-                    textTransform: 'uppercase', 
-                    letterSpacing: '0.05em',
-                    marginBottom: '8px',
-                    paddingLeft: '16px'
-                }}>
-                    Recent (7 Days)
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '200px', overflowY: 'auto' }}>
+            <div style={{ margin: '8px 0', padding: '8px 0', borderTop: '1px solid var(--umbil-divider)', borderBottom: '1px solid var(--umbil-divider)' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--umbil-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px', paddingLeft: '16px' }}>Recent (7 Days)</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', maxHeight: '200px', overflowY: 'auto' }}>
                     {history.map((item) => (
-                        <button
-                            key={item.id}
-                            onClick={() => handleHistoryClick(item.question)}
-                            style={{
-                                textAlign: 'left',
-                                background: 'none',
-                                border: 'none',
-                                padding: '8px 16px',
-                                fontSize: '0.9rem',
-                                color: 'var(--umbil-text)',
-                                cursor: 'pointer',
-                                whiteSpace: 'nowrap',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                width: '100%',
-                                transition: 'background-color 0.2s',
-                                borderRadius: '4px'
-                            }}
-                            className="history-item"
-                        >
+                        <button key={item.id} onClick={() => handleHistoryClick(item.id)} className="history-item" style={{ textAlign: 'left', background: 'none', border: 'none', padding: '6px 16px', fontSize: '0.9rem', color: 'var(--umbil-text)', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', transition: 'background-color 0.2s', borderRadius: '4px' }}>
                             {item.question}
                         </button>
                     ))}
@@ -193,54 +114,36 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             </div>
           )}
 
-          {/* 3. Bottom Menu Items (Pro, Settings, Feedback) */}
-          {filteredBottom.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={pathname === item.href ? "active" : ""}
-              onClick={onClose}
-            >
+          {filterItems(bottomMenuItems).map((item) => (
+            <Link key={item.href} href={item.href} className={pathname === item.href ? "active" : ""} onClick={onClose}>
               {item.label}
             </Link>
           ))}
           
           <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--umbil-divider)' }}>
-            <a href="#" onClick={(e) => { e.preventDefault(); handleInvite(); }} className="quick-tour-button" style={{color: 'var(--umbil-brand-teal)'}}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><line x1="19" y1="8" x2="19" y2="14"></line><line x1="22" y1="11" x2="16" y2="11"></line></svg>
-              Invite a Colleague
-            </a>
-
-            <a href="#" onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="quick-tour-button">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{marginRight: '8px'}}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
-              Quick Tour
-            </a>
+            <a href="#" onClick={(e) => { e.preventDefault(); handleInvite(); }} className="quick-tour-button" style={{color: 'var(--umbil-brand-teal)'}}>Invite a Colleague</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="quick-tour-button">Quick Tour</a>
           </div>
         </nav>
         
         {userEmail && profile && (
             <div style={{ padding: '16px 0', borderTop: '1px solid var(--umbil-divider)', marginTop: 'auto' }}>
-                <div className="profile-info-sidebar">
-                    <span className="user-name">{profile.full_name || email || 'User Profile'}</span> 
-                    {profile.grade && <span className="user-role">{profile.grade}</span>}
-                </div>
+                <div className="profile-info-sidebar"><span className="user-name">{profile.full_name || email || 'User Profile'}</span>{profile.grade && <span className="user-role">{profile.grade}</span>}</div>
                 <button className="btn btn--outline" onClick={handleSignOut} style={{ marginTop: '12px', width: '100%' }}>Sign out</button>
             </div>
         )}
 
         <div style={{ padding: '12px 16px', borderTop: '1px solid var(--umbil-divider)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span style={{ fontWeight: 500 }}>{isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}</span>
-            <label className="switch">
-              <input type="checkbox" checked={isDarkMode} onChange={toggleDarkMode} />
-              <span className="slider round"></span>
-            </label>
+            <label className="switch"><input type="checkbox" checked={isDarkMode} onChange={toggleDarkMode} /><span className="slider round"></span></label>
         </div>
       </div>
-      
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-
       <style jsx global>{`
-        .quick-tour-button { display: flex !important; align-items: center; padding: 12px 16px; font-size: 1rem; font-weight: 500; color: var(--umbil-text); border-radius: var(--umbil-radius-sm); transition: background-color 0.2s; cursor: pointer; }
+        /* FIX: Reduced padding for items */
+        .sidebar-nav a { display: block; padding: 6px 16px; font-size: 1rem; font-weight: 500; color: var(--umbil-text); border-radius: var(--umbil-radius-sm); transition: background-color 0.2s; }
+        .sidebar-nav a:hover, .sidebar-nav a.active { background-color: var(--umbil-hover-bg); color: var(--umbil-brand-teal); }
+        .quick-tour-button { display: flex !important; align-items: center; padding: 6px 16px; font-size: 1rem; font-weight: 500; color: var(--umbil-text); border-radius: var(--umbil-radius-sm); transition: background-color 0.2s; cursor: pointer; }
         .quick-tour-button:hover, .quick-tour-button.active { background-color: var(--umbil-hover-bg); }
         .profile-info-sidebar { display: flex; flex-direction: column; padding: 0 16px; margin-bottom: 8px; }
         .profile-info-sidebar .user-name { font-weight: 600; font-size: 1rem; color: var(--umbil-text); }
