@@ -90,7 +90,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> New Chat
             </button>
 
-            {/* CPD Streak (Restored Button Style) */}
+            {/* CPD Streak */}
             {userEmail && !streaksLoading && currentStreak > 0 && (
                 <Link href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
                     <span style={{fontWeight: 700}}>🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
@@ -150,7 +150,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                 </Link>
             </div>
 
-            {/* Profile Info & Sign Out (Restored) */}
+            {/* Profile Info & Sign Out */}
             {userEmail && (
                 <div className="profile-section">
                     <div className="profile-info">
@@ -183,14 +183,14 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         .sidebar-header {
             flex-shrink: 0;
             padding-bottom: 0;
-            margin-bottom: 20px;
+            margin-bottom: 16px; /* Tighter spacing */
         }
 
         /* Scrollable Middle Section */
         .sidebar-scroll-area {
             flex-grow: 1;
             overflow-y: auto;
-            padding-bottom: 20px;
+            padding-bottom: 12px;
             -ms-overflow-style: none;
             scrollbar-width: none;
         }
@@ -198,16 +198,21 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             display: none;
         }
 
+        /* Overriding the global margin for the new chat button to tighten layout */
+        .new-chat-button {
+            margin-bottom: 12px !important;
+        }
+
         /* Navigation Items */
         .nav-group {
             display: flex;
             flex-direction: column;
-            gap: 4px;
-            margin-bottom: 24px;
+            gap: 2px; /* Tighter gap between items */
+            margin-bottom: 16px; /* Less space before history */
         }
         .nav-item {
             display: block;
-            padding: 10px 16px;
+            padding: 8px 16px; /* Reduced vertical padding (was 10px) */
             font-size: 1rem;
             font-weight: 500;
             color: var(--umbil-text);
@@ -219,14 +224,14 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             color: var(--umbil-brand-teal);
         }
 
-        /* Streak Button Style (Restored) */
+        /* Streak Button Style */
         .streak-display-sidebar { 
-            padding: 12px 16px; 
+            padding: 10px 16px; /* Slightly tighter */
             font-size: 1rem; 
             color: var(--umbil-brand-teal); 
             background-color: var(--umbil-hover-bg); 
             border-radius: var(--umbil-radius-sm); 
-            margin: 0 0 16px 0; 
+            margin: 0 0 12px 0; /* Reduced margin bottom (was 16px) */
             text-align: center; 
             transition: opacity 0.3s, background-color 0.2s; 
             display: block; 
@@ -243,8 +248,8 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
 
         /* History Section */
         .history-section {
-            margin-top: 8px;
-            padding-top: 16px;
+            margin-top: 0px; /* Removed extra top margin */
+            padding-top: 12px;
             border-top: 1px solid var(--umbil-divider);
         }
         .section-label {
@@ -253,7 +258,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             color: var(--umbil-muted);
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             padding-left: 12px;
         }
         .history-list {
@@ -292,7 +297,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             background-color: var(--umbil-surface);
             display: flex;
             flex-direction: column;
-            gap: 12px; /* More spacing between footer elements */
+            gap: 12px;
         }
 
         /* Pro Link */
@@ -323,7 +328,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             align-items: center;
             justify-content: center;
             padding: 10px;
-            border: 1px solid var(--umbil-brand-teal); /* Teal Border */
+            border: 1px solid var(--umbil-brand-teal);
             border-radius: var(--umbil-radius-sm);
             color: var(--umbil-brand-teal);
             background-color: transparent;
@@ -335,11 +340,11 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             text-decoration: none;
         }
         .footer-btn:hover {
-            background-color: var(--umbil-brand-teal); /* Fill on hover */
-            color: var(--umbil-surface); /* White text on hover (in light mode) */
+            background-color: var(--umbil-brand-teal);
+            color: var(--umbil-surface);
         }
 
-        /* Profile Info Section (Restored) */
+        /* Profile Info Section */
         .profile-section {
             display: flex;
             justify-content: space-between;
