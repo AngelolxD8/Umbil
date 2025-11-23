@@ -101,8 +101,6 @@ export default function HomeContent() {
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
   const [isHistorySaved, setIsHistorySaved] = useState(false);
-  
-  // Track the specific ID we last fetched, not just a boolean
   const lastFetchedHistoryId = useRef<string | null>(null);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
@@ -116,19 +114,17 @@ export default function HomeContent() {
   useEffect(() => {
     if (userLoading) return;
     
-    // Handle New Chat Reset
     if (searchParams.get("new-chat")) {
       setConversation([]);
       setQ("");
       setIsHistorySaved(false); 
-      lastFetchedHistoryId.current = null; // Reset the tracking ref
+      lastFetchedHistoryId.current = null;
     }
 
     const historyId = searchParams.get("history_id");
     
-    // Check if we have a historyId AND if it's different from the last one we loaded
     if (historyId && historyId !== lastFetchedHistoryId.current) {
-        lastFetchedHistoryId.current = historyId; // Update ref immediately to prevent double fetch
+        lastFetchedHistoryId.current = historyId; 
         setLoading(true);
         setQ(""); 
 
@@ -199,7 +195,6 @@ export default function HomeContent() {
     }
   }, [loading]);
 
-  // FIX: THESE FUNCTIONS WERE MISSING IN THE PREVIOUS SNIPPET
   const handleStartTour = () => { setShowWelcomeModal(false); setIsTourOpen(true); setTourStep(0); };
   const handleSkipTour = () => { setShowWelcomeModal(false); localStorage.setItem("hasCompletedQuickTour", "true"); };
 
@@ -214,7 +209,6 @@ export default function HomeContent() {
     setIsTourOpen(false); setTourStep(0); setIsModalOpen(false); setCurrentCpdEntry(null);
     localStorage.setItem("hasCompletedQuickTour", "true");
     const sidebar = document.querySelector('.sidebar.is-open');
-    // Cast to HTMLElement to fix type error
     if (sidebar) { (sidebar.querySelector('.sidebar-header button') as HTMLElement)?.click(); }
   }, []);
 
@@ -257,7 +251,6 @@ export default function HomeContent() {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break; 
-          // Stream true prevents errors at chunk boundaries
           const chunk = decoder.decode(value, { stream: true });
           setConversation((prev) => {
             const newConversation = [...prev];
@@ -380,7 +373,8 @@ export default function HomeContent() {
 
             <div className="sticky-input-wrapper" style={{ position: 'relative', flexShrink: 0, background: 'var(--umbil-bg)', borderTop: '1px solid var(--umbil-divider)', zIndex: 50, padding: '20px' }}>
               <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px', margin: '0 auto', position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input className="ask-bar-input" placeholder="Ask anything..." value={isTourOpen ? "What are the red flags for a headache?" : q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()} disabled={isTourOpen} style={{ paddingRight: '150px' }} />
+                {/* FIX: Updated placeholder text */}
+                <input className="ask-bar-input" placeholder="Ask Umbil anything..." value={isTourOpen ? "What are the red flags for a headache?" : q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()} disabled={isTourOpen} style={{ paddingRight: '150px' }} />
                 <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
                 <button className="ask-bar-send-button" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
               </div>
@@ -390,7 +384,8 @@ export default function HomeContent() {
           <div className="hero" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
             <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: "24px", position: 'relative' }}>
-              <input className="ask-bar-input" placeholder="Ask anything..." value={isTourOpen ? "What are the red flags for a headache?" : q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()} disabled={isTourOpen} style={{ paddingRight: '150px' }} />
+              {/* FIX: Updated placeholder text */}
+              <input className="ask-bar-input" placeholder="Ask Umbil anything..." value={isTourOpen ? "What are the red flags for a headache?" : q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && ask()} disabled={isTourOpen} style={{ paddingRight: '150px' }} />
               <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
               <button className="ask-bar-send-button" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
             </div>

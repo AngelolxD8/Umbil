@@ -14,7 +14,7 @@ import { Analytics } from "@vercel/analytics/react";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-// --- NEW Component for Global Streak Display ---
+// ... [GlobalStreakDisplay Component - Keep existing code] ...
 function GlobalStreakDisplay() {
     const { email } = useUserEmail();
     const { currentStreak, hasLoggedToday, loading } = useCpdStreaks(); 
@@ -36,7 +36,6 @@ function GlobalStreakDisplay() {
         </Link>
     );
 }
-// -----------------------------------------------
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -70,18 +69,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         suppressHydrationWarning
         className={bodyClassName}
+        // FIX: Ensure body doesn't scroll
+        style={{ height: '100dvh', overflow: 'hidden', margin: 0 }} 
       >
-        <div id="root">
-          <header className="header">
+        {/* FIX: #root must handle the flex column layout and constrain height */}
+        <div id="root" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
+          <header className="header" style={{ flexShrink: 0 }}>
             <div className="header-left">
-              {/* --- THIS IS THE FIX --- */}
               <button
                 id="tour-highlight-sidebar-button" 
                 className="menu-button"
                 aria-label="Open sidebar menu"
                 onClick={() => setIsMobileNavOpen(true)}
               >
-              {/* ----------------------- */}
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <path d="M4 6H20M4 12H20M4 18H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -99,7 +99,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
           </header>
 
-          <main>{children}</main>
+          {/* FIX: Main consumes remaining space and passes it down */}
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}>
+            {children}
+          </main>
+          
           <MobileNav 
             isOpen={isMobileNavOpen} 
             onClose={() => setIsMobileNavOpen(false)} 

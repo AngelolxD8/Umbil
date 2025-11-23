@@ -135,7 +135,7 @@ const RenderGmcTick = ({ payload, x, y, textAnchor, ...props }: any) => {
   const label = payload.value;
   let lines = [label];
 
-  // Manual word wrapping logic for specific GMC domains
+  // Manual word wrapping logic
   if (label.includes("Communication")) {
     lines = ["Communication", "Partnership", "& Teamwork"];
   } else if (label.includes("Knowledge")) {
@@ -153,10 +153,8 @@ const RenderGmcTick = ({ payload, x, y, textAnchor, ...props }: any) => {
         y={0}
         dy={0}
         textAnchor={textAnchor}
-        // FIX: Changed from var(--umbil-muted) to var(--umbil-text) so it's white in dark mode
-        fill="var(--umbil-text)" 
-        fontSize={10}
-        fontWeight={600}
+        // FIX: Force fill via style to ensure it reads the CSS variable in Dark Mode
+        style={{ fill: 'var(--umbil-text)', fontSize: '10px', fontWeight: 600 }}
         {...props}
       >
         {lines.map((line, index) => (
@@ -275,7 +273,7 @@ function AnalyticsInner() {
                 <PolarGrid stroke="var(--umbil-divider)" />
                 <PolarAngleAxis 
                   dataKey="domain" 
-                  // Use custom tick component for wrapping
+                  // Use custom tick component for wrapping and colors
                   tick={<RenderGmcTick />}
                 />
                 <PolarRadiusAxis angle={30} domain={[0, 'auto']} tick={false} axisLine={false} />
