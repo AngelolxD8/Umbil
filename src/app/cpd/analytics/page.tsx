@@ -153,7 +153,8 @@ const RenderGmcTick = ({ payload, x, y, textAnchor, ...props }: any) => {
         y={0}
         dy={0}
         textAnchor={textAnchor}
-        fill="var(--umbil-muted)"
+        // FIX: Changed from var(--umbil-muted) to var(--umbil-text) so it's white in dark mode
+        fill="var(--umbil-text)" 
         fontSize={10}
         fontWeight={600}
         {...props}

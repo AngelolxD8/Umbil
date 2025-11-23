@@ -23,7 +23,7 @@ export default function SettingsPage() {
   };
 
   const clear = () => {
-    if (!confirm("This will remove all locally saved CPD and PDP data on this device. Continue?")) return;
+    if (!confirm("This will remove all locally saved PDP goals and cached data on this device. Continue?")) return;
     clearAll();
     alert("Local data cleared.");
   };
@@ -57,22 +57,33 @@ export default function SettingsPage() {
             }
         });
 
+        // FIX 1: Safely handle the response parsing
+        let errData;
+        const text = await res.text(); // Get raw text first
+        try {
+            // Try to parse as JSON if text exists
+            errData = text ? JSON.parse(text) : {}; 
+        } catch {
+            // If parsing fails, assume generic error
+            errData = { error: "Invalid server response" };
+        }
+
         if (!res.ok) {
-            const errData = await res.json();
             throw new Error(errData.error || "Failed to delete account");
         }
 
+        // FIX 2: Automatically clear local storage (PDP goals) on account delete
         clearAll();
         await supabase.auth.signOut();
         
-        alert("Your account has been deleted. You will now be redirected.");
+        alert("Your account has been permanently deleted. Redirecting to home.");
         router.push("/");
 
       } catch (err: unknown) {
-          // FIX: Use 'unknown' type and cast safely
           console.error(err);
           const msg = err instanceof Error ? err.message : "An unknown error occurred";
           alert(`Error: ${msg}`);
+      } finally {
           setIsDeleting(false);
       }
   }
@@ -102,7 +113,7 @@ export default function SettingsPage() {
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={true} onChange={handleInformationalChange} />
-                    <label>I know that my local CPD/PDP logs can be manually cleared below (Right to Erasure - Local Data).</label>
+                    <label>I know that my local PDP goals can be manually cleared below (Right to Erasure - Local Data).</label>
                 </div>
             </div>
 
@@ -112,25 +123,35 @@ export default function SettingsPage() {
 
         <div className="card" style={{ marginBottom: 24 }}>
           <div className="card__body">
-            <h3 style={{marginBottom: 8}}>Data Management: Local Browser Storage</h3>
-            <p className="section-description" style={{marginBottom: 12}}>This action clears all CPD/PDP data stored locally in this browser (Right to Erasure - Local Data).</p>
-            <button className="btn btn--outline" onClick={clear}>🗑️ Clear ALL local data (CPD/PDP)</button>
+            <h3 style={{marginBottom: 8}}>Local Data Management</h3>
+            <p className="section-description" style={{marginBottom: 12}}>
+                Your Personal Development Plan (PDP) goals are currently stored only on this device. Use this to wipe them.
+            </p>
+            <button className="btn btn--outline" onClick={clear}>🗑️ Clear local PDP goals</button>
           </div>
         </div>
         
-        <div className="card">
+        <div className="card" style={{ borderColor: '#fee2e2', backgroundColor: 'var(--umbil-surface)' }}>
           <div className="card__body">
-            <h3 style={{marginBottom: 8}}>Account Deletion (Remote Data Erasure)</h3>
-            <p className="section-description" style={{marginBottom: 12}}>Permanently delete your Umbil user profile and all associated remote data.</p>
+            <h3 style={{marginBottom: 8, color: '#dc2626'}}>Danger Zone: Account Deletion</h3>
+            <p className="section-description" style={{marginBottom: 12}}>
+                Permanently delete your Umbil user profile and all associated remote CPD data. This will also wipe your local data.
+            </p>
             <button 
                 className="btn btn--outline" 
-                style={{backgroundColor: 'var(--umbil-hover-bg)', color: '#dc3545', borderColor: '#dc3545'}} 
+                style={{
+                    backgroundColor: '#fef2f2', 
+                    color: '#dc2626', 
+                    borderColor: '#dc2626'
+                }} 
                 onClick={deleteAccount}
                 disabled={isDeleting}
             >
                 {isDeleting ? "Deleting..." : "⚠️ Permanently Delete Account"}
             </button>
-            <p style={{marginTop: '8px', fontSize: '0.8rem', color: 'var(--umbil-muted)'}}>Note: This action is irreversible.</p>
+            <p style={{marginTop: '8px', fontSize: '0.8rem', color: 'var(--umbil-muted)'}}>
+                Note: This action is irreversible.
+            </p>
           </div>
         </div>
         

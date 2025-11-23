@@ -2,77 +2,95 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-// We still use getCPD to read entries, which now fetches from the DB
-import { PDPGoal, getPDP, savePDP, getCPD, CPDEntry } from "@/lib/store"; // <-- CHECK THIS LINE
+// Import the new async functions from store
+import { PDPGoal, getPDP, addPDP, deletePDP, getCPD, CPDEntry } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 
 // Inner component for the main PDP logic, displayed only when authenticated
 function PDPInner() {
   const [goals, setGoals] = useState<PDPGoal[]>([]);
-  const [cpdEntries, setCpdEntries] = useState<CPDEntry[]>([]); // New state for remote CPD data
+  const [cpdEntries, setCpdEntries] = useState<CPDEntry[]>([]);
   const [title, setTitle] = useState("");
   const [timeline, setTimeline] = useState("3 months");
   const [activities, setActivities] = useState("");
-
-  // 1. Load saved PDP goals (local) on mount
-  useEffect(() => setGoals(getPDP()), []);
   
-  // 2. Fetch CPD entries (remote) asynchronously for suggestions logic
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  // 1. Load PDP goals (REMOTE) on mount
   useEffect(() => {
-    const fetchCpd = async () => {
-      const entries = await getCPD();
-      setCpdEntries(entries);
-    }
-    fetchCpd();
+    const fetchData = async () => {
+      setLoading(true);
+      const [pdpData, cpdData] = await Promise.all([getPDP(), getCPD()]);
+      setGoals(pdpData);
+      setCpdEntries(cpdData);
+      setLoading(false);
+    };
+    fetchData();
   }, []);
 
   /**
-   * Adds a new goal to the list and saves it to local storage.
+   * Adds a new goal to the database.
    */
-  const add = () => {
+  const add = async () => {
     if (!title.trim()) return;
-    const newGoal: PDPGoal = {
-      // Use a crypto-safe UUID for a unique ID
-      id: crypto.randomUUID(),
-      title,
-      timeline,
-      // Split activities by newline, clean up empty lines, and save as an array
-      activities: activities.split("\n").filter(Boolean),
-    };
-    // Add new goal to the start of the array
-    const next: PDPGoal[] = [newGoal, ...goals];
+    setSaving(true);
     
-    setGoals(next);
-    savePDP(next); // This function is what Vercel couldn't find
-    // Reset form fields after successful save
-    setTitle(""); setTimeline("3 months"); setActivities("");
+    const activitiesList = activities.split("\n").filter(Boolean);
+    
+    const { data, error } = await addPDP({
+        title,
+        timeline,
+        activities: activitiesList
+    });
+
+    if (error) {
+        alert("Failed to save goal.");
+        console.error(error);
+    } else if (data) {
+        setGoals([data, ...goals]);
+        // Reset form
+        setTitle(""); 
+        setTimeline("3 months"); 
+        setActivities("");
+    }
+    setSaving(false);
   };
 
   /**
-   * Removes a goal by its ID and updates local storage.
-   * @param id - The unique ID of the goal to remove.
+   * Removes a goal by its ID from the database.
    */
-  const remove = (id: string) => {
-    const next = goals.filter((g) => g.id !== id);
-    setGoals(next);
-    savePDP(next); // This function is what Vercel couldn't find
+  const remove = async (id: string) => {
+    if(!confirm("Delete this goal?")) return;
+    
+    // Optimistic update for UI responsiveness
+    const previousGoals = [...goals];
+    setGoals(goals.filter((g) => g.id !== id));
+
+    const { error } = await deletePDP(id);
+    if (error) {
+        alert("Failed to delete goal.");
+        setGoals(previousGoals); // Revert on error
+    }
   };
 
   // Memoize suggested goals to prevent unnecessary recalculations
   const suggestedGoals = useMemo(() => {
-    // 1. Count how many times each tag has been used in CPD reflections
     const tagCounts = cpdEntries.flatMap(entry => entry.tags || []).reduce((acc, tag) => {
       acc[tag] = (acc[tag] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
 
-    // 2. Filter tags that meet a minimum count (e.g., 7 times)
-    // This heuristic suggests a goal when a topic appears frequently in reflections.
     return Object.entries(tagCounts)
       .filter(([, count]) => count >= 7) 
-      // 3. Map the frequent tags into actionable goal titles
       .map(([tag]) => `Strengthen knowledge in ${tag}`);
   }, [cpdEntries]);
+
+  if (loading) return (
+      <section className="main-content">
+        <div className="container"><p>Loading your PDP...</p></div>
+      </section>
+  );
 
   return (
     <section className="main-content">
@@ -89,6 +107,7 @@ function PDPInner() {
                 value={title}
                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTitle(e.target.value)}
                 placeholder="e.g., Strengthen COPD management"
+                disabled={saving}
               />
             </div>
             <div className="form-group">
@@ -97,6 +116,7 @@ function PDPInner() {
                 className="form-control"
                 value={timeline}
                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTimeline(e.target.value)}
+                disabled={saving}
               >
                 <option>1 month</option>
                 <option>3 months</option>
@@ -111,15 +131,18 @@ function PDPInner() {
                 rows={4}
                 value={activities}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setActivities(e.target.value)}
-                placeholder="Attend COPD guideline update webinar\nShadow respiratory clinic\nAudit rescue packs"
+                placeholder="Attend COPD guideline update webinar&#10;Shadow respiratory clinic&#10;Audit rescue packs"
+                disabled={saving}
               />
             </div>
-            <button className="btn btn--primary" onClick={add}>➕ Add goal</button>
+            <button className="btn btn--primary" onClick={add} disabled={saving}>
+                {saving ? "Saving..." : "➕ Add goal"}
+            </button>
           </div>
         </div>
 
         {suggestedGoals.length > 0 && (
-          <div className="card" style={{ marginBottom: 32 }}> {/* Increased spacing for aesthetic */}
+          <div className="card" style={{ marginBottom: 32 }}> 
             <div className="card__body">
               <h3 style={{ marginBottom: 12 }}>Suggested Goals (Based on your CPD)</h3>
               {suggestedGoals.map((sg, idx) => (
@@ -136,16 +159,14 @@ function PDPInner() {
           </div>
         )}
 
-        <h3 style={{ marginBottom: 16 }}>Current Goals</h3> {/* Added section header for existing goals */}
-        <div style={{ marginBottom: 40 }}> {/* Added extra bottom spacing to the entire list */}
-          {/* FIXED: The unescaped apostrophe causing the build error */}
+        <h3 style={{ marginBottom: 16 }}>Current Goals</h3> 
+        <div style={{ marginBottom: 40 }}> 
           {goals.length === 0 && <div className="card"><div className="card__body">You haven&apos;t added any goals yet.</div></div>}
           {goals.map((g) => (
-            <div key={g.id} className="card pdp-goal" style={{ marginBottom: 20 }}> {/* Increased spacing between goals */}
+            <div key={g.id} className="card pdp-goal" style={{ marginBottom: 20 }}> 
               <div className="card__body" style={{ padding: '20px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                   <div>
-                    {/* Increased size of goal title */}
                     <h3 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '0.5rem' }}>{g.title}</h3>
                     <div style={{ fontSize: '0.9rem', color: 'var(--umbil-muted)' }}>Target: {g.timeline}</div>
                   </div>
@@ -164,7 +185,6 @@ function PDPInner() {
   );
 }
 
-// Wrapper component to check for user authentication before displaying the PDP
 export default function PDPPage() {
   const { email, loading } = useUserEmail();
 

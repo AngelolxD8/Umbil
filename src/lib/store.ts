@@ -16,9 +16,11 @@ export type CPDEntry = {
 
 export type PDPGoal = {
   id: string;
+  user_id?: string; // Added for DB consistency
   title: string;
   timeline: string;
   activities: string[];
+  created_at?: string; // Optional for sorting
 };
 
 // UPDATED: Include answer
@@ -32,9 +34,10 @@ export type ChatHistoryItem = {
 const CPD_TABLE = "cpd_entries";
 const HISTORY_TABLE = "chat_history";
 const ANALYTICS_TABLE = "app_analytics";
-const PDP_GOALS_KEY = "pdp_goals";
+// New table constant
+const PDP_TABLE = "pdp_goals";
 
-// --- Remote Functions ---
+// --- Remote Functions (CPD) ---
 
 export async function getCPD(): Promise<CPDEntry[]> {
   const { data, error } = await supabase
@@ -109,7 +112,7 @@ export async function getChatHistory(): Promise<ChatHistoryItem[]> {
   return data as ChatHistoryItem[];
 }
 
-// NEW: Fetch full details (Question + Answer) for a single item
+// Fetch full details (Question + Answer) for a single item
 export async function getHistoryItem(id: string): Promise<ChatHistoryItem | null> {
   const { data, error } = await supabase
     .from(HISTORY_TABLE)
@@ -121,22 +124,62 @@ export async function getHistoryItem(id: string): Promise<ChatHistoryItem | null
   return data as ChatHistoryItem;
 }
 
-// --- Local PDP Functions ---
+// --- REMOTE PDP Functions (Replaces Local Storage) ---
 
-const isBrowser = typeof window !== "undefined";
+export async function getPDP(): Promise<PDPGoal[]> {
+  const { data, error } = await supabase
+    .from(PDP_TABLE)
+    .select("*")
+    .order("created_at", { ascending: false });
 
-export function getPDP(): PDPGoal[] {
-  if (!isBrowser) return [];
-  return JSON.parse(localStorage.getItem(PDP_GOALS_KEY) || "[]");
+  if (error) { 
+    console.error("Error fetching PDP:", error); 
+    return []; 
+  }
+  return data as PDPGoal[];
 }
 
-export function savePDP(list: PDPGoal[]) {
-  if (!isBrowser) return;
-  localStorage.setItem(PDP_GOALS_KEY, JSON.stringify(list));
+export async function addPDP(goal: Omit<PDPGoal, 'id' | 'user_id'>): Promise<{ data: PDPGoal | null, error: PostgrestError | null }> {
+  let userId: string | null = null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) userId = user.id;
+  } catch (e) { console.warn((e as Error).message); }
+
+  if (!userId) {
+      // FIX: Added 'name' property to satisfy PostgrestError interface
+      return { 
+          data: null, 
+          error: { 
+              message: "User not logged in", 
+              hint: "", 
+              details: "", 
+              code: "401", 
+              name: "AuthError" 
+          } 
+      };
+  }
+
+  const payload = {
+    user_id: userId,
+    title: goal.title,
+    timeline: goal.timeline,
+    activities: goal.activities,
+  };
+
+  const { data, error } = await supabase.from(PDP_TABLE).insert(payload).select().single();
+  return { data: data as PDPGoal | null, error };
 }
 
+export async function deletePDP(id: string): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase.from(PDP_TABLE).delete().eq('id', id);
+  return { error };
+}
+
+// Updated: ClearAll only clears local artifacts, remote deletion is handled by API
 export function clearAll() {
-  if (!isBrowser) return;
-  localStorage.removeItem("cpd_log"); 
-  localStorage.removeItem(PDP_GOALS_KEY);
+  if (typeof window !== "undefined") {
+      localStorage.removeItem("cpd_log"); 
+      localStorage.removeItem("pdp_goals");
+  }
 }
