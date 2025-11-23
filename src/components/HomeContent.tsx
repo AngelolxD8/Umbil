@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "@/components/Toast";
-import { addCPD, CPDEntry, getHistoryItem } from "@/lib/store"; // UPDATED Import
+import { addCPD, CPDEntry, getHistoryItem } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
@@ -121,7 +121,6 @@ export default function HomeContent() {
       hasFetchedHistory.current = false; 
     }
 
-    // --- UPDATED HISTORY RESTORE LOGIC ---
     const historyId = searchParams.get("history_id");
     
     if (historyId && !hasFetchedHistory.current) {
@@ -129,7 +128,6 @@ export default function HomeContent() {
         setLoading(true);
         setQ(""); 
 
-        // Fetch from DB instead of running new query
         getHistoryItem(historyId).then(item => {
             if (item && item.answer) {
                 const restoredConvo: ConversationEntry[] = [
@@ -137,7 +135,7 @@ export default function HomeContent() {
                     { type: "umbil", content: item.answer, question: item.question }
                 ];
                 setConversation(restoredConvo);
-                setIsHistorySaved(true); // Prevent saving duplicates
+                setIsHistorySaved(true); 
             } else {
                 setToastMessage("Could not load history item.");
             }
@@ -145,7 +143,6 @@ export default function HomeContent() {
             window.history.replaceState({}, document.title, "/");
         });
     }
-    // -----------------------------
 
     const checkTour = () => {
       const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
@@ -212,7 +209,8 @@ export default function HomeContent() {
     setIsTourOpen(false); setTourStep(0); setIsModalOpen(false); setCurrentCpdEntry(null);
     localStorage.setItem("hasCompletedQuickTour", "true");
     const sidebar = document.querySelector('.sidebar.is-open');
-    if (sidebar) { (sidebar.querySelector('.sidebar-header button') as any)?.click(); }
+    // FIX: Replaced 'as any' with 'as HTMLElement' to fix build error
+    if (sidebar) { (sidebar.querySelector('.sidebar-header button') as HTMLElement)?.click(); }
   }, []);
 
   const fetchUmbilResponse = async (currentConversation: ConversationEntry[], styleOverride: AnswerStyle | null = null) => {
