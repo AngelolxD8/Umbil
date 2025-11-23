@@ -52,21 +52,26 @@ export async function getCPDPage(options: { page: number; limit: number; q?: str
   const from = page * limit;
   const to = from + limit - 1;
 
+  // 1. Start the query
   let query = supabase.from(CPD_TABLE).select('*', { count: 'exact' });
 
-  if (q) {
+  // 2. Apply Text Search if present
+  if (q && q.trim() !== "") {
     query = query.or(`question.ilike.%${q}%,answer.ilike.%${q}%,reflection.ilike.%${q}%`);
   }
   
-  if (tag) {
-    // FIX: Switched to 'overlaps' (&& operator) which is often more reliable for array columns
-    // in Supabase/Postgres when checking if an array contains a specific value.
-    query = query.overlaps('tags', [tag]);
+  // 3. Apply Tag Filter if present
+  if (tag && tag.trim() !== "") {
+    // IMPORTANT: This expects the 'tags' column to be an Array type (text[] or jsonb).
+    // If your database column is strictly JSONB, .contains is the correct filter.
+    query = query.contains('tags', [tag]);
   }
 
-  query = query.order("timestamp", { ascending: false }).range(from, to);
+  // 4. Apply Order and Pagination (Range MUST be last)
+  const { data, error, count } = await query
+    .order("timestamp", { ascending: false })
+    .range(from, to);
 
-  const { data, error, count } = await query;
   return { entries: (data as CPDEntry[]) || [], count: count ?? 0, error };
 }
 
@@ -110,7 +115,7 @@ export async function getChatHistory(): Promise<ChatHistoryItem[]> {
     .from(HISTORY_TABLE)
     .select("id, question, created_at")
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50); // Increased limit slightly to allow the "Show More" to actually show something
 
   if (error) { console.error("Error fetching history:", error); return []; }
   return data as ChatHistoryItem[];

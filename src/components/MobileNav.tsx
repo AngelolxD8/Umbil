@@ -28,6 +28,9 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   const [history, setHistory] = useState<ChatHistoryItem[]>([]); 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
+  // NEW: State to toggle history expansion
+  const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  
   const { currentStreak, loading: streaksLoading, hasLoggedToday } = useCpdStreaks();
 
   useEffect(() => {
@@ -68,6 +71,11 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     { href: "/profile", label: "My Profile" },
   ];
 
+  // --- Logic for Displaying History ---
+  const INITIAL_HISTORY_COUNT = 5;
+  const visibleHistory = isHistoryExpanded ? history : history.slice(0, INITIAL_HISTORY_COUNT);
+  const hiddenCount = Math.max(0, history.length - INITIAL_HISTORY_COUNT);
+
   return (
     <>
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
@@ -106,20 +114,35 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                 ))}
             </nav>
 
-            {/* Recent History */}
+            {/* Recent History - IMPROVED */}
             {userEmail && history.length > 0 && (
                 <div className="history-section">
-                    <div className="section-label">Recent (7 Days)</div>
+                    <div className="section-label">Recent</div>
                     <div className="history-list">
-                        {history.slice(0, 6).map((item) => (
+                        {visibleHistory.map((item) => (
                             <button key={item.id} onClick={() => handleHistoryClick(item.id)} className="history-item">
                                 <span className="history-text">{item.question}</span>
                             </button>
                         ))}
-                        {history.length > 6 && (
-                             <div style={{ padding: '4px 12px', fontSize: '0.75rem', color: 'var(--umbil-muted)', fontStyle: 'italic' }}>
-                                + {history.length - 6} older items
-                             </div>
+                        
+                        {/* Toggle Button for Older Items */}
+                        {history.length > INITIAL_HISTORY_COUNT && (
+                             <button 
+                                onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} 
+                                className="history-toggle-btn"
+                             >
+                                {isHistoryExpanded ? (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="18 15 12 9 6 15"></polyline></svg>
+                                        Show less
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                                        Show {hiddenCount} more
+                                    </>
+                                )}
+                             </button>
                         )}
                     </div>
                 </div>
@@ -287,6 +310,27 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
+        }
+        
+        /* NEW: Toggle Button Style */
+        .history-toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            color: var(--umbil-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            width: 100%;
+            text-align: left;
+            transition: color 0.2s, background-color 0.2s;
+            border-radius: 6px;
+        }
+        .history-toggle-btn:hover {
+            color: var(--umbil-text);
+            background-color: var(--umbil-hover-bg);
         }
 
         /* Sticky Footer Section */
