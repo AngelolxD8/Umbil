@@ -15,12 +15,9 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const MODEL_SLUG = "openai/gpt-oss-120b";
 const CACHE_TABLE = "api_cache";
 const ANALYTICS_TABLE = "app_analytics";
-const HISTORY_TABLE = "chat_history"; // NEW table for Part 2
+const HISTORY_TABLE = "chat_history"; 
 
-// Together AI client
-const together = createTogetherAI({
-  apiKey: API_KEY,
-});
+const together = createTogetherAI({ apiKey: API_KEY });
 
 // ---------- Helpers ----------
 function sha256(str: string): string {
@@ -69,45 +66,35 @@ async function getUserId(req: NextRequest): Promise<string | null> {
   try {
     const token = req.headers.get("authorization")?.split("Bearer ")[1];
     if (!token) return null;
-
     const { data, error } = await supabase.auth.getUser(token);
     if (error || !data.user) return null;
     return data.user.id;
   } catch (e) {
-    console.error("getUserId error:", (e as Error).message);
     return null;
   }
 }
 
-async function logAnalytics(
-  userId: string | null,
-  eventType: string,
-  metadata: Record<string, unknown>
-) {
+async function logAnalytics(userId: string | null, eventType: string, metadata: Record<string, unknown>) {
   try {
-    const { error } = await supabaseService.from(ANALYTICS_TABLE).insert({
+    supabaseService.from(ANALYTICS_TABLE).insert({
       user_id: userId,
       event_type: eventType,
       metadata,
-    });
-    if (error) console.error("[Umbil] Analytics Log Error:", error.message);
-  } catch (e) {
-    console.error("[Umbil] Analytics Log Exception:", (e as Error).message);
-  }
+    }).then(() => {});
+  } catch (e) { /* ignore */ }
 }
 
 // ---------- Route Handler ----------
 export async function POST(req: NextRequest) {
-  if (!API_KEY)
-    return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500 });
+  if (!API_KEY) return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500 });
 
   const userId = await getUserId(req);
 
   try {
-    const { messages, profile, answerStyle } = await req.json();
+    // FIX: Destructure saveToHistory from request
+    const { messages, profile, answerStyle, saveToHistory } = await req.json();
 
-    if (!messages?.length)
-      return NextResponse.json({ error: "Missing messages" }, { status: 400 });
+    if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
@@ -115,27 +102,16 @@ export async function POST(req: NextRequest) {
 
     const latestUserMessage = messages[messages.length - 1];
     
-    // --- NEW: Save to History & Auto-delete old entries ---
-    if (userId && latestUserMessage.role === 'user') {
-        // 1. Fire-and-forget save to history
+    // --- FIX: Only save if saveToHistory is true ---
+    if (userId && latestUserMessage.role === 'user' && saveToHistory) {
         const originalQuestion = latestUserMessage.content;
         
-        // 2. Calculate 7 days ago
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        // 3. Run DB operations in background (Insert new, Delete old)
-        // We use supabaseService here to ensure it always runs even if RLS rules are tricky,
-        // though normal supabase client would also work with RLS.
         Promise.allSettled([
-            supabaseService.from(HISTORY_TABLE).insert({ 
-                user_id: userId, 
-                question: originalQuestion 
-            }),
-            supabaseService.from(HISTORY_TABLE)
-                .delete()
-                .eq('user_id', userId)
-                .lt('created_at', sevenDaysAgo.toISOString())
+            supabaseService.from(HISTORY_TABLE).insert({ user_id: userId, question: originalQuestion }),
+            supabaseService.from(HISTORY_TABLE).delete().eq('user_id', userId).lt('created_at', sevenDaysAgo.toISOString())
         ]).catch(err => console.error("History sync error:", err));
     }
     // -----------------------------------------------------
@@ -149,7 +125,6 @@ export async function POST(req: NextRequest) {
     });
     const cacheKey = sha256(cacheKeyContent);
 
-    // --- Cache Lookup ---
     const { data: cached } = await supabase
       .from(CACHE_TABLE)
       .select("answer")
@@ -166,7 +141,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ answer: cached.answer });
     }
 
-    // --- Streaming Call ---
     const result = await streamText({
       model: together(MODEL_SLUG), 
       messages: [
@@ -207,13 +181,7 @@ export async function POST(req: NextRequest) {
 
   } catch (err: unknown) {
     console.error("[Umbil] Fatal Error:", err);
-    
-    await logAnalytics(userId, 'api_error', { 
-      error: (err as Error).message,
-      source: 'ask_route'
-    });
-    
-    const msg = (err as Error).message || "Internal server error";
+    const msg = err instanceof Error ? err.message : "Internal server error";
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
