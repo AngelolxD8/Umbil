@@ -60,7 +60,6 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
   }, []);
   const handleSelect = (style: AnswerStyle) => { onStyleChange(style); setIsOpen(false); };
   return (
-    // FIX: Decreased 'right' from 85px to 75px to push it closer to the microphone
     <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef} style={{ right: '75px' }}>
       <button className="style-dropdown-button" onClick={() => setIsOpen(!isOpen)} title="Change answer style">
         {styleDisplayNames[currentStyle]}
@@ -128,11 +127,15 @@ export default function HomeContent() {
   useEffect(() => {
     if (userLoading) return;
     
+    // Check for new chat command
     if (searchParams.get("new-chat")) {
       setConversation([]);
       setQ("");
       setIsHistorySaved(false); 
       lastFetchedHistoryId.current = null;
+      
+      // FIX: Clean URL immediately after handling new-chat
+      window.history.replaceState({}, document.title, "/");
     }
 
     const historyId = searchParams.get("history_id");
@@ -154,6 +157,7 @@ export default function HomeContent() {
                 setToastMessage("Could not load history item.");
             }
             setLoading(false);
+            // FIX: Clean URL immediately after loading history
             window.history.replaceState({}, document.title, "/");
         });
     }
@@ -220,7 +224,6 @@ export default function HomeContent() {
     }
   }, [loading]);
 
-  // --- Microphone Handler ---
   const handleMicClick = useCallback(() => {
     if (isRecording) {
       recognitionRef.current?.stop();
@@ -239,7 +242,7 @@ export default function HomeContent() {
     const recognition = new SpeechRecognition();
     recognition.continuous = false;
     recognition.interimResults = false;
-    recognition.lang = 'en-GB'; // UK English
+    recognition.lang = 'en-GB';
 
     recognition.onstart = () => {
       setIsRecording(true);
@@ -442,7 +445,6 @@ export default function HomeContent() {
               </div>
             </div>
 
-            {/* Sticky Input Bar with Microphone and Answer Style */}
             <div className="sticky-input-wrapper" style={{ position: 'relative', flexShrink: 0, background: 'var(--umbil-bg)', borderTop: '1px solid var(--umbil-divider)', zIndex: 50, padding: '20px' }}>
               <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px', margin: '0 auto', position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input 
@@ -452,13 +454,11 @@ export default function HomeContent() {
                     onChange={(e) => setQ(e.target.value)} 
                     onKeyDown={(e) => e.key === "Enter" && ask()} 
                     disabled={isTourOpen} 
-                    // FIX: Adjusted padding for tighter layout
                     style={{ paddingRight: '190px' }} 
                 />
                 
                 <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
                 
-                {/* Microphone Button - FIX: Positioned at right: 56px */}
                 <button 
                     className={`ask-bar-mic-button ${isRecording ? "recording" : ""}`}
                     onClick={handleMicClick}
@@ -500,12 +500,10 @@ export default function HomeContent() {
                 onChange={(e) => setQ(e.target.value)} 
                 onKeyDown={(e) => e.key === "Enter" && ask()} 
                 disabled={isTourOpen} 
-                // FIX: Adjusted padding for tighter layout
                 style={{ paddingRight: '190px' }} 
               />
               <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
               
-              {/* Microphone Button (Hero) */}
                 <button 
                     className={`ask-bar-mic-button ${isRecording ? "recording" : ""}`}
                     onClick={handleMicClick}
@@ -544,7 +542,6 @@ export default function HomeContent() {
       )}
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       
-      {/* CSS for Recording Pulse Animation */}
       <style jsx>{`
         @keyframes pulse-red {
             0% { transform: scale(1); opacity: 1; }

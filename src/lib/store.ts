@@ -16,14 +16,13 @@ export type CPDEntry = {
 
 export type PDPGoal = {
   id: string;
-  user_id?: string; // Added for DB consistency
+  user_id?: string; 
   title: string;
   timeline: string;
   activities: string[];
-  created_at?: string; // Optional for sorting
+  created_at?: string; 
 };
 
-// UPDATED: Include answer
 export type ChatHistoryItem = {
   id: string;
   question: string;
@@ -34,7 +33,6 @@ export type ChatHistoryItem = {
 const CPD_TABLE = "cpd_entries";
 const HISTORY_TABLE = "chat_history";
 const ANALYTICS_TABLE = "app_analytics";
-// New table constant
 const PDP_TABLE = "pdp_goals";
 
 // --- Remote Functions (CPD) ---
@@ -56,8 +54,16 @@ export async function getCPDPage(options: { page: number; limit: number; q?: str
 
   let query = supabase.from(CPD_TABLE).select('*', { count: 'exact' });
 
-  if (q) query = query.or(`question.ilike.%${q}%,answer.ilike.%${q}%,reflection.ilike.%${q}%`);
-  if (tag) query = query.contains('tags', [tag]);
+  // Apply text search if present
+  if (q) {
+    query = query.or(`question.ilike.%${q}%,answer.ilike.%${q}%,reflection.ilike.%${q}%`);
+  }
+  
+  // Apply tag filter if present
+  if (tag) {
+    // Using 'contains' checks if the 'tags' array column includes the selected tag
+    query = query.contains('tags', [tag]);
+  }
 
   query = query.order("timestamp", { ascending: false }).range(from, to);
 
@@ -101,7 +107,6 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
 // --- History Functions ---
 
 export async function getChatHistory(): Promise<ChatHistoryItem[]> {
-  // We only select ID and Question for the list to keep it light
   const { data, error } = await supabase
     .from(HISTORY_TABLE)
     .select("id, question, created_at")
@@ -112,11 +117,10 @@ export async function getChatHistory(): Promise<ChatHistoryItem[]> {
   return data as ChatHistoryItem[];
 }
 
-// Fetch full details (Question + Answer) for a single item
 export async function getHistoryItem(id: string): Promise<ChatHistoryItem | null> {
   const { data, error } = await supabase
     .from(HISTORY_TABLE)
-    .select("*") // Selects answer too
+    .select("*") 
     .eq("id", id)
     .single();
 
@@ -124,7 +128,7 @@ export async function getHistoryItem(id: string): Promise<ChatHistoryItem | null
   return data as ChatHistoryItem;
 }
 
-// --- REMOTE PDP Functions (Replaces Local Storage) ---
+// --- REMOTE PDP Functions ---
 
 export async function getPDP(): Promise<PDPGoal[]> {
   const { data, error } = await supabase
@@ -147,7 +151,6 @@ export async function addPDP(goal: Omit<PDPGoal, 'id' | 'user_id'>): Promise<{ d
   } catch (e) { console.warn((e as Error).message); }
 
   if (!userId) {
-      // FIX: Added 'name' property to satisfy PostgrestError interface
       return { 
           data: null, 
           error: { 
@@ -176,7 +179,6 @@ export async function deletePDP(id: string): Promise<{ error: PostgrestError | n
   return { error };
 }
 
-// Updated: ClearAll only clears local artifacts, remote deletion is handled by API
 export function clearAll() {
   if (typeof window !== "undefined") {
       localStorage.removeItem("cpd_log"); 

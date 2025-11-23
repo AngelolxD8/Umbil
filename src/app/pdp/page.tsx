@@ -2,11 +2,9 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-// Import the new async functions from store
 import { PDPGoal, getPDP, addPDP, deletePDP, getCPD, CPDEntry } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 
-// Inner component for the main PDP logic, displayed only when authenticated
 function PDPInner() {
   const [goals, setGoals] = useState<PDPGoal[]>([]);
   const [cpdEntries, setCpdEntries] = useState<CPDEntry[]>([]);
@@ -17,7 +15,6 @@ function PDPInner() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // 1. Load PDP goals (REMOTE) on mount
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -29,9 +26,6 @@ function PDPInner() {
     fetchData();
   }, []);
 
-  /**
-   * Adds a new goal to the database.
-   */
   const add = async () => {
     if (!title.trim()) return;
     setSaving(true);
@@ -49,7 +43,6 @@ function PDPInner() {
         console.error(error);
     } else if (data) {
         setGoals([data, ...goals]);
-        // Reset form
         setTitle(""); 
         setTimeline("3 months"); 
         setActivities("");
@@ -57,24 +50,19 @@ function PDPInner() {
     setSaving(false);
   };
 
-  /**
-   * Removes a goal by its ID from the database.
-   */
   const remove = async (id: string) => {
     if(!confirm("Delete this goal?")) return;
     
-    // Optimistic update for UI responsiveness
     const previousGoals = [...goals];
     setGoals(goals.filter((g) => g.id !== id));
 
     const { error } = await deletePDP(id);
     if (error) {
         alert("Failed to delete goal.");
-        setGoals(previousGoals); // Revert on error
+        setGoals(previousGoals);
     }
   };
 
-  // Memoize suggested goals to prevent unnecessary recalculations
   const suggestedGoals = useMemo(() => {
     const tagCounts = cpdEntries.flatMap(entry => entry.tags || []).reduce((acc, tag) => {
       acc[tag] = (acc[tag] || 0) + 1;
@@ -131,7 +119,8 @@ function PDPInner() {
                 rows={4}
                 value={activities}
                 onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setActivities(e.target.value)}
-                placeholder="Attend COPD guideline update webinar&#10;Shadow respiratory clinic&#10;Audit rescue packs"
+                // FIX: Using JS string literal for proper newline rendering
+                placeholder={`Attend COPD guideline update webinar\nShadow respiratory clinic\nAudit rescue packs`}
                 disabled={saving}
               />
             </div>

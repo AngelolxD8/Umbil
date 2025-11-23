@@ -2,18 +2,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-// Import deleteCPD here
 import { CPDEntry, getCPD, getCPDPage, deleteCPD } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-// Page size constant
 const PAGE_SIZE = 10;
 
-/**
- * Converts the CPD log array into a CSV string for easy export.
- */
 function toCSV(rows: CPDEntry[]) {
   const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
   const body = rows.map((r) =>
@@ -29,33 +24,24 @@ function toCSV(rows: CPDEntry[]) {
 }
 
 function CPDInner() {
-  // State for paged data
   const [list, setList] = useState<CPDEntry[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // State for filters
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
   
-  // State for pagination
   const [currentPage, setCurrentPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   
-  // State for tag dropdown
   const [allTags, setAllTags] = useState<string[]>([]);
   const [tagsLoading, setTagsLoading] = useState(true);
 
-  // State for CSV downloading
   const [isDownloading, setIsDownloading] = useState(false);
-  
-  // State for Deleting
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // Debounced filter values
   const [debouncedQ, setDebouncedQ] = useState(q);
   const [debouncedTag, setDebouncedTag] = useState(tag);
 
-  // 1. Debounce text and tag filters
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedQ(q);
@@ -64,12 +50,10 @@ function CPDInner() {
     return () => clearTimeout(handler);
   }, [q, tag]);
 
-  // 2. Reset to page 0 when filters change
   useEffect(() => {
     setCurrentPage(0);
   }, [debouncedQ, debouncedTag]);
 
-  // 3. Fetch all unique tags ONCE
   useEffect(() => {
     const fetchAllTags = async () => {
       setTagsLoading(true);
@@ -81,7 +65,6 @@ function CPDInner() {
     fetchAllTags();
   }, []); 
 
-  // 4. Fetch the appropriate page of data
   useEffect(() => {
     const fetchPage = async () => {
       setLoading(true);
@@ -106,7 +89,6 @@ function CPDInner() {
     fetchPage();
   }, [currentPage, debouncedQ, debouncedTag]); 
 
-  // Calculate total pages
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const download = async () => {
@@ -137,7 +119,6 @@ function CPDInner() {
     setIsDownloading(false);
   };
 
-  // --- Handle Delete ---
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this entry? This cannot be undone.")) return;
     
@@ -148,22 +129,11 @@ function CPDInner() {
         alert("Failed to delete entry. Please try again.");
         console.error(error);
     } else {
-        // Remove from local state immediately for UI responsiveness
         setList(prev => prev.filter(item => item.id !== id));
         setTotalCount(prev => prev - 1);
     }
     setDeletingId(null);
   };
-
-  if (loading && list.length === 0) {
-    return (
-        <section className="main-content">
-            <div className="container">
-                <p>Loading your professional learning log...</p>
-            </div>
-        </section>
-    );
-  }
 
   return (
     <section className="main-content">
