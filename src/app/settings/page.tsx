@@ -22,12 +22,6 @@ export default function SettingsPage() {
     alert("Safety setting saved.");
   };
 
-  const clear = () => {
-    if (!confirm("This will remove all locally saved PDP goals and cached data on this device. Continue?")) return;
-    clearAll();
-    alert("Local data cleared.");
-  };
-    
   // --- Account Deletion Logic ---
   const deleteAccount = async () => {
       if (!confirm("Are you sure you want to permanently delete your Umbil account? This action cannot be undone and all your CPD data will be lost.")) return;
@@ -57,14 +51,12 @@ export default function SettingsPage() {
             }
         });
 
-        // FIX 1: Safely handle the response parsing
+        // Safely handle the response parsing
         let errData;
-        const text = await res.text(); // Get raw text first
+        const text = await res.text(); 
         try {
-            // Try to parse as JSON if text exists
             errData = text ? JSON.parse(text) : {}; 
         } catch {
-            // If parsing fails, assume generic error
             errData = { error: "Invalid server response" };
         }
 
@@ -72,7 +64,7 @@ export default function SettingsPage() {
             throw new Error(errData.error || "Failed to delete account");
         }
 
-        // FIX 2: Automatically clear local storage (PDP goals) on account delete
+        // Clear any residual local storage (just in case) and sign out
         clearAll();
         await supabase.auth.signOut();
         
@@ -113,21 +105,11 @@ export default function SettingsPage() {
                 </div>
                 <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input type="checkbox" checked={true} onChange={handleInformationalChange} />
-                    <label>I know that my local PDP goals can be manually cleared below (Right to Erasure - Local Data).</label>
+                    <label>I understand that deleting my account below performs a full remote erasure of my data (Right to Erasure).</label>
                 </div>
             </div>
 
             <button className="btn btn--primary" onClick={saveAck}>Save PHI Acknowledgment</button>
-          </div>
-        </div>
-
-        <div className="card" style={{ marginBottom: 24 }}>
-          <div className="card__body">
-            <h3 style={{marginBottom: 8}}>Local Data Management</h3>
-            <p className="section-description" style={{marginBottom: 12}}>
-                Your Personal Development Plan (PDP) goals are currently stored only on this device. Use this to wipe them.
-            </p>
-            <button className="btn btn--outline" onClick={clear}>🗑️ Clear local PDP goals</button>
           </div>
         </div>
         
@@ -135,7 +117,7 @@ export default function SettingsPage() {
           <div className="card__body">
             <h3 style={{marginBottom: 8, color: '#dc2626'}}>Danger Zone: Account Deletion</h3>
             <p className="section-description" style={{marginBottom: 12}}>
-                Permanently delete your Umbil user profile and all associated remote CPD data. This will also wipe your local data.
+                Permanently delete your Umbil user profile and all associated remote CPD/PDP data.
             </p>
             <button 
                 className="btn btn--outline" 
