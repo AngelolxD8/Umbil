@@ -25,7 +25,9 @@ type ClientMessage = { role: "user" | "assistant"; content: string; };
 // --- Types for Speech Recognition ---
 // We extend the window interface locally to avoid global type conflicts
 interface IWindow extends Window {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   webkitSpeechRecognition: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   SpeechRecognition: any;
 }
 
@@ -116,6 +118,7 @@ export default function HomeContent() {
 
   // --- Microphone / Dictation State ---
   const [isRecording, setIsRecording] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -245,11 +248,13 @@ export default function HomeContent() {
       setIsRecording(true);
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setQ((prev) => (prev ? prev + " " + transcript : transcript));
     };
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error", event.error);
       setIsRecording(false);
