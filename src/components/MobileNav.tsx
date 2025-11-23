@@ -48,118 +48,282 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   const handleSignOut = async () => { await supabase.auth.signOut(); onClose(); router.push("/"); };
   const handleStartTour = () => { onClose(); router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`); };
 
-  // --- FIX: Use ID instead of text ---
   const handleHistoryClick = (id: string) => {
       onClose();
       const params = new URLSearchParams();
-      params.set("history_id", id); // Passing ID now
+      params.set("history_id", id);
       router.push(`/?${params.toString()}`);
   };
 
+  // --- FIXED LINE BELOW ---
   const handleInvite = async () => {
-    const shareData = { title: "Join me on Umbil", text: "I'm using Umbil...", url: "https://umbil.co.uk" };
+    const shareData = { title: "Join me on Umbil", text: "I'm using Umbil to simplify my clinical learning and CPD. Check it out:", url: "https://umbil.co.uk" };
     if (navigator.share) { try { await navigator.share(shareData); } catch (err) { console.log(err); } }
     else { navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`).then(() => setToastMessage("Invite link copied!")); }
   };
 
-  const topMenuItems = [
-    { href: "/about", label: "About Umbil" },
-    { href: "/cpd", label: "My CPD", requiresAuth: true },
-    { href: "/pdp", label: "My PDP", requiresAuth: true },
-    { href: "/profile", label: "My Profile", requiresAuth: true },
+  // --- Navigation Groups ---
+  const coreLinks = [
+    { href: "/cpd", label: "My CPD", icon: "📋" },
+    { href: "/pdp", label: "My PDP", icon: "wm" }, 
+    { href: "/profile", label: "My Profile", icon: "👤" },
   ];
-  const bottomMenuItems = [
-    { href: "/pro", label: "Umbil Pro ✨", requiresAuth: false }, 
-    { href: "/settings", label: "Settings" },
-    { href: "/settings/feedback", label: "Send Feedback" }, 
-  ];
-  const filterItems = (items: typeof topMenuItems) => items.filter(item => !item.requiresAuth || userEmail);
 
   return (
     <>
       {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
+      
       <div id="tour-highlight-sidebar" className={`sidebar ${isOpen ? "is-open" : ""}`} onClick={(e) => e.stopPropagation()}>
+        
+        {/* 1. HEADER (Fixed) */}
         <div className="sidebar-header">
-          <h3 className="text-lg font-semibold">Navigation</h3>
-          <button onClick={onClose} className="menu-button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+          <h3 className="text-lg font-semibold">Menu</h3>
+          <button onClick={onClose} className="menu-button">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
         </div>
 
-        <button className="new-chat-button" onClick={handleNewChat}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> New Chat
-        </button>
+        {/* 2. SCROLLABLE AREA (Top Actions + Recent) */}
+        <div className="sidebar-scroll-area">
+            
+            {/* New Chat Button */}
+            <button className="new-chat-button" onClick={handleNewChat}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> New Chat
+            </button>
 
-        {userEmail && !streaksLoading && currentStreak > 0 && (
-            <Link href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
-                <span style={{fontWeight: 700}}>🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
-            </Link>
-        )}
-        
-        <nav className="sidebar-nav" style={{ overflowY: 'auto' }}>
-          {filterItems(topMenuItems).map((item) => (
-            <Link key={item.href} href={item.href} className={pathname === item.href ? "active" : ""} onClick={onClose}>
-              {item.label}
-            </Link>
-          ))}
+            {/* CPD Streak */}
+            {userEmail && !streaksLoading && currentStreak > 0 && (
+                <Link href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
+                    <span style={{fontWeight: 700}}>🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
+                </Link>
+            )}
 
-          {userEmail && history.length > 0 && (
-            <div style={{ margin: '8px 0', padding: '8px 0', borderTop: '1px solid var(--umbil-divider)', borderBottom: '1px solid var(--umbil-divider)' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--umbil-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px', paddingLeft: '16px' }}>Recent (7 Days)</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', maxHeight: '200px', overflowY: 'auto' }}>
-                    {history.map((item) => (
-                        <button key={item.id} onClick={() => handleHistoryClick(item.id)} className="history-item" style={{ textAlign: 'left', background: 'none', border: 'none', padding: '6px 16px', fontSize: '0.9rem', color: 'var(--umbil-text)', cursor: 'pointer', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', transition: 'background-color 0.2s', borderRadius: '4px' }}>
-                            {item.question}
-                        </button>
-                    ))}
+            {/* Core Links (CPD, PDP, Profile) */}
+            <nav className="nav-group">
+                {coreLinks.map((item) => (
+                    <Link key={item.href} href={item.href} className={`nav-item ${pathname === item.href ? "active" : ""}`} onClick={onClose}>
+                        {item.label}
+                    </Link>
+                ))}
+            </nav>
+
+            {/* Recent History (Max 6 Items) */}
+            {userEmail && history.length > 0 && (
+                <div className="history-section">
+                    <div className="section-label">Recent (7 Days)</div>
+                    <div className="history-list">
+                        {history.slice(0, 6).map((item) => (
+                            <button key={item.id} onClick={() => handleHistoryClick(item.id)} className="history-item">
+                                <span className="history-text">{item.question}</span>
+                            </button>
+                        ))}
+                        {history.length > 6 && (
+                             <div style={{ padding: '4px 12px', fontSize: '0.75rem', color: 'var(--umbil-muted)', fontStyle: 'italic' }}>
+                                + {history.length - 6} older items
+                             </div>
+                        )}
+                    </div>
                 </div>
-            </div>
-          )}
-
-          {filterItems(bottomMenuItems).map((item) => (
-            <Link key={item.href} href={item.href} className={pathname === item.href ? "active" : ""} onClick={onClose}>
-              {item.label}
-            </Link>
-          ))}
-          
-          <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--umbil-divider)' }}>
-            <a href="#" onClick={(e) => { e.preventDefault(); handleInvite(); }} className="quick-tour-button" style={{color: 'var(--umbil-brand-teal)'}}>Invite a Colleague</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="quick-tour-button">Quick Tour</a>
-          </div>
-        </nav>
-        
-        {userEmail && profile && (
-            <div style={{ padding: '16px 0', borderTop: '1px solid var(--umbil-divider)', marginTop: 'auto' }}>
-                <div className="profile-info-sidebar"><span className="user-name">{profile.full_name || email || 'User Profile'}</span>{profile.grade && <span className="user-role">{profile.grade}</span>}</div>
-                <button className="btn btn--outline" onClick={handleSignOut} style={{ marginTop: '12px', width: '100%' }}>Sign out</button>
-            </div>
-        )}
-
-        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--umbil-divider)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontWeight: 500 }}>{isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}</span>
-            <label className="switch"><input type="checkbox" checked={isDarkMode} onChange={toggleDarkMode} /><span className="slider round"></span></label>
+            )}
         </div>
+
+        {/* 3. STICKY FOOTER (Utilities) */}
+        <div className="sidebar-footer">
+            
+            <Link href="/pro" className="footer-link pro-link" onClick={onClose}>
+               <span>Umbil Pro ✨</span>
+            </Link>
+
+            <div className="footer-grid">
+                <button onClick={() => { handleInvite(); onClose(); }} className="footer-link">Invite a Colleague</button>
+                <button onClick={(e) => { e.preventDefault(); handleStartTour(); }} className="footer-link">Quick Tour</button>
+                <Link href="/settings" className="footer-link" onClick={onClose}>Settings</Link>
+                <Link href="/settings/feedback" className="footer-link" onClick={onClose}>Send Feedback</Link>
+            </div>
+
+            {userEmail && (
+                <button className="footer-link sign-out" onClick={handleSignOut}>
+                    Sign Out {profile?.full_name ? `(${profile.full_name.split(' ')[0]})` : ''}
+                </button>
+            )}
+
+            <div className="dark-mode-toggle">
+                <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}</span>
+                <label className="switch"><input type="checkbox" checked={isDarkMode} onChange={toggleDarkMode} /><span className="slider round"></span></label>
+            </div>
+        </div>
+
       </div>
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
+      
       <style jsx global>{`
-        /* FIX: Reduced padding for items */
-        .sidebar-nav a { display: block; padding: 6px 16px; font-size: 1rem; font-weight: 500; color: var(--umbil-text); border-radius: var(--umbil-radius-sm); transition: background-color 0.2s; }
-        .sidebar-nav a:hover, .sidebar-nav a.active { background-color: var(--umbil-hover-bg); color: var(--umbil-brand-teal); }
-        .quick-tour-button { display: flex !important; align-items: center; padding: 6px 16px; font-size: 1rem; font-weight: 500; color: var(--umbil-text); border-radius: var(--umbil-radius-sm); transition: background-color 0.2s; cursor: pointer; }
-        .quick-tour-button:hover, .quick-tour-button.active { background-color: var(--umbil-hover-bg); }
-        .profile-info-sidebar { display: flex; flex-direction: column; padding: 0 16px; margin-bottom: 8px; }
-        .profile-info-sidebar .user-name { font-weight: 600; font-size: 1rem; color: var(--umbil-text); }
-        .profile-info-sidebar .user-role { font-size: 0.8rem; color: var(--umbil-muted); margin-top: 4px; }
-        .streak-display-sidebar { padding: 12px 16px; font-size: 1rem; color: var(--umbil-brand-teal); background-color: var(--umbil-hover-bg); border-radius: var(--umbil-radius-sm); margin: 0 0 16px 0; text-align: center; transition: opacity 0.3s, background-color 0.2s; display: block; text-decoration: none; cursor: pointer; }
-        .streak-display-sidebar:hover { background-color: var(--umbil-divider); }
-        .streak-display-sidebar.faded-streak { opacity: 0.5; }
-        .switch { position: relative; display: inline-block; width: 40px; height: 24px; }
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            /* Ensures styling handles overflow correctly */
+            overflow: hidden; 
+        }
+
+        .sidebar-header {
+            flex-shrink: 0; /* Don't shrink */
+            padding-bottom: 0;
+            margin-bottom: 20px;
+        }
+
+        /* Scrollable Middle Section */
+        .sidebar-scroll-area {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-bottom: 20px;
+            /* Hide scrollbar for cleaner look */
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+        .sidebar-scroll-area::-webkit-scrollbar {
+            display: none;
+        }
+
+        /* Navigation Items */
+        .nav-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 24px;
+        }
+        .nav-item {
+            display: block;
+            padding: 10px 16px;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--umbil-text);
+            border-radius: var(--umbil-radius-sm);
+            transition: background-color 0.2s;
+        }
+        .nav-item:hover, .nav-item.active {
+            background-color: var(--umbil-hover-bg);
+            color: var(--umbil-brand-teal);
+        }
+
+        /* History Section */
+        .history-section {
+            margin-top: 8px;
+            padding-top: 16px;
+            border-top: 1px solid var(--umbil-divider);
+        }
+        .section-label {
+            font-size: 0.75rem;
+            fontWeight: 700;
+            color: var(--umbil-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 8px;
+            padding-left: 12px;
+        }
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .history-item {
+            text-align: left;
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            font-size: 0.9rem;
+            color: var(--umbil-text);
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .history-item:hover {
+            background-color: var(--umbil-hover-bg);
+        }
+        .history-text {
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Sticky Footer Section */
+        .sidebar-footer {
+            flex-shrink: 0;
+            border-top: 1px solid var(--umbil-divider);
+            padding-top: 16px;
+            background-color: var(--umbil-surface); /* Ensure content doesn't show behind */
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* 2 columns for utility links */
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .footer-link {
+            display: block;
+            text-align: left;
+            background: none;
+            border: none;
+            padding: 8px 12px;
+            font-size: 0.85rem;
+            color: var(--umbil-muted);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: color 0.2s, background-color 0.2s;
+            text-decoration: none;
+        }
+        .footer-link:hover {
+            color: var(--umbil-text);
+            background-color: var(--umbil-hover-bg);
+        }
+
+        .pro-link {
+            color: var(--umbil-brand-teal) !important;
+            font-weight: 600;
+            background-color: rgba(31, 184, 205, 0.1);
+            margin-bottom: 8px;
+            text-align: center;
+        }
+        .pro-link:hover {
+            background-color: rgba(31, 184, 205, 0.2);
+        }
+
+        .sign-out {
+            width: 100%;
+            color: #ef4444; /* Red for sign out */
+            border: 1px solid var(--umbil-divider);
+            text-align: center;
+            margin-bottom: 12px;
+        }
+        .sign-out:hover {
+            background-color: #fef2f2;
+            color: #dc2626;
+        }
+
+        .dark-mode-toggle {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            background-color: var(--umbil-hover-bg);
+            border-radius: var(--umbil-radius-sm);
+        }
+
+        /* Switches */
+        .switch { position: relative; display: inline-block; width: 36px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--umbil-card-border); transition: 0.4s; border-radius: 24px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: var(--umbil-surface); transition: 0.4s; border-radius: 50%; }
+        .slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: var(--umbil-surface); transition: 0.4s; border-radius: 50%; }
         input:checked + .slider { background-color: var(--umbil-brand-teal); }
         input:checked + .slider:before { transform: translateX(16px); }
         .dark .slider { background-color: var(--umbil-divider); }
         .dark .slider:before { background-color: var(--umbil-hover-bg); }
-        .history-item:hover { background-color: var(--umbil-hover-bg) !important; }
       `}</style>
     </>
   );
