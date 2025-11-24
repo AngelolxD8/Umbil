@@ -60,9 +60,11 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
   }, []);
   const handleSelect = (style: AnswerStyle) => { onStyleChange(style); setIsOpen(false); };
   return (
-    <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef} style={{ right: '75px' }}>
+    // Removed inline style 'right: 75px' here, handled by CSS class now
+    <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef}>
       <button className="style-dropdown-button" onClick={() => setIsOpen(!isOpen)} title="Change answer style">
-        {styleDisplayNames[currentStyle]}
+        {/* Wrapped in span to hide on mobile */}
+        <span className="dropdown-label">{styleDisplayNames[currentStyle]}</span>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.7 }}><path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
       {isOpen && (
@@ -454,7 +456,7 @@ export default function HomeContent() {
                     onChange={(e) => setQ(e.target.value)} 
                     onKeyDown={(e) => e.key === "Enter" && ask()} 
                     disabled={isTourOpen} 
-                    style={{ paddingRight: '190px' }} 
+                    // Removed inline style 'paddingRight', handled by CSS
                 />
                 
                 <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
@@ -464,17 +466,7 @@ export default function HomeContent() {
                     onClick={handleMicClick}
                     disabled={loading || isTourOpen}
                     title={isRecording ? "Stop Recording" : "Start Dictation"}
-                    style={{
-                        position: 'absolute',
-                        right: '56px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: isRecording ? '#ef4444' : 'var(--umbil-muted)',
-                        transition: 'color 0.2s'
-                    }}
+                    // Removed inline positioning style, handled by CSS
                 >
                     {isRecording ? (
                         <div className="recording-pulse">
@@ -500,7 +492,7 @@ export default function HomeContent() {
                 onChange={(e) => setQ(e.target.value)} 
                 onKeyDown={(e) => e.key === "Enter" && ask()} 
                 disabled={isTourOpen} 
-                style={{ paddingRight: '190px' }} 
+                // Removed inline style 'paddingRight', handled by CSS
               />
               <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
               
@@ -509,17 +501,7 @@ export default function HomeContent() {
                     onClick={handleMicClick}
                     disabled={loading || isTourOpen}
                     title={isRecording ? "Stop Recording" : "Start Dictation"}
-                    style={{
-                        position: 'absolute',
-                        right: '56px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: isRecording ? '#ef4444' : 'var(--umbil-muted)',
-                        transition: 'color 0.2s'
-                    }}
+                    // Removed inline positioning style, handled by CSS
                 >
                     {isRecording ? (
                         <div className="recording-pulse">
