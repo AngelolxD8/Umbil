@@ -37,6 +37,17 @@ const PDP_TABLE = "pdp_goals";
 
 // --- Remote Functions (CPD) ---
 
+// NEW: Robust fetcher for client-side filtering
+export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
+  const { data, error } = await supabase
+    .from(CPD_TABLE)
+    .select('*')
+    .order("timestamp", { ascending: false });
+
+  if (error) { console.error("Error fetching all logs:", error); }
+  return { data: (data as CPDEntry[]) || [], error };
+}
+
 export async function getCPD(): Promise<CPDEntry[]> {
   const { data, error } = await supabase
     .from(CPD_TABLE)
@@ -52,26 +63,20 @@ export async function getCPDPage(options: { page: number; limit: number; q?: str
   const from = page * limit;
   const to = from + limit - 1;
 
-  // 1. Start the query
   let query = supabase.from(CPD_TABLE).select('*', { count: 'exact' });
 
-  // 2. Apply Text Search if present
-  if (q && q.trim() !== "") {
+  if (q) {
     query = query.or(`question.ilike.%${q}%,answer.ilike.%${q}%,reflection.ilike.%${q}%`);
   }
   
-  // 3. Apply Tag Filter if present
-  if (tag && tag.trim() !== "") {
-    // IMPORTANT: This expects the 'tags' column to be an Array type (text[] or jsonb).
-    // If your database column is strictly JSONB, .contains is the correct filter.
-    query = query.contains('tags', [tag]);
+  // Fallback: using ilike is often more robust than contains for mixed column types (JSON/Text)
+  if (tag) {
+    query = query.ilike('tags', `%${tag}%`);
   }
 
-  // 4. Apply Order and Pagination (Range MUST be last)
-  const { data, error, count } = await query
-    .order("timestamp", { ascending: false })
-    .range(from, to);
+  query = query.order("timestamp", { ascending: false }).range(from, to);
 
+  const { data, error, count } = await query;
   return { entries: (data as CPDEntry[]) || [], count: count ?? 0, error };
 }
 
@@ -115,7 +120,7 @@ export async function getChatHistory(): Promise<ChatHistoryItem[]> {
     .from(HISTORY_TABLE)
     .select("id, question, created_at")
     .order("created_at", { ascending: false })
-    .limit(50); // Increased limit slightly to allow the "Show More" to actually show something
+    .limit(50); // Increased limit to support "Show More" feature
 
   if (error) { console.error("Error fetching history:", error); return []; }
   return data as ChatHistoryItem[];

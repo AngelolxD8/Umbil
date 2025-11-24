@@ -1,8 +1,8 @@
 // src/app/cpd/page.tsx
 "use client";
 
-import { useEffect, useState } from "react";
-import { CPDEntry, getCPD, getCPDPage, deleteCPD } from "@/lib/store"; 
+import { useEffect, useState, useMemo } from "react";
+import { CPDEntry, getAllLogs, deleteCPD } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -24,89 +24,69 @@ function toCSV(rows: CPDEntry[]) {
 }
 
 function CPDInner() {
-  const [list, setList] = useState<CPDEntry[]>([]);
+  const [allEntries, setAllEntries] = useState<CPDEntry[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
   
   const [currentPage, setCurrentPage] = useState(0);
-  const [totalCount, setTotalCount] = useState(0);
   
+  // Derived state for filters
   const [allTags, setAllTags] = useState<string[]>([]);
-  const [tagsLoading, setTagsLoading] = useState(true);
-
-  const [isDownloading, setIsDownloading] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const [debouncedQ, setDebouncedQ] = useState(q);
-  const [debouncedTag, setDebouncedTag] = useState(tag);
-
+  // 1. Load ALL data once on mount (Client-side filtering strategy)
   useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedQ(q);
-      setDebouncedTag(tag);
-    }, 500); 
-    return () => clearTimeout(handler);
-  }, [q, tag]);
-
-  useEffect(() => {
-    setCurrentPage(0);
-  }, [debouncedQ, debouncedTag]);
-
-  useEffect(() => {
-    const fetchAllTags = async () => {
-      setTagsLoading(true);
-      const allEntries = await getCPD(); 
-      const tags = Array.from(new Set(allEntries.flatMap((e) => e.tags || []))).sort();
-      setAllTags(tags);
-      setTagsLoading(false);
-    };
-    fetchAllTags();
-  }, []); 
-
-  useEffect(() => {
-    const fetchPage = async () => {
+    const fetchData = async () => {
       setLoading(true);
-      const { entries, count, error } = await getCPDPage({
-        page: currentPage,
-        limit: PAGE_SIZE,
-        q: debouncedQ || undefined,
-        tag: debouncedTag || undefined,
-      });
-
+      const { data, error } = await getAllLogs();
+      
       if (error) {
-        console.error("Error fetching CPD page:", error);
-        setList([]);
-        setTotalCount(0);
+        console.error("Error fetching CPD logs:", error);
       } else {
-        setList(entries);
-        setTotalCount(count);
+        setAllEntries(data);
+        // Extract unique tags
+        const tags = Array.from(new Set(data.flatMap((e) => e.tags || []))).sort();
+        setAllTags(tags);
       }
       setLoading(false);
     };
+    fetchData();
+  }, []);
 
-    fetchPage();
-  }, [currentPage, debouncedQ, debouncedTag]); 
+  // 2. Filter data in memory
+  const filteredEntries = useMemo(() => {
+    return allEntries.filter((e) => {
+      const matchesSearch = !q || (
+        (e.question || "").toLowerCase().includes(q.toLowerCase()) ||
+        (e.answer || "").toLowerCase().includes(q.toLowerCase()) ||
+        (e.reflection || "").toLowerCase().includes(q.toLowerCase())
+      );
+      
+      // Exact match for tags is cleaner in JS
+      const matchesTag = !tag || (e.tags || []).includes(tag);
+      
+      return matchesSearch && matchesTag;
+    });
+  }, [allEntries, q, tag]);
 
+  // 3. Paginate the filtered results
+  const paginatedList = useMemo(() => {
+    const start = currentPage * PAGE_SIZE;
+    return filteredEntries.slice(start, start + PAGE_SIZE);
+  }, [filteredEntries, currentPage]);
+
+  const totalCount = filteredEntries.length;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  const download = async () => {
-    setIsDownloading(true);
-    const { entries, error } = await getCPDPage({
-      page: 0,
-      limit: 10000, 
-      q: debouncedQ || undefined,
-      tag: debouncedTag || undefined,
-    });
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [q, tag]);
 
-    if (error) {
-      alert("Failed to download CSV data.");
-      setIsDownloading(false);
-      return;
-    }
-
-    const csvContent = toCSV(entries);
+  const download = () => {
+    const csvContent = toCSV(filteredEntries); // Download currently filtered view
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -116,7 +96,6 @@ function CPDInner() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    setIsDownloading(false);
   };
 
   const handleDelete = async (id: string) => {
@@ -129,8 +108,7 @@ function CPDInner() {
         alert("Failed to delete entry. Please try again.");
         console.error(error);
     } else {
-        setList(prev => prev.filter(item => item.id !== id));
-        setTotalCount(prev => prev - 1);
+        setAllEntries(prev => prev.filter(item => item.id !== id));
     }
     setDeletingId(null);
   };
@@ -141,8 +119,8 @@ function CPDInner() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <h2>My CPD Learning Log</h2>
           {totalCount > 0 && (
-            <button className="btn btn--outline" onClick={download} disabled={isDownloading}>
-              {isDownloading ? "Generating..." : "📥 Download CSV"}
+            <button className="btn btn--outline" onClick={download}>
+              📥 Download CSV
             </button>
           )}
         </div>
@@ -152,15 +130,14 @@ function CPDInner() {
             className="form-control"
             placeholder="Search text…"
             value={q}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setQ(e.target.value)}
+            onChange={(e) => setQ(e.target.value)}
           />
           <select
             className="form-control"
             value={tag}
-            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTag(e.target.value)}
-            disabled={tagsLoading}
+            onChange={(e) => setTag(e.target.value)}
           >
-            <option value="">{tagsLoading ? "Loading tags..." : "All tags"}</option>
+            <option value="">All tags</option>
             {allTags.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
@@ -173,7 +150,7 @@ function CPDInner() {
             </div></div>
           )}
           
-          {!loading && list.map((e, idx) => (
+          {!loading && paginatedList.map((e, idx) => (
             <div key={e.id || idx} className="card" style={{ marginBottom: 24 }}>
               <div className="card__body" style={{ padding: '20px' }}>
                 <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
