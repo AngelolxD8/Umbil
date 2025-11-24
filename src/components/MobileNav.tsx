@@ -117,7 +117,8 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             {/* Recent History - IMPROVED */}
             {userEmail && history.length > 0 && (
                 <div className="history-section">
-                    <div className="section-label">Recent</div>
+                    {/* UPDATED LABEL HERE */}
+                    <div className="section-label">Recent (Last 7 Days)</div>
                     <div className="history-list">
                         {visibleHistory.map((item) => (
                             <button key={item.id} onClick={() => handleHistoryClick(item.id)} className="history-item">

@@ -13,6 +13,7 @@
     "@ai-sdk/react": "^2.0.87",
     "@ai-sdk/togetherai": "^1.0.27",
     "@supabase/supabase-js": "^2.58.0",
+    "@tavily/core": "^0.5.13",
     "@vercel/analytics": "^1.5.0",
     "ai": "^5.0.89",
     "next": "15.5.3",
