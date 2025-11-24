@@ -75,7 +75,7 @@ async function getWebContext(query: string): Promise<string> {
   try {
     // We use 'basic' depth for speed. Switch to 'advanced' if you need deeper page scraping.
     const searchContext = await tvly.search(`${query} site:nice.org.uk OR site:bnf.nice.org.uk OR site:cks.nice.org.uk`, {
-      searchDepth: "basic", 
+      searchDepth: "advanced", 
       maxResults: 3,
     });
     
