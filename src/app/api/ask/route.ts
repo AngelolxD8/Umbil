@@ -91,6 +91,9 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500 });
 
   const userId = await getUserId(req);
+  
+  // --- NEW: Capture Device ID from headers ---
+  const deviceId = req.headers.get("x-device-id") || "unknown";
 
   try {
     const { messages, profile, answerStyle, saveToHistory } = await req.json();
@@ -119,7 +122,12 @@ export async function POST(req: NextRequest) {
     const { data: cached } = await supabase.from(CACHE_TABLE).select("answer").eq("query_hash", cacheKey).single();
 
     if (cached) {
-      await logAnalytics(userId, "question_asked", { cache: "hit", style: answerStyle || 'standard' });
+      // --- UPDATED: Pass deviceId to logs ---
+      await logAnalytics(userId, "question_asked", { 
+          cache: "hit", 
+          style: answerStyle || 'standard',
+          device_id: deviceId 
+      });
       
       if (userId && latestUserMessage.role === 'user' && saveToHistory) {
          const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -143,7 +151,13 @@ export async function POST(req: NextRequest) {
       async onFinish({ text, usage }) {
         const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
 
-        await logAnalytics(userId, "question_asked", { cache: "miss", total_tokens: usage.totalTokens, style: answerStyle || 'standard' });
+        // --- UPDATED: Pass deviceId to logs ---
+        await logAnalytics(userId, "question_asked", { 
+            cache: "miss", 
+            total_tokens: usage.totalTokens, 
+            style: answerStyle || 'standard',
+            device_id: deviceId 
+        });
 
         if (answer.length > 50) {
           await supabaseService.from(CACHE_TABLE).upsert({ query_hash: cacheKey, answer, full_query_key: cacheKeyContent });

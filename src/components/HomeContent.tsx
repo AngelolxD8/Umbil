@@ -6,7 +6,8 @@ import dynamic from 'next/dynamic';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "@/components/Toast";
-import { addCPD, CPDEntry, getHistoryItem } from "@/lib/store"; 
+// --- CHANGED: Added getDeviceId to import ---
+import { addCPD, CPDEntry, getHistoryItem, getDeviceId } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
@@ -299,7 +300,12 @@ export default function HomeContent() {
 
       const res = await fetch("/api/ask", {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+        // --- CHANGED: Added Headers ---
+        headers: { 
+            "Content-Type": "application/json", 
+            ...(token && { Authorization: `Bearer ${token}` }),
+            "x-device-id": getDeviceId() // <--- NEW: Sending Device ID
+        },
         body: JSON.stringify({ 
             messages: messagesToSend, 
             profile, 

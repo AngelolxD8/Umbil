@@ -194,3 +194,19 @@ export function clearAll() {
       localStorage.removeItem("pdp_goals");
   }
 }
+
+// --- NEW: Device ID Utility for Analytics ---
+export function getDeviceId(): string {
+  if (typeof window === 'undefined') return 'server-side';
+  
+  let id = localStorage.getItem('umbil_device_id');
+  if (!id) {
+    // Use crypto.randomUUID if available, otherwise a simple fallback
+    id = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : `device_${Math.random().toString(36).slice(2)}_${Date.now()}`;
+      
+    localStorage.setItem('umbil_device_id', id);
+  }
+  return id;
+}
