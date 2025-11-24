@@ -1,4 +1,4 @@
-/* src/app/globals.css */
+/* --- Umbil UI polish additions --- */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
 :root {
@@ -208,7 +208,7 @@ a {
   color: var(--umbil-muted);
 }
 
-/* Ask Bar Container */
+/* Ask Bar */
 .ask-bar-container {
   max-width: 600px;
   width: 100%;
@@ -219,11 +219,9 @@ a {
   gap: 8px; 
 }
 
-/* Ask Bar Input - Default Desktop Padding */
 .ask-bar-input {
   flex-grow: 1; 
-  /* Space on right for: Dropdown + Mic + Send button */
-  padding: 16px 190px 16px 20px;
+  padding: 16px 150px 16px 20px;
   font-size: 16px;
   border: 1px solid var(--umbil-card-border);
   border-radius: var(--umbil-radius-lg);
@@ -238,7 +236,6 @@ a {
   box-shadow: 0 0 0 3px var(--umbil-focus-ring);
 }
 
-/* Send Button */
 .ask-bar-send-button {
   position: absolute;
   right: 10px; 
@@ -256,57 +253,11 @@ a {
   align-items: center;
   cursor: pointer;
   transition: background-color 0.2s ease-in-out;
-  z-index: 20;
 }
 
 .ask-bar-send-button:hover {
   background-color: #1a92a5;
   animation: none;
-}
-
-/* Mic Button Class */
-.ask-bar-mic-button {
-  position: absolute;
-  right: 56px; /* Positioned to the left of send button */
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  cursor: pointer;
-  color: var(--umbil-muted);
-  transition: color 0.2s;
-  z-index: 10;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* Dropdown Container Class */
-.style-dropdown-container {
-  position: absolute;
-  right: 96px; /* Positioned to the left of mic button */
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 15; 
-  flex-shrink: 0; 
-}
-
-/* --- MOBILE RESPONSIVENESS FIX --- */
-@media (max-width: 640px) {
-  /* Reduce right padding on mobile since label is hidden */
-  .ask-bar-input {
-    padding-right: 125px !important; 
-  }
-  
-  /* Hide the text label ("Standard") on mobile */
-  .dropdown-label {
-    display: none;
-  }
-  
-  /* Adjust container position slightly for the icon-only view */
-  .style-dropdown-container {
-    right: 90px;
-  }
 }
 
 /* Add a new keyframes animation for the send button */
@@ -327,12 +278,21 @@ a {
 
 /* --- Answer Style Dropdown (Gemini Aesthetic with Solid Background) --- */
 
+.style-dropdown-container {
+  position: absolute;
+  right: 60px; /* Positioned to the left of the send button */
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5; 
+  flex-shrink: 0; 
+}
+
 .style-dropdown-button {
   background-color: var(--umbil-surface); /* Solid background to hide text */
   color: var(--umbil-muted);              /* Muted text for minimal look */
   border: none;                           /* No borders */
   border-radius: var(--umbil-radius-sm);
-  padding: 6px 8px;                       /* Compact padding */
+  padding: 6px 10px;                      /* Compact padding */
   font-size: 0.85rem;                     /* Smaller, unobtrusive font */
   font-weight: 600;
   cursor: pointer;
