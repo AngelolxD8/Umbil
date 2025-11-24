@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "src/app/api/cron/streak-reminders",
+      "schedule": "0 14 * * *"
+    }
+  ]
+}
