@@ -26,7 +26,7 @@ export function generateStreakReminderEmail(data: StreakEmailData): string {
     streakMessage = `Great start, ${userName}! You've logged your first day of CPD. Keep the momentum going and log again today!`;
     emoji = '🔥';
   } else {
-    streakMessage = 'Don\'t break your ${currentStreak}-day streak! Keep logging your CPD daily to maintain your impressive streak.';
+    streakMessage = `Don\'t break your ${currentStreak}-day streak! Keep logging your CPD daily to maintain your impressive streak.`;
     emoji = '🔥';
   }
 

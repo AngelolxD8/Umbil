@@ -42,12 +42,12 @@ export async function sendStreakReminderEmail(params: SendStreakReminderParams):
     if (currentStreak === 0) {
       subject = '🌟 Start Your Streak Today!';
     } else if (currentStreak >= longestStreak) {
-      subject = '⏰ Don\'t Lose Your ${currentStreak}-day Streak - Log Your CPD Today!';
+      subject = `⏰ Don\'t Lose Your ${currentStreak}-day Streak - Log Your CPD Today!`;
     }
 
     // Send email via Resend
     const { data, error } = await resend.emails.send({
-      from: process.env.RESEND_SENDER_EMAIL || 'noreply@umbil.co.uk',
+      from: process.env.RESEND_SENDER_EMAIL || 'yes-reply@notifications.umbil.co.uk',
       to: [to],
       subject,
       html: htmlContent,

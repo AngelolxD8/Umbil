@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       );
     }
     // cron secret verification
-    if (authHeader !== 'Bearer ${cronSecret}') {
+    if (authHeader !== `Bearer ${cronSecret}`) {
       console.warn('Unauthorrised cron job attempt.');
       return NextResponse.json(
         { error: 'Unauthorised' },
@@ -49,8 +49,8 @@ export async function GET(request: NextRequest) {
 
     // Fetch users who opted in for streak reminders
     const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, email, name')
+      .from('v_users')
+      .select('id, email')
       .eq('email_reminders_enabled', true);
 
     if (usersError) {
@@ -90,14 +90,23 @@ export async function GET(request: NextRequest) {
           continue;
         }
 
+        // DEBUG: Log the timestamps
+        // console.log(`\n=== User: ${user.email} ===`);
+        // console.log('Total notes:', cpd_entries?.length);
+        // console.log('Timestamps:', cpd_entries?.slice(0, 5).map(n => n.timestamp));
+      
         // Calculate streaks & send reminder if not logged today
         const timestamps = cpd_entries?.map(n => n.timestamp) || [];
         const streakData = calculateStreaks(timestamps);
 
+        // DEBUG: Log the calculated streak
+        // console.log('Calculated streak data:', streakData);
+        // console.log('===================\n'); 
+
         if (!streakData.hasLoggedToday) {
           remindersToSend.push({
             to: user.email,
-            userName: user.name || user.email.split('@')[0],
+            userName: user.email.split('@')[0],
             currentStreak: streakData.currentStreak,
             longestStreak: streakData.longestStreak,
             appUrl: process.env.NEXT_PUBLIC_APP_URL || 'https://umbil.co.uk'
