@@ -39,51 +39,55 @@ export function calculateStreaks(timestamps: string[]): UserStreakData {
 
 
   let currentStreakCount = 0;
+  const checkDate = new Date(today);
+
+  // determine where to count from
+  if (hasLoggedToday) {
+    currentStreakCount = 1;
+    checkDate.setDate(checkDate.getDate() - 1);
+  } else {
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = toDateString(yesterday);
+
+    if (loggedDatesSet.has(yesterdayStr)) {
+      currentStreakCount = 1;
+      checkDate.setTime(yesterday.getTime());
+      checkDate.setDate(yesterday.getDate() - 1);
+    } else {
+      currentStreakCount = 0;
+    }
+  }
+
+  if (currentStreakCount > 0) {
+    for (let days = 0; days < 365; days++) {
+      const dateStr = toDateString(checkDate);
+
+      if (loggedDatesSet.has(dateStr)) {
+        currentStreakCount++;
+        checkDate.setDate(checkDate.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+  }
+
+  // Longest streak 'run' calculation 
   let longestStreakCount = 0;
   let tempStreakCount = 0;
 
-  const checkDate = new Date(today);
-  let isCurrentStreak = true; // Flag to track if we are still in the "current" streak
-
-  for (let i = 0; i < 365; i++) {
-    const dateStr = toDateString(checkDate);
+  const iterDate = new Date(today);
+  for (let days = 0; days < 365; days++) {
+    const dateStr = toDateString(iterDate);
 
     if (loggedDatesSet.has(dateStr)) {
       tempStreakCount++;
-    } else {
-      if (isCurrentStreak) {
-        if (hasLoggedToday) {
-          currentStreakCount = 1;
-          checkDate.setDate(checkDate.getDate() - 1);
-        } else {
-          const yesterday = new Date(today);
-          yesterday.setDate(yesterday.getDate() - 1);
-          const yesterdayStr = toDateString(yesterday);
-
-          if (loggedDatesSet.has(yesterdayStr)) {
-            currentStreakCount = 1;
-            checkDate.setTime(yesterday.getTime());
-            checkDate.setDate(checkDate.getDate() - 1);
-          } else {
-            currentStreakCount = 0;
-          }
-        }
-
-        isCurrentStreak = false;
-      }
-
       longestStreakCount = Math.max(longestStreakCount, tempStreakCount);
-
+    } else {
       tempStreakCount = 0;
     }
-    
-    checkDate.setDate(checkDate.getDate() - 1);
+    iterDate.setDate(iterDate.getDate() - 1);
   }
-  
-  if (isCurrentStreak) {
-    currentStreakCount = tempStreakCount;
-  }
-  longestStreakCount = Math.max(longestStreakCount, tempStreakCount);
 
   return { 
     currentStreak: currentStreakCount, 
