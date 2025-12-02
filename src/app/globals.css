@@ -841,23 +841,35 @@ a {
 .color-legend.level-4 { background-color: var(--umbil-brand-teal); opacity: 1; }
 .color-legend.level-0 { background-color: var(--umbil-hover-bg); opacity: 1; }
 
+/* src/app/globals.css */
+
+/* ... existing code ... */
+
 /* RESPONSIVE TABLE FIXES */
 .markdown-content-wrapper {
+  /* Ensure the wrapper itself doesn't overflow */
   width: 100%;
+  max-width: 100%;
+  overflow-wrap: break-word;
 }
 
 .table-scroll-wrapper {
-  overflow-x: auto; 
-  width: 100%;      
-}
-
-.markdown-content-wrapper table {
-  min-width: 500px;
-  width: 100%; 
-  border-collapse: collapse;
+  display: block;
+  width: 100%;
+  overflow-x: auto; /* Adds scrollbar only to the table */
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   margin-top: 1rem;
   margin-bottom: 1rem;
   border: 1px solid var(--umbil-divider);
+  border-radius: var(--umbil-radius-sm);
+}
+
+.markdown-content-wrapper table {
+  width: 100%;
+  border-collapse: collapse;
+  /* Remove margin here as the wrapper handles it */
+  margin: 0;
+  border: none;
 }
 
 .markdown-content-wrapper th {
@@ -866,34 +878,10 @@ a {
   border-bottom: 2px solid var(--umbil-divider);
   text-align: left;
   font-weight: 600;
-  font-size: 0.9rem; 
+  font-size: 0.9rem;
+  white-space: nowrap; /* Keeps headers on one line if possible */
 }
 
-.markdown-content-wrapper td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--umbil-divider);
-  vertical-align: top; 
-  font-size: 0.9rem; 
-}
-
-.markdown-content-wrapper tr:last-child td {
-  border-bottom: none;
-}
-
-.markdown-content-wrapper td p {
-  margin-bottom: 0.5rem; 
-}
-.markdown-content-wrapper td p:last-child {
-  margin-bottom: 0;
-}
-.markdown-content-wrapper td ul,
-.markdown-content-wrapper td ol {
-  margin: 0.5rem 0 0.5rem 1.25rem; 
-  padding: 0;
-}
-.markdown-content-wrapper td li {
-  margin-bottom: 0.25rem; 
-}
 
 /* Icon Button Styles for Message Actions */
 .umbil-message-actions {
