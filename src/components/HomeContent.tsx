@@ -13,12 +13,14 @@ import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { v4 as uuidv4 } from 'uuid'; 
-import { useSpeechRecognition } from "@/hooks/useSpeechRecognition"; // IMPORT THE HOOK
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 
 // --- Dynamic Imports ---
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
 const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
+// 1. Import the StreakPopup
+const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
 
 // --- Types ---
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -196,7 +198,10 @@ export default function HomeContent() {
   const searchParams = useSearchParams();
   const router = useRouter(); 
   const [profile, setProfile] = useState<Profile | null>(null);
-  const { currentStreak, loading: streakLoading } = useCpdStreaks();
+  
+  // 2. Add refetch capability from the hook
+  const { currentStreak, loading: streakLoading, hasLoggedToday, refetch: refetchStreaks } = useCpdStreaks();
+  
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -205,12 +210,16 @@ export default function HomeContent() {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
 
-  // --- Using the new Hook ---
+  // 3. New state for streak popup
+  const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
+  const [streakToDisplay, setStreakToDisplay] = useState(0);
+
   const { isRecording, toggleRecording } = useSpeechRecognition({
     onTranscript: (text) => setQ((prev) => (prev ? prev + " " + text : text)),
     onError: (msg) => setToastMessage(msg),
   });
 
+  // ... (Other useEffects remain the same) ...
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
@@ -295,11 +304,6 @@ export default function HomeContent() {
   };
 
   useEffect(() => {
-    const timeoutId = setTimeout(() => scrollToBottom(), 50);
-    return () => clearTimeout(timeoutId);
-  }, [conversation]);
-
-  useEffect(() => {
     if (loading) {
       const interval = setInterval(() => {
         setLoadingMsg((prevMsg) => {
@@ -313,6 +317,8 @@ export default function HomeContent() {
       setLoadingMsg(loadingMessages[0]);
     }
   }, [loading]);
+
+  const handleMicClick = () => toggleRecording(); // Using the hook's toggler
 
   const handleStartTour = () => { setShowWelcomeModal(false); setIsTourOpen(true); setTourStep(0); };
   const handleSkipTour = () => { setShowWelcomeModal(false); localStorage.setItem("hasCompletedQuickTour", "true"); };
@@ -441,14 +447,37 @@ export default function HomeContent() {
     setCurrentCpdEntry({ question: entry.question || "", answer: entry.content });
     setIsModalOpen(true);
   };
+
+  // --- 4. Updated Save CPD Handler with Streak Logic ---
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (isTourOpen) { handleTourStepChange(5); return; }
     if (!currentCpdEntry) return;
+    
+    // Determine if this is the first log of the day BEFORE saving
+    const isFirstLogToday = !hasLoggedToday;
+    const nextStreak = currentStreak + (isFirstLogToday ? 1 : 0);
+
     const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { timestamp: new Date().toISOString(), question: currentCpdEntry.question, answer: currentCpdEntry.answer, reflection, tags };
     const { error } = await addCPD(cpdEntry);
-    if (error) { console.error("Failed to save CPD entry:", error); setToastMessage("❌ Failed to save CPD entry."); } 
-    else { setToastMessage("✅ CPD entry saved remotely!"); }
-    setIsModalOpen(false); setCurrentCpdEntry(null);
+    
+    if (error) { 
+        console.error("Failed to save CPD entry:", error); 
+        setToastMessage("❌ Failed to save CPD entry."); 
+    } else { 
+        // Trigger popup ONLY if it's the first log today
+        if (isFirstLogToday) {
+            setStreakToDisplay(nextStreak);
+            setIsStreakPopupOpen(true);
+        } else {
+            setToastMessage("✅ CPD entry saved remotely!"); 
+        }
+        
+        // Refresh the global streak data
+        refetchStreaks();
+    }
+    
+    setIsModalOpen(false); 
+    setCurrentCpdEntry(null);
   };
 
   const renderMessage = (entry: ConversationEntry, index: number) => {
@@ -536,6 +565,13 @@ export default function HomeContent() {
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined} />
       )}
       
+      {/* 5. Streak Popup Component */}
+      <StreakPopup 
+        isOpen={isStreakPopupOpen} 
+        streakCount={streakToDisplay} 
+        onClose={() => setIsStreakPopupOpen(false)} 
+      />
+
       <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} />
 
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
