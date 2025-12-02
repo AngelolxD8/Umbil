@@ -53,14 +53,13 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  height: 100dvh; /* Changed from 100vh to 100dvh for better mobile support */
+  height: 100dvh; /* 100dvh handles mobile browser bars better */
   display: flex;
   flex-direction: column;
-  overflow: hidden; /* Prevent body scroll, handle scroll in child containers */
+  overflow: hidden; /* Prevent double scrollbars on body */
   transition: background-color 0.3s, color 0.3s;
 }
 
-/* Added #root to ensure full height structure in Next.js/React */
 #root {
   display: flex;
   flex-direction: column;
@@ -91,7 +90,8 @@ a {
   flex-grow: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden; 
+  /* CHANGED: Allow scrolling here for Profile/CPD pages */
+  overflow-y: auto; 
   height: 100%;
   position: relative;
 }
@@ -647,6 +647,31 @@ a {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 24px;
+}
+
+/* NEW CHAT BUTTON FIX */
+.new-chat-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 16px !important;
+  background-color: transparent;
+  color: var(--umbil-brand-teal);
+  border: 1px solid var(--umbil-brand-teal);
+  border-radius: var(--umbil-radius-sm);
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.new-chat-button:hover {
+  background-color: var(--umbil-brand-teal);
+  color: white;
+  box-shadow: 0 4px 10px rgba(31, 184, 205, 0.2);
 }
 
 /* Buttons */
