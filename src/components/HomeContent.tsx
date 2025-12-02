@@ -12,7 +12,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
-import { v4 as uuidv4 } from 'uuid'; // Imported and now used below
+import { v4 as uuidv4 } from 'uuid'; 
 
 // Dynamic Imports
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
@@ -32,7 +32,6 @@ interface IWindow extends Window {
   SpeechRecognition: any;
 }
 
-// ... [Keep TourWelcomeModal component as is] ...
 function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
   return (
     <div className="modal-overlay">
@@ -51,7 +50,6 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
   );
 }
 
-// ... [Keep AnswerStyleDropdown component as is] ...
 const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: (style: AnswerStyle) => void; }> = ({ currentStyle, onStyleChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -92,7 +90,6 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
 
-// --- EXTRACTED SEARCH COMPONENT ---
 type SearchInputAreaProps = {
   q: string;
   setQ: (val: string) => void;
@@ -114,7 +111,6 @@ const SearchInputArea = ({
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Auto-resize logic
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -142,7 +138,7 @@ const SearchInputArea = ({
       
       <div className="ask-bar-actions">
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* TOOLS BUTTON */}
+          {/* TOOLS BUTTON (Left Side) */}
           <button 
             className="action-icon-btn" 
             title="Medical Tools"
@@ -150,15 +146,16 @@ const SearchInputArea = ({
             disabled={isTourOpen}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+              <span style={{ fontSize: '1.1rem' }}>✨</span>
               <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tools</span>
             </div>
           </button>
-          
-          <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* STANDARD DROPDOWN (Right Side) */}
+          <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
+
           {/* MIC BUTTON */}
           <button 
             className={`action-icon-btn ${isRecording ? "recording" : ""}`}
@@ -193,7 +190,6 @@ export default function HomeContent() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   
-  // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false); 
   
@@ -206,7 +202,6 @@ export default function HomeContent() {
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
-  // Track the current conversation ID
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
@@ -214,28 +209,23 @@ export default function HomeContent() {
   const [tourStep, setTourStep] = useState(0); 
 
   const [isRecording, setIsRecording] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
 
-  // --- UPDATED: Load conversation logic ---
   useEffect(() => {
     if (userLoading) return;
     
-    // Check for "new chat" flag
     if (searchParams.get("new-chat")) {
       setConversation([]);
       setQ("");
       setConversationId(null);
-      // Clean URL
       window.history.replaceState({}, document.title, "/");
       return;
     }
 
-    // Check for conversation ID in URL (using 'c' parameter)
     const cid = searchParams.get("c"); 
     
     if (cid && cid !== conversationId) {
@@ -245,7 +235,6 @@ export default function HomeContent() {
 
         getConversationMessages(cid).then(items => {
             if (items && items.length > 0) {
-                // Reconstruct conversation from history items
                 const reconstructed: ConversationEntry[] = [];
                 items.forEach(item => {
                     reconstructed.push({ type: "user", content: item.question, question: item.question });
@@ -255,17 +244,14 @@ export default function HomeContent() {
                 });
                 setConversation(reconstructed);
             } else {
-                // ID exists in URL but no messages found (or invalid ID)
                 setConversation([]);
             }
             setLoading(false);
         });
     } else if (!cid && !conversationId && !searchParams.get("tour")) {
-        // No ID, standard home view
         setConversation([]);
     }
 
-    // Tour Logic check
     const checkTour = () => {
       const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
       const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
@@ -286,9 +272,8 @@ export default function HomeContent() {
     } else {
       checkTour();
     }
-  }, [searchParams, email, router, userLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchParams, email, router, userLoading]);
 
-  // Viewport resize logic
   useEffect(() => {
     if (typeof window !== 'undefined' && window.visualViewport) {
       const handleResize = () => {
@@ -353,13 +338,11 @@ export default function HomeContent() {
       setIsRecording(true);
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onresult = (event: any) => {
       const transcript = event.results[0][0].transcript;
       setQ((prev) => (prev ? prev + " " + transcript : transcript));
     };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     recognition.onerror = (event: any) => {
       console.error("Speech recognition error", event.error);
       setIsRecording(false);
@@ -415,7 +398,7 @@ export default function HomeContent() {
             messages: messagesToSend, 
             profile, 
             answerStyle: styleToUse,
-            conversationId: activeConversationId, // New: Send ID to API
+            conversationId: activeConversationId, 
             saveToHistory: true 
         }),
       });
@@ -457,14 +440,11 @@ export default function HomeContent() {
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
     
-    // NEW: Ensure we have a conversation ID. If not, generate one.
     let currentCid = conversationId;
     if (!currentCid) {
-        // FIX: Removed manual 'var' implementation and use uuidv4()
         currentCid = uuidv4();
         
         setConversationId(currentCid);
-        // Silently update URL so refresh works
         window.history.replaceState({}, document.title, `/?c=${currentCid}`);
     }
 
@@ -479,7 +459,6 @@ export default function HomeContent() {
 
   const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
 
-  // Handlers for messages
   const handleCopyMessage = (content: string) => { navigator.clipboard.writeText(content).then(() => setToastMessage("Copied to clipboard!")).catch((err) => { console.error(err); setToastMessage("❌ Failed to copy text."); }); };
   const handleShare = async () => {
     const textContent = convoToShow.map((entry) => { const prefix = entry.type === "user" ? "You" : "Umbil"; return `${prefix}:\n${entry.content}\n\n--------------------\n`; }).join("\n");

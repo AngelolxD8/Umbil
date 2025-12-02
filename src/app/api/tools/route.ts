@@ -4,6 +4,9 @@ import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 
+// Remove 'export const runtime = edge' to support Tavily (Node.js)
+// export const runtime = 'edge'; 
+
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
@@ -12,10 +15,9 @@ const MODEL_SLUG = "openai/gpt-oss-120b";
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
-// REMOVED: export const runtime = 'edge';  <-- This fixes the build error
-
 // --- TYPE DEFINITIONS ---
-type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'translate_reflection';
+// Matches your new ToolsModal list (removed translate_reflection)
+type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
 
 interface ToolConfig {
   systemPrompt: string;
@@ -35,22 +37,22 @@ const TOOLS: Record<ToolId, ToolConfig> = {
     },
     systemPrompt: `
       You are an expert Medical Secretary for a UK General Practitioner.
-      Your task is to write a formal hospital referral letter.
+      Your task is to write a formal hospital referral letter based on the user's rough notes.
       
       RULES:
       1.  Output standard letter format (Dear [Specialty], Re: [Patient details]).
       2.  Do NOT use Markdown formatting (no bold **, no headers #). Keep it plain text.
       3.  If "Context" is provided below, you MUST check if the patient meets the referral criteria.
-      4.  If criteria are NOT met based on the input, add a "[NOTE TO GP]" at the top.
+      4.  If criteria are NOT met based on the input, add a "[NOTE TO GP: ...]" at the top.
       
       Structure:
       - Salutation
-      - Patient details (from input)
+      - Patient details (extract age/gender/name from input)
       - "Thank you for seeing this patient with..."
-      - History of Complaint
+      - History of Complaint (expand the notes into full sentences)
       - Examination & Vitals
       - PMH / DH (if provided)
-      - specific reason for referral (e.g. "Criteria for 2WW met: [Reason]")
+      - Specific reason for referral
       - Sign off: "Kind regards, Dr [Name]"
     `
   },
@@ -59,22 +61,23 @@ const TOOLS: Record<ToolId, ToolConfig> = {
     searchQueryGenerator: (input) => `NICE CKS safety netting red flags ${input}`,
     systemPrompt: `
       You are a Medico-Legal Assistant for a UK Doctor.
-      Create a "Safety Netting" documentation block.
+      Create a "Safety Netting" documentation block based on the clinical presentation provided.
       
       OUTPUT FORMAT (Strictly follow this):
       "Safety netting advice given: [General advice, e.g. fluid intake].
       Return immediately if: [List specific RED FLAGS based on the condition].
-      discussed [Relevant Guideline, e.g. NICE Traffic Light system/Sepsis risks]."
+      Discussed [Relevant Guideline, e.g. NICE Traffic Light system/Sepsis risks]."
 
       Tone: Professional, concise, ready to paste into EMIS/SystmOne.
-      Ensure the Red Flags are accurate to the specific condition described.
+      Ensure the Red Flags are accurate to the specific condition described in the notes.
     `
   },
   sbar: {
     useSearch: false,
     systemPrompt: `
-      Convert the user's notes into a structured SBAR (Situation, Background, Assessment, Recommendation) handover.
-      For urgent calls to hospital registrars.
+      Convert the user's unstructured notes into a structured SBAR (Situation, Background, Assessment, Recommendation) handover.
+      This is for an urgent call to a hospital registrar.
+      
       - Situation: Who/Where/Acute concern.
       - Background: Relevant history.
       - Assessment: Vitals/Exam.
@@ -84,16 +87,14 @@ const TOOLS: Record<ToolId, ToolConfig> = {
   discharge_summary: {
     useSearch: false,
     systemPrompt: `
-      Condense these ward notes into a concise GP Discharge Summary.
-      Sections: Primary Diagnosis, Procedures, Med Changes, Follow-up Required.
-      Ignore "patient stable" filler.
-    `
-  },
-  translate_reflection: {
-    useSearch: false,
-    systemPrompt: `
-      Translate this clinical reflection into formal UK English suitable for a GMC appraisal portfolio.
-      Maintain reflective tone. Output ONLY the translation.
+      Condense these messy ward notes into a concise GP Discharge Summary.
+      Sections required: 
+      1. Primary Diagnosis
+      2. Key Procedures/Events
+      3. Medication Changes (Start/Stop/Change)
+      4. Follow-up Required (What does the GP actually need to do?)
+      
+      Ignore daily "patient stable" updates. Focus on the plan and changes.
     `
   }
 };
@@ -120,23 +121,19 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
   try {
-    const { toolType, input, fields } = await req.json();
+    // We now strictly expect a single 'input' string
+    const { toolType, input } = await req.json();
     
-    let processedInput = input;
-    if (fields) {
-      processedInput = Object.entries(fields)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\n");
-    }
-
     const toolConfig = TOOLS[toolType as ToolId];
-    if (!processedInput || !toolConfig) {
+    
+    if (!input || !toolConfig) {
       return NextResponse.json({ error: "Invalid input or tool type" }, { status: 400 });
     }
 
+    // Context Injection
     let context = "";
     if (toolConfig.useSearch && toolConfig.searchQueryGenerator) {
-      const searchQuery = toolConfig.searchQueryGenerator(processedInput);
+      const searchQuery = toolConfig.searchQueryGenerator(input);
       context = await getContext(searchQuery);
     }
 
@@ -145,8 +142,8 @@ ${toolConfig.systemPrompt}
 
 ${context ? `Use the following guidelines to ensure safety/accuracy:\n${context}` : ""}
 
-USER INPUT DATA:
-${processedInput}
+USER INPUT NOTES:
+${input}
 
 OUTPUT:
 `;
@@ -161,7 +158,6 @@ OUTPUT:
     return result.toTextStreamResponse();
 
   } catch (err: unknown) {
-    // Fixed unused var warning by using it or logging it properly
     const msg = err instanceof Error ? err.message : "Internal Error";
     console.error("Tool API Error:", msg);
     return NextResponse.json({ error: msg }, { status: 500 });
