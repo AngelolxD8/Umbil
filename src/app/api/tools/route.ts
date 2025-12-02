@@ -7,12 +7,12 @@ import { tavily } from "@tavily/core";
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
-const MODEL_SLUG = "openai/gpt-oss-120b"; // Or "meta-llama/Llama-3-70b-chat-hf" for speed
+const MODEL_SLUG = "openai/gpt-oss-120b"; 
 
 const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
-export const runtime = 'edge';
+// REMOVED: export const runtime = 'edge';  <-- This fixes the build error
 
 // --- TYPE DEFINITIONS ---
 type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'translate_reflection';
@@ -20,15 +20,14 @@ type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'tr
 interface ToolConfig {
   systemPrompt: string;
   useSearch: boolean;
-  searchQueryGenerator?: (input: string) => string; // Logic to generate a search query from input
+  searchQueryGenerator?: (input: string) => string;
 }
 
 // --- PROMPTS & CONFIGURATION ---
 const TOOLS: Record<ToolId, ToolConfig> = {
   referral: {
-    useSearch: true, // ENABLE SEARCH INJECTION
+    useSearch: true, 
     searchQueryGenerator: (input) => {
-      // Heuristic: If input mentions "2WW" or "Cancer", force a NICE guideline search
       if (input.toLowerCase().includes("2ww") || input.toLowerCase().includes("cancer")) {
         return `NICE NG12 suspected cancer referral criteria UK ${input}`;
       }
@@ -104,14 +103,14 @@ async function getContext(query: string): Promise<string> {
   if (!tvly) return "";
   try {
     const result = await tvly.search(query, {
-      searchDepth: "basic", // Basic is faster for tools
+      searchDepth: "basic", 
       maxResults: 2,
       includeDomains: ["nice.org.uk", "cks.nice.org.uk", "patient.info"]
     });
     const snippets = result.results.map(r => `Source: ${r.url}\nExcerpt: ${r.content}`).join("\n\n");
     return `\n\n--- CLINICAL GUIDELINES CONTEXT ---\n${snippets}\n-----------------------------------\n`;
-  } catch (e) {
-    console.error("Tool search failed", e);
+  } catch (error) {
+    console.error("Tool search failed", error);
     return "";
   }
 }
@@ -121,11 +120,8 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
   try {
-    // 1. Parse Input
-    // We now expect 'fields' object for structured inputs, or raw 'input' string
     const { toolType, input, fields } = await req.json();
     
-    // Combine fields into a single string if 'fields' is provided (for Phase 2 UI)
     let processedInput = input;
     if (fields) {
       processedInput = Object.entries(fields)
@@ -138,15 +134,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid input or tool type" }, { status: 400 });
     }
 
-    // 2. Context Injection (The "Brain" Upgrade)
     let context = "";
     if (toolConfig.useSearch && toolConfig.searchQueryGenerator) {
       const searchQuery = toolConfig.searchQueryGenerator(processedInput);
-      // Silently fetch context
       context = await getContext(searchQuery);
     }
 
-    // 3. Construct Final Prompt
     const finalPrompt = `
 ${toolConfig.systemPrompt}
 
@@ -158,17 +151,17 @@ ${processedInput}
 OUTPUT:
 `;
 
-    // 4. Stream Response
     const result = await streamText({
       model: together(MODEL_SLUG),
       messages: [{ role: "user", content: finalPrompt }],
-      temperature: 0.2, // Low temp for tools (precision over creativity)
+      temperature: 0.2, 
       maxOutputTokens: 1024,
     });
 
     return result.toTextStreamResponse();
 
   } catch (err: unknown) {
+    // Fixed unused var warning by using it or logging it properly
     const msg = err instanceof Error ? err.message : "Internal Error";
     console.error("Tool API Error:", msg);
     return NextResponse.json({ error: msg }, { status: 500 });

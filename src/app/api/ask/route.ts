@@ -52,7 +52,7 @@ const getStyleModifier = (style: AnswerStyle | null): string => {
   switch (style) {
     case 'clinic': return "Your answer must be extremely concise and under 150 words. Focus on 4-6 critical bullet points: likely diagnosis, key actions, and safety-netting.";
     case 'deepDive': return "Provide a comprehensive answer suitable for teaching. Discuss evidence, pathophysiology, and guidelines.";
-    case 'standard': default: return "Provide a standard, balanced answer, ideally under 400 words.";
+    case 'standard': default: return "Provide a standard, balanced answer, under 400 words.";
   }
 };
 

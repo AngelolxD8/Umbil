@@ -70,9 +70,9 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
       </button>
       {isOpen && (
         <div className="style-dropdown-menu">
-          <button className={currentStyle === "standard" ? "active" : ""} onClick={() => handleSelect("standard")}><strong>Standard</strong><p>Balanced, detailed answer.</p></button>
-          <button className={currentStyle === "clinic" ? "active" : ""} onClick={() => handleSelect("clinic")}><strong>Clinic</strong><p>Concise, bulleted key actions.</p></button>
-          <button className={currentStyle === "deepDive" ? "active" : ""} onClick={() => handleSelect("deepDive")}><strong>Deep Dive</strong><p>Comprehensive, in-depth explanation.</p></button>
+          <button className={currentStyle === "standard" ? "active" : ""} onClick={() => handleSelect("standard")}><strong>Standard</strong><p>Balanced, concise answer.</p></button>
+          <button className={currentStyle === "clinic" ? "active" : ""} onClick={() => handleSelect("clinic")}><strong>Clinic</strong><p>Bullet points, rapid actions.</p></button>
+          <button className={currentStyle === "deepDive" ? "active" : ""} onClick={() => handleSelect("deepDive")}><strong>Deep Dive</strong><p>Detailed evidence review.</p></button>
         </div>
       )}
     </div>
@@ -91,7 +91,7 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
 
-// --- EXTRACTED SEARCH COMPONENT (FIXES FOCUS BUG) ---
+// --- EXTRACTED SEARCH COMPONENT ---
 type SearchInputAreaProps = {
   q: string;
   setQ: (val: string) => void;
@@ -205,7 +205,6 @@ export default function HomeContent() {
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
-  const [isHistorySaved, setIsHistorySaved] = useState(false);
   const lastFetchedHistoryId = useRef<string | null>(null);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
@@ -226,7 +225,6 @@ export default function HomeContent() {
     if (searchParams.get("new-chat")) {
       setConversation([]);
       setQ("");
-      setIsHistorySaved(false); 
       lastFetchedHistoryId.current = null;
       window.history.replaceState({}, document.title, "/");
     }
@@ -245,7 +243,6 @@ export default function HomeContent() {
                     { type: "umbil", content: item.answer, question: item.question }
                 ];
                 setConversation(restoredConvo);
-                setIsHistorySaved(true); 
             } else {
                 setToastMessage("Could not load history item.");
             }
@@ -386,7 +383,9 @@ export default function HomeContent() {
       const token = session?.access_token;
       const messagesToSend: ClientMessage[] = currentConversation.map((entry) => ({ role: entry.type === "user" ? "user" : "assistant", content: entry.content }));
       const styleToUse = styleOverride || answerStyle;
-      const shouldSaveToHistory = !isHistorySaved;
+      
+      // FIX: Always try to save to history for every response
+      const shouldSaveToHistory = true; 
 
       const res = await fetch("/api/ask", {
         method: "POST",
@@ -402,10 +401,6 @@ export default function HomeContent() {
             saveToHistory: shouldSaveToHistory 
         }),
       });
-
-      if (res.ok && shouldSaveToHistory) {
-          setIsHistorySaved(true);
-      }
 
       if (!res.ok) { const data: AskResponse = await res.json(); throw new Error(data.error || "Request failed"); }
       const contentType = res.headers.get("Content-Type");
