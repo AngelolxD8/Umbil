@@ -1291,7 +1291,7 @@ a {
   cursor: not-allowed;
 }
 
-/* --- RESPONSIVE TOOLS MODAL STYLES --- */
+/* --- RESPONSIVE TOOLS MODAL STYLES (Gemini/ChatGPT Style) --- */
 
 /* Modal Container */
 .tools-modal-content {
@@ -1300,8 +1300,9 @@ a {
   height: 85vh !important;
   display: flex;
   flex-direction: column;
-  padding: 0 !important; /* Override default padding */
+  padding: 0 !important;
   overflow: hidden;
+  border-radius: 16px !important; /* Slightly tighter radius like modern apps */
 }
 
 .tools-header {
@@ -1311,62 +1312,60 @@ a {
   justify-content: space-between;
   align-items: center;
   flex-shrink: 0;
+  background: var(--umbil-surface);
+  z-index: 10;
 }
 
 .tools-body {
   display: flex;
   flex: 1;
   overflow: hidden;
+  position: relative;
 }
 
-/* Sidebar Styles */
-.tools-sidebar {
-  background-color: var(--umbil-hover-bg);
-  padding: 12px;
-  display: flex;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
+/* Base Tool Button Styles */
 .tool-button {
   text-align: left;
-  padding: 10px 12px;
-  border-radius: 8px;
-  border: none;
+  padding: 10px 14px;
+  border: 1px solid transparent;
   background-color: transparent;
   color: var(--umbil-text);
   font-weight: 500;
   cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s;
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  white-space: nowrap;
+  white-space: nowrap; /* Never wrap text inside button */
+  flex-shrink: 0; /* Never shrink the button */
+  border-radius: 8px; /* Default radius for desktop */
 }
 
 .tool-button:hover {
-  background-color: rgba(0,0,0,0.05);
+  background-color: var(--umbil-hover-bg);
 }
 
 .tool-button.active {
-  background-color: var(--umbil-surface);
+  background-color: rgba(31, 184, 205, 0.1);
   color: var(--umbil-brand-teal);
-  font-weight: 700;
-  box-shadow: var(--umbil-shadow-sm);
+  font-weight: 600;
+  border-color: rgba(31, 184, 205, 0.2);
 }
 
 .tool-icon {
   margin-right: 8px;
+  font-size: 1.1em;
 }
 
 /* Main Content Area */
 .tools-main {
   flex: 1;
-  padding: 20px;
+  padding: 24px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
+  background-color: var(--umbil-surface);
 }
 
 .input-section {
@@ -1380,23 +1379,27 @@ a {
   min-height: 200px;
 }
 
-/* --- MEDIA QUERIES FOR RESPONSIVENESS --- */
+/* --- MEDIA QUERIES --- */
 
-/* Desktop (Split view) */
+/* Desktop (Split view - Sidebar on Left) */
 @media (min-width: 768px) {
   .tools-body {
     flex-direction: row;
   }
   
   .tools-sidebar {
-    width: 240px;
+    width: 260px;
     flex-direction: column;
     border-right: 1px solid var(--umbil-divider);
     overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    gap: 4px;
+    background-color: var(--umbil-bg); /* Slight contrast on desktop sidebar */
   }
 }
 
-/* Mobile (Top Scroll view) */
+/* Mobile (Top Scroll Chips view - Gemini Style) */
 @media (max-width: 767px) {
   .tools-body {
     flex-direction: column;
@@ -1404,31 +1407,45 @@ a {
 
   .tools-sidebar {
     width: 100%;
+    display: flex;
     flex-direction: row;
-    overflow-x: auto; /* Horizontal scroll */
+    gap: 8px;
+    
+    /* CRITICAL SCROLLING PROPERTIES */
+    overflow-x: auto; /* Allow horizontal scroll */
+    overflow-y: hidden; /* Lock vertical */
+    -webkit-overflow-scrolling: touch; /* Momentum scrolling on iOS */
+    scrollbar-width: none; /* Firefox hide scrollbar */
+    
     border-bottom: 1px solid var(--umbil-divider);
     padding: 12px 16px;
-    /* Hide scrollbar */
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+    background-color: var(--umbil-surface);
+    z-index: 5;
+    box-shadow: 0 4px 6px -4px rgba(0,0,0,0.05); /* Subtle shadow for depth */
   }
   
+  /* Hide Scrollbar Chrome/Safari */
   .tools-sidebar::-webkit-scrollbar {
     display: none;
   }
 
+  /* Chip Styling for Mobile */
   .tool-button {
-    flex-shrink: 0;
+    border-radius: 9999px; /* Pill shape like Gemini/ChatGPT */
+    border: 1px solid var(--umbil-card-border);
     padding: 8px 16px;
-    background-color: var(--umbil-surface); /* Make buttons look like chips */
-    border: 1px solid var(--umbil-divider);
+    font-size: 0.9rem;
+    background-color: var(--umbil-bg); /* Light background for chips */
   }
 
   .tool-button.active {
+    background-color: var(--umbil-brand-teal); /* Filled color when active */
+    color: white; /* White text for contrast */
     border-color: var(--umbil-brand-teal);
-    background-color: rgba(31, 184, 205, 0.1);
+    box-shadow: 0 2px 4px rgba(31, 184, 205, 0.3);
   }
   
+  /* Fix spacing on mobile main area */
   .tools-main {
     padding: 16px;
   }
