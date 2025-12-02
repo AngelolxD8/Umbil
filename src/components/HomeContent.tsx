@@ -25,11 +25,34 @@ type AskResponse = { answer?: string; error?: string; };
 type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; };
 type ClientMessage = { role: "user" | "assistant"; content: string; };
 
+// --- Speech Recognition Types (Fixes 'any' errors) ---
+interface SpeechRecognitionResult {
+  0: { transcript: string };
+}
+interface SpeechRecognitionEvent {
+  results: {
+    0: SpeechRecognitionResult;
+  };
+}
+interface SpeechRecognitionError {
+  error: string;
+}
+interface ISpeechRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  start: () => void;
+  stop: () => void;
+  onstart: () => void;
+  onresult: (event: SpeechRecognitionEvent) => void;
+  onerror: (event: SpeechRecognitionError) => void;
+  onend: () => void;
+}
+
+// Extend Window to include webkitSpeechRecognition
 interface IWindow extends Window {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  webkitSpeechRecognition: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  SpeechRecognition: any;
+  webkitSpeechRecognition: new () => ISpeechRecognition;
+  SpeechRecognition: new () => ISpeechRecognition;
 }
 
 function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
@@ -209,7 +232,8 @@ export default function HomeContent() {
   const [tourStep, setTourStep] = useState(0); 
 
   const [isRecording, setIsRecording] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  // Use unknown here to avoid explicit 'any' error, we cast it later
+  const recognitionRef = useRef<ISpeechRecognition | null>(null);
 
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
@@ -272,7 +296,7 @@ export default function HomeContent() {
     } else {
       checkTour();
     }
-  }, [searchParams, email, router, userLoading]);
+  }, [searchParams, email, router, userLoading, conversationId]); // Fixed dependency
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.visualViewport) {
@@ -338,12 +362,12 @@ export default function HomeContent() {
       setIsRecording(true);
     };
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
       const transcript = event.results[0][0].transcript;
       setQ((prev) => (prev ? prev + " " + transcript : transcript));
     };
 
-    recognition.onerror = (event: any) => {
+    recognition.onerror = (event: SpeechRecognitionError) => {
       console.error("Speech recognition error", event.error);
       setIsRecording(false);
       setToastMessage("Microphone error. Please check permissions.");
