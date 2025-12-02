@@ -8,7 +8,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
-import { getChatHistory, ChatConversation } from "@/lib/store"; // Updated Import
+import { getChatHistory, ChatConversation } from "@/lib/store";
 import Toast from "@/components/Toast";
 
 type MobileNavProps = {
@@ -28,12 +28,11 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   const [history, setHistory] = useState<ChatConversation[]>([]); 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
-  const [windowWidth, setWindowWidth] = useState(0); // For responsive logic
+  const [windowWidth, setWindowWidth] = useState(0); 
   
   const { currentStreak, loading: streaksLoading, hasLoggedToday } = useCpdStreaks();
 
   useEffect(() => {
-    // Initial width check
     setWindowWidth(window.innerWidth);
     const handleResize = () => setWindowWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
@@ -58,10 +57,9 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   const handleSignOut = async () => { await supabase.auth.signOut(); onClose(); router.push("/"); };
   const handleStartTour = () => { onClose(); router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`); };
 
-  // New handler for clicking a conversation thread
   const handleHistoryClick = (id: string) => {
       onClose();
-      router.push(`/?c=${id}`); // Now uses 'c' parameter for conversationId
+      router.push(`/?c=${id}`);
   };
 
   const handleInvite = async () => {
@@ -76,8 +74,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     { href: "/profile", label: "My Profile" },
   ];
 
-  // --- Logic for Displaying History ---
-  // Mobile (<768px): Show 5 items initially. Desktop: Show 10 items.
   const historyLimit = windowWidth < 768 ? 5 : 10;
   const visibleHistory = isHistoryExpanded ? history : history.slice(0, historyLimit);
   const hiddenCount = Math.max(0, history.length - historyLimit);
@@ -157,6 +153,21 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                <span>Umbil Pro ✨</span>
             </Link>
 
+            {/* SOCIAL LINKS SECTION (NEW) */}
+            <div className="social-links-row">
+                <span className="social-label">Follow us for updates</span>
+                <div className="social-icons">
+                    <a href="https://x.com/umbil_health" target="_blank" rel="noopener noreferrer" className="social-icon-link" aria-label="Follow on X (Twitter)">
+                        {/* X Logo */}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    </a>
+                    <a href="https://linkedin.com/company/umbil" target="_blank" rel="noopener noreferrer" className="social-icon-link" aria-label="Follow on LinkedIn">
+                        {/* LinkedIn Logo */}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/></svg>
+                    </a>
+                </div>
+            </div>
+
             <div className="footer-grid">
                 <button onClick={() => { handleInvite(); onClose(); }} className="footer-btn">
                     Invite
@@ -194,7 +205,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       
       <style jsx global>{`
-        /* ... (Keep your previous style block here, it is unchanged) ... */
+        /* ... (Keep previous styles) ... */
         .sidebar {
             display: flex;
             flex-direction: column;
@@ -348,6 +359,38 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         }
         .pro-link:hover {
             background-color: rgba(31, 184, 205, 0.2);
+        }
+
+        .social-links-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 4px;
+            margin-bottom: 4px;
+        }
+        .social-label {
+            font-size: 0.8rem;
+            color: var(--umbil-muted);
+            font-weight: 500;
+        }
+        .social-icons {
+            display: flex;
+            gap: 8px;
+        }
+        .social-icon-link {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background-color: var(--umbil-hover-bg);
+            color: var(--umbil-muted);
+            transition: all 0.2s;
+        }
+        .social-icon-link:hover {
+            background-color: var(--umbil-divider);
+            color: var(--umbil-text);
         }
 
         .footer-grid {
