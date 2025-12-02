@@ -1290,3 +1290,146 @@ a {
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* --- RESPONSIVE TOOLS MODAL STYLES --- */
+
+/* Modal Container */
+.tools-modal-content {
+  max-width: 900px !important;
+  width: 95% !important;
+  height: 85vh !important;
+  display: flex;
+  flex-direction: column;
+  padding: 0 !important; /* Override default padding */
+  overflow: hidden;
+}
+
+.tools-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--umbil-divider);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.tools-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Sidebar Styles */
+.tools-sidebar {
+  background-color: var(--umbil-hover-bg);
+  padding: 12px;
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.tool-button {
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: none;
+  background-color: transparent;
+  color: var(--umbil-text);
+  font-weight: 500;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.tool-button:hover {
+  background-color: rgba(0,0,0,0.05);
+}
+
+.tool-button.active {
+  background-color: var(--umbil-surface);
+  color: var(--umbil-brand-teal);
+  font-weight: 700;
+  box-shadow: var(--umbil-shadow-sm);
+}
+
+.tool-icon {
+  margin-right: 8px;
+}
+
+/* Main Content Area */
+.tools-main {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.input-section {
+  flex-shrink: 0;
+}
+
+.output-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+}
+
+/* --- MEDIA QUERIES FOR RESPONSIVENESS --- */
+
+/* Desktop (Split view) */
+@media (min-width: 768px) {
+  .tools-body {
+    flex-direction: row;
+  }
+  
+  .tools-sidebar {
+    width: 240px;
+    flex-direction: column;
+    border-right: 1px solid var(--umbil-divider);
+    overflow-y: auto;
+  }
+}
+
+/* Mobile (Top Scroll view) */
+@media (max-width: 767px) {
+  .tools-body {
+    flex-direction: column;
+  }
+
+  .tools-sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto; /* Horizontal scroll */
+    border-bottom: 1px solid var(--umbil-divider);
+    padding: 12px 16px;
+    /* Hide scrollbar */
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .tools-sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .tool-button {
+    flex-shrink: 0;
+    padding: 8px 16px;
+    background-color: var(--umbil-surface); /* Make buttons look like chips */
+    border: 1px solid var(--umbil-divider);
+  }
+
+  .tool-button.active {
+    border-color: var(--umbil-brand-teal);
+    background-color: rgba(31, 184, 205, 0.1);
+  }
+  
+  .tools-main {
+    padding: 16px;
+  }
+}

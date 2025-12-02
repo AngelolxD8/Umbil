@@ -65,10 +65,10 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
 
   return (
     <div className="modal-overlay">
-      <div className="modal-content" style={{ maxWidth: '800px', width: '95%', height: '85vh', display: 'flex', flexDirection: 'column', padding: 0, overflow: 'hidden' }}>
+      <div className="modal-content tools-modal-content">
         
         {/* Header */}
-        <div style={{ padding: '20px', borderBottom: '1px solid var(--umbil-divider)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="tools-header">
           <h3 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '1.5rem' }}>🛠️</span> Clinical Tools
           </h3>
@@ -77,37 +77,26 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
           </button>
         </div>
 
-        <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
+        <div className="tools-body">
           
-          {/* Sidebar Menu */}
-          <div style={{ width: '220px', borderRight: '1px solid var(--umbil-divider)', backgroundColor: 'var(--umbil-hover-bg)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {/* Responsive Sidebar (Left on Desktop, Top Scroll on Mobile) */}
+          <div className="tools-sidebar">
             {TOOLS.map((t) => (
               <button
                 key={t.id}
+                className={`tool-button ${activeTool === t.id ? 'active' : ''}`}
                 onClick={() => { setActiveTool(t.id as ToolType); setInput(""); setOutput(""); }}
-                style={{
-                  textAlign: 'left',
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  backgroundColor: activeTool === t.id ? 'var(--umbil-surface)' : 'transparent',
-                  color: activeTool === t.id ? 'var(--umbil-brand-teal)' : 'var(--umbil-text)',
-                  fontWeight: activeTool === t.id ? 700 : 500,
-                  boxShadow: activeTool === t.id ? 'var(--umbil-shadow-sm)' : 'none',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  transition: 'all 0.2s'
-                }}
               >
-                <span style={{ marginRight: '8px' }}>{t.icon}</span> {t.label}
+                <span className="tool-icon">{t.icon}</span> 
+                <span className="tool-label">{t.label}</span>
               </button>
             ))}
           </div>
 
           {/* Main Content Area */}
-          <div style={{ flex: 1, padding: '24px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div className="tools-main">
             
-            <div>
+            <div className="input-section">
               <label className="form-label" style={{ marginBottom: '8px' }}>Input ({currentTool.label})</label>
               <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', marginBottom: '12px' }}>{currentTool.desc}</p>
               <textarea
@@ -130,7 +119,7 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
             </div>
 
             {/* Output Area */}
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: '200px' }}>
+            <div className="output-section">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <label className="form-label">Generated Output</label>
                 {output && (
@@ -147,7 +136,8 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
                   overflowY: 'auto', 
                   backgroundColor: output ? 'var(--umbil-surface)' : 'var(--umbil-bg)',
                   whiteSpace: 'pre-wrap',
-                  lineHeight: '1.6'
+                  lineHeight: '1.6',
+                  minHeight: '150px'
                 }}
               >
                 {output ? <ReactMarkdown>{output}</ReactMarkdown> : <span style={{ color: 'var(--umbil-muted)', fontStyle: 'italic' }}>Output will appear here...</span>}

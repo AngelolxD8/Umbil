@@ -16,7 +16,7 @@ import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 // Dynamic Imports
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
-const ToolsModal = dynamic(() => import('@/components/ToolsModal')); // NEW
+const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
 
 type AnswerStyle = "clinic" | "standard" | "deepDive";
 const styleDisplayNames: Record<AnswerStyle, string> = { clinic: "Clinic", standard: "Standard", deepDive: "Deep Dive" };
@@ -91,6 +91,99 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
 
+// --- EXTRACTED SEARCH COMPONENT (FIXES FOCUS BUG) ---
+type SearchInputAreaProps = {
+  q: string;
+  setQ: (val: string) => void;
+  ask: () => void;
+  loading: boolean;
+  isTourOpen: boolean;
+  isRecording: boolean;
+  handleMicClick: () => void;
+  answerStyle: AnswerStyle;
+  setAnswerStyle: (s: AnswerStyle) => void;
+  setIsToolsOpen: (val: boolean) => void;
+  handleTourStepChange: (step: number) => void;
+};
+
+const SearchInputArea = ({ 
+  q, setQ, ask, loading, isTourOpen, 
+  isRecording, handleMicClick, answerStyle, 
+  setAnswerStyle, setIsToolsOpen, handleTourStepChange 
+}: SearchInputAreaProps) => {
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize logic
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+    }
+  }, [q]);
+
+  return (
+    <div id="tour-highlight-askbar" className="ask-bar-container-new">
+      <textarea
+        ref={textareaRef}
+        className="ask-bar-textarea"
+        placeholder="Ask Umbil anything..."
+        value={isTourOpen ? "What are the red flags for a headache?" : q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            ask();
+          }
+        }}
+        disabled={isTourOpen}
+        rows={1}
+      />
+      
+      <div className="ask-bar-actions">
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* TOOLS BUTTON */}
+          <button 
+            className="action-icon-btn" 
+            title="Medical Tools"
+            onClick={() => setIsToolsOpen(true)}
+            disabled={isTourOpen}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tools</span>
+            </div>
+          </button>
+          
+          <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* MIC BUTTON */}
+          <button 
+            className={`action-icon-btn ${isRecording ? "recording" : ""}`}
+            onClick={handleMicClick}
+            disabled={loading || isTourOpen}
+            title={isRecording ? "Stop Recording" : "Start Dictation"}
+          >
+            {isRecording ? (
+                <div className="recording-pulse">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                </div>
+            ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            )}
+          </button>
+
+          {/* SEND BUTTON */}
+          <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading || !q.trim()}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function HomeContent() {
   const [q, setQ] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
@@ -101,7 +194,7 @@ export default function HomeContent() {
   
   // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isToolsOpen, setIsToolsOpen] = useState(false); // NEW
+  const [isToolsOpen, setIsToolsOpen] = useState(false); 
   
   const [currentCpdEntry, setCurrentCpdEntry] = useState<{ question: string; answer: string; } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -122,15 +215,6 @@ export default function HomeContent() {
   const [isRecording, setIsRecording] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  // Auto-resize textarea logic
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
-    }
-  }, [q]);
 
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
@@ -361,7 +445,6 @@ export default function HomeContent() {
     if (!q.trim() || loading || isTourOpen) return;
     const newQuestion = q;
     setQ("");
-    if(textareaRef.current) textareaRef.current.style.height = 'auto'; // Reset height
     
     const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];
     setConversation(updatedConversation);
@@ -435,69 +518,6 @@ export default function HomeContent() {
     );
   };
 
-  // --- GEMINI-STYLE SEARCH COMPONENT ---
-  const SearchInputArea = () => (
-    <div id="tour-highlight-askbar" className="ask-bar-container-new">
-      <textarea
-        ref={textareaRef}
-        className="ask-bar-textarea"
-        placeholder="Ask Umbil anything..."
-        value={isTourOpen ? "What are the red flags for a headache?" : q}
-        onChange={(e) => setQ(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            ask();
-          }
-        }}
-        disabled={isTourOpen}
-        rows={1}
-      />
-      
-      <div className="ask-bar-actions">
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* TOOLS BUTTON */}
-          <button 
-            className="action-icon-btn" 
-            title="Medical Tools"
-            onClick={() => setIsToolsOpen(true)}
-            disabled={isTourOpen}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tools</span>
-            </div>
-          </button>
-          
-          <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
-        </div>
-
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* MIC BUTTON */}
-          <button 
-            className={`action-icon-btn ${isRecording ? "recording" : ""}`}
-            onClick={handleMicClick}
-            disabled={loading || isTourOpen}
-            title={isRecording ? "Stop Recording" : "Start Dictation"}
-          >
-            {isRecording ? (
-                <div className="recording-pulse">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-                </div>
-            ) : (
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-            )}
-          </button>
-
-          {/* SEND BUTTON */}
-          <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading || !q.trim()}>
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <>
       {isTourOpen && ( <QuickTour isOpen={isTourOpen} currentStep={tourStep} onClose={handleTourClose} onStepChange={handleTourStepChange} /> )}
@@ -524,7 +544,14 @@ export default function HomeContent() {
 
             <div className="sticky-input-wrapper" style={{ position: 'relative', flexShrink: 0, background: 'var(--umbil-bg)', borderTop: '1px solid var(--umbil-divider)', zIndex: 50, padding: '20px' }}>
               <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
-                <SearchInputArea />
+                {/* USE EXTRACTED COMPONENT */}
+                <SearchInputArea 
+                  q={q} setQ={setQ} ask={ask} loading={loading} 
+                  isTourOpen={isTourOpen} isRecording={isRecording} 
+                  handleMicClick={handleMicClick} answerStyle={answerStyle} 
+                  setAnswerStyle={setAnswerStyle} setIsToolsOpen={setIsToolsOpen}
+                  handleTourStepChange={handleTourStepChange}
+                />
               </div>
             </div>
           </>
@@ -532,7 +559,14 @@ export default function HomeContent() {
           <div className="hero" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
             <div style={{ marginTop: "24px", position: 'relative', width: '100%', maxWidth: '700px' }}>
-              <SearchInputArea />
+              {/* USE EXTRACTED COMPONENT */}
+              <SearchInputArea 
+                  q={q} setQ={setQ} ask={ask} loading={loading} 
+                  isTourOpen={isTourOpen} isRecording={isRecording} 
+                  handleMicClick={handleMicClick} answerStyle={answerStyle} 
+                  setAnswerStyle={setAnswerStyle} setIsToolsOpen={setIsToolsOpen}
+                  handleTourStepChange={handleTourStepChange}
+                />
             </div>
             <p className="disclaimer" style={{ marginTop: "36px" }}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg> Please don’t enter any patient-identifiable information.</p>
           </div>
