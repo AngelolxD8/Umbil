@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm"; // Import this plugin
 
 type ToolType = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
 
@@ -137,10 +138,31 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
                   backgroundColor: output ? 'var(--umbil-surface)' : 'var(--umbil-bg)',
                   whiteSpace: 'pre-wrap',
                   lineHeight: '1.6',
-                  minHeight: '150px'
+                  minHeight: '150px',
+                  width: '100%',        /* Force container width */
+                  maxWidth: '100%',     /* Prevent expansion */
+                  overflowX: 'hidden'   /* Hide horizontal scroll on the text container itself */
                 }}
               >
-                {output ? <ReactMarkdown>{output}</ReactMarkdown> : <span style={{ color: 'var(--umbil-muted)', fontStyle: 'italic' }}>Output will appear here...</span>}
+                {output ? (
+                  <div className="markdown-content-wrapper">
+                    <ReactMarkdown 
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        // This table wrapper creates a scrollbar JUST for the table
+                        table: ({ ...props }) => (
+                          <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%', marginBottom: '1em' }}>
+                            <table {...props} style={{ borderCollapse: 'collapse', width: '100%' }} />
+                          </div>
+                        )
+                      }}
+                    >
+                      {output}
+                    </ReactMarkdown>
+                  </div>
+                ) : (
+                  <span style={{ color: 'var(--umbil-muted)', fontStyle: 'italic' }}>Output will appear here...</span>
+                )}
               </div>
             </div>
 
