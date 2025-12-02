@@ -14,12 +14,12 @@ import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { v4 as uuidv4 } from 'uuid'; 
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
+import { ToolId, TOOLS_CONFIG } from "@/components/ToolsModal"; // Import Config
 
 // --- Dynamic Imports ---
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
 const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
-// 1. Import the StreakPopup
 const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
 
 // --- Types ---
@@ -56,6 +56,48 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
     </div>
   );
 }
+
+// --- NEW TOOLS DROPDOWN ---
+const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSelect }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false);
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleSelect = (id: ToolId) => { onSelect(id); setIsOpen(false); };
+  
+  return (
+    <div className="style-dropdown-container" ref={dropdownRef}>
+      <button 
+        className="action-icon-btn" 
+        title="Medical Tools"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span style={{ fontSize: '1.1rem' }}>✨</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tools</span>
+        </div>
+      </button>
+      
+      {isOpen && (
+        <div className="style-dropdown-menu" style={{ minWidth: '180px' }}>
+          {TOOLS_CONFIG.map((tool) => (
+             <button key={tool.id} onClick={() => handleSelect(tool.id)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '1.1rem' }}>{tool.id === 'referral' ? '📝' : tool.id === 'safety_netting' ? '🛡️' : tool.id === 'sbar' ? '🏥' : '📋'}</span>
+                <strong>{tool.label}</strong>
+             </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: (style: AnswerStyle) => void; }> = ({ currentStyle, onStyleChange }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -103,14 +145,15 @@ type SearchInputAreaProps = {
   handleMicClick: () => void;
   answerStyle: AnswerStyle;
   setAnswerStyle: (s: AnswerStyle) => void;
-  setIsToolsOpen: (val: boolean) => void;
+  // Updated props: removed setIsToolsOpen boolean, replaced with handler
+  onToolSelect: (id: ToolId) => void;
   handleTourStepChange: (step: number) => void;
 };
 
 const SearchInputArea = ({ 
   q, setQ, ask, loading, isTourOpen, 
   isRecording, handleMicClick, answerStyle, 
-  setAnswerStyle, setIsToolsOpen, handleTourStepChange 
+  setAnswerStyle, onToolSelect, handleTourStepChange 
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -141,17 +184,8 @@ const SearchInputArea = ({
       
       <div className="ask-bar-actions">
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          <button 
-            className="action-icon-btn" 
-            title="Medical Tools"
-            onClick={() => setIsToolsOpen(true)}
-            disabled={isTourOpen}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '1.1rem' }}>✨</span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tools</span>
-            </div>
-          </button>
+          {/* Replaced old button with Dropdown */}
+          <ToolsDropdown onSelect={onToolSelect} />
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -191,6 +225,8 @@ export default function HomeContent() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false); 
+  // New state for selected tool
+  const [selectedTool, setSelectedTool] = useState<ToolId>('referral');
   
   const [currentCpdEntry, setCurrentCpdEntry] = useState<{ question: string; answer: string; } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -199,7 +235,6 @@ export default function HomeContent() {
   const router = useRouter(); 
   const [profile, setProfile] = useState<Profile | null>(null);
   
-  // 2. Add refetch capability from the hook
   const { currentStreak, loading: streakLoading, hasLoggedToday, refetch: refetchStreaks } = useCpdStreaks();
   
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
@@ -210,7 +245,6 @@ export default function HomeContent() {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
 
-  // 3. New state for streak popup
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
 
@@ -219,7 +253,6 @@ export default function HomeContent() {
     onError: (msg) => setToastMessage(msg),
   });
 
-  // ... (Other useEffects remain the same) ...
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
@@ -304,6 +337,11 @@ export default function HomeContent() {
   };
 
   useEffect(() => {
+    const timeoutId = setTimeout(() => scrollToBottom(), 50);
+    return () => clearTimeout(timeoutId);
+  }, [conversation]);
+
+  useEffect(() => {
     if (loading) {
       const interval = setInterval(() => {
         setLoadingMsg((prevMsg) => {
@@ -318,7 +356,7 @@ export default function HomeContent() {
     }
   }, [loading]);
 
-  const handleMicClick = () => toggleRecording(); // Using the hook's toggler
+  const handleMicClick = () => toggleRecording();
 
   const handleStartTour = () => { setShowWelcomeModal(false); setIsTourOpen(true); setTourStep(0); };
   const handleSkipTour = () => { setShowWelcomeModal(false); localStorage.setItem("hasCompletedQuickTour", "true"); };
@@ -335,7 +373,18 @@ export default function HomeContent() {
     localStorage.setItem("hasCompletedQuickTour", "true");
     const sidebar = document.querySelector('.sidebar.is-open');
     if (sidebar) { (sidebar.querySelector('.sidebar-header button') as HTMLElement)?.click(); }
-  }, []);
+
+    if (email && profile && !profile.full_name) {
+        setTimeout(() => {
+            router.push('/profile');
+        }, 300);
+    }
+  }, [email, profile, router]);
+
+  const handleToolSelect = (toolId: ToolId) => {
+      setSelectedTool(toolId);
+      setIsToolsOpen(true);
+  };
 
   const fetchUmbilResponse = async (
       currentConversation: ConversationEntry[], 
@@ -447,13 +496,10 @@ export default function HomeContent() {
     setCurrentCpdEntry({ question: entry.question || "", answer: entry.content });
     setIsModalOpen(true);
   };
-
-  // --- 4. Updated Save CPD Handler with Streak Logic ---
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (isTourOpen) { handleTourStepChange(5); return; }
     if (!currentCpdEntry) return;
     
-    // Determine if this is the first log of the day BEFORE saving
     const isFirstLogToday = !hasLoggedToday;
     const nextStreak = currentStreak + (isFirstLogToday ? 1 : 0);
 
@@ -464,15 +510,12 @@ export default function HomeContent() {
         console.error("Failed to save CPD entry:", error); 
         setToastMessage("❌ Failed to save CPD entry."); 
     } else { 
-        // Trigger popup ONLY if it's the first log today
         if (isFirstLogToday) {
             setStreakToDisplay(nextStreak);
             setIsStreakPopupOpen(true);
         } else {
             setToastMessage("✅ CPD entry saved remotely!"); 
         }
-        
-        // Refresh the global streak data
         refetchStreaks();
     }
     
@@ -537,7 +580,8 @@ export default function HomeContent() {
                   q={q} setQ={setQ} ask={ask} loading={loading} 
                   isTourOpen={isTourOpen} isRecording={isRecording} 
                   handleMicClick={toggleRecording} answerStyle={answerStyle} 
-                  setAnswerStyle={setAnswerStyle} setIsToolsOpen={setIsToolsOpen}
+                  setAnswerStyle={setAnswerStyle} 
+                  onToolSelect={handleToolSelect} 
                   handleTourStepChange={handleTourStepChange}
                 />
               </div>
@@ -551,7 +595,8 @@ export default function HomeContent() {
                   q={q} setQ={setQ} ask={ask} loading={loading} 
                   isTourOpen={isTourOpen} isRecording={isRecording} 
                   handleMicClick={toggleRecording} answerStyle={answerStyle} 
-                  setAnswerStyle={setAnswerStyle} setIsToolsOpen={setIsToolsOpen}
+                  setAnswerStyle={setAnswerStyle} 
+                  onToolSelect={handleToolSelect} 
                   handleTourStepChange={handleTourStepChange}
                 />
             </div>
@@ -565,14 +610,17 @@ export default function HomeContent() {
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined} />
       )}
       
-      {/* 5. Streak Popup Component */}
       <StreakPopup 
         isOpen={isStreakPopupOpen} 
         streakCount={streakToDisplay} 
         onClose={() => setIsStreakPopupOpen(false)} 
       />
 
-      <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} />
+      <ToolsModal 
+        isOpen={isToolsOpen} 
+        onClose={() => setIsToolsOpen(false)} 
+        initialTool={selectedTool}
+      />
 
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       

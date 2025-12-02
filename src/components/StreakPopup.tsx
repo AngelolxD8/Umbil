@@ -25,8 +25,11 @@ export default function StreakPopup({ isOpen, streakCount, onClose }: StreakPopu
 
   // Days of week bubbles logic
   const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  const todayIndex = new Date().getDay() - 1; // 0=Sun, so shift to match M-S array (Mon=0)
-  const adjIndex = todayIndex === -1 ? 6 : todayIndex; // Fix Sunday
+  
+  // Calculate today's index (0 = Monday, 6 = Sunday to match 'days' array)
+  // JS getDay() returns 0 for Sunday, 1 for Monday. We shift this.
+  const jsDay = new Date().getDay(); 
+  const todayIndex = jsDay === 0 ? 6 : jsDay - 1; 
 
   return (
     <div className={`streak-overlay ${isOpen ? "open" : ""}`}>
@@ -50,12 +53,24 @@ export default function StreakPopup({ isOpen, streakCount, onClose }: StreakPopu
 
         {/* Days Row */}
         <div className="streak-days-row">
-          {days.map((d, i) => (
-            <div key={i} className={`streak-day-bubble ${i <= adjIndex ? 'active' : ''}`}>
-              {d}
-              {i === adjIndex && <div className="check-mark">✓</div>}
-            </div>
-          ))}
+          {days.map((d, i) => {
+            // Logic: Highlighting rule
+            // "diff" is how many days ago this bubble was, relative to today.
+            // i=todayIndex -> diff=0. i=yesterday -> diff=1.
+            const diff = todayIndex - i; 
+            
+            // It is active if:
+            // 1. It is today or a past day in this week (diff >= 0)
+            // 2. The streak covers this day (diff < streakCount)
+            const isActive = diff >= 0 && diff < streakCount;
+
+            return (
+              <div key={i} className={`streak-day-bubble ${isActive ? 'active' : ''}`}>
+                {d}
+                {i === todayIndex && <div className="check-mark">✓</div>}
+              </div>
+            );
+          })}
         </div>
 
         <button className="btn-streak-continue" onClick={onClose}>

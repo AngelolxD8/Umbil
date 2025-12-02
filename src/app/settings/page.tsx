@@ -5,11 +5,13 @@ import { clearAll } from "@/lib/store";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { useTheme } from "@/hooks/useTheme"; // Import the hook
 
 export default function SettingsPage() {
   const [accepted, setAccepted] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const router = useRouter();
+  const { isDarkMode, toggleDarkMode } = useTheme(); // Use the hook
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -22,7 +24,6 @@ export default function SettingsPage() {
     alert("Safety setting saved.");
   };
 
-  // --- Account Deletion Logic ---
   const deleteAccount = async () => {
       if (!confirm("Are you sure you want to permanently delete your Umbil account? This action cannot be undone and all your CPD data will be lost.")) return;
       
@@ -51,7 +52,6 @@ export default function SettingsPage() {
             }
         });
 
-        // Safely handle the response parsing
         let errData;
         const text = await res.text(); 
         try {
@@ -64,7 +64,6 @@ export default function SettingsPage() {
             throw new Error(errData.error || "Failed to delete account");
         }
 
-        // Clear any residual local storage (just in case) and sign out
         clearAll();
         await supabase.auth.signOut();
         
@@ -86,6 +85,45 @@ export default function SettingsPage() {
     <section className="main-content">
       <div className="container">
         <h2>Settings</h2>
+
+        {/* --- Dark Mode Section --- */}
+        <div className="card" style={{ marginTop: 24 }}>
+          <div className="card__body">
+            <h3 style={{marginBottom: 12}}>Appearance</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontWeight: 500 }}>
+                    {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
+                </div>
+                {/* Switch Toggle UI */}
+                <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '36px', height: '20px' }}>
+                    <input 
+                        type="checkbox" 
+                        checked={isDarkMode} 
+                        onChange={toggleDarkMode} 
+                        style={{ opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span 
+                        className="slider round" 
+                        style={{
+                            position: 'absolute', cursor: 'pointer',
+                            top: 0, left: 0, right: 0, bottom: 0,
+                            backgroundColor: isDarkMode ? 'var(--umbil-brand-teal)' : 'var(--umbil-card-border)',
+                            transition: '0.4s', borderRadius: '24px'
+                        }}
+                    >
+                        <span style={{
+                            position: 'absolute', content: '""',
+                            height: '14px', width: '14px',
+                            left: isDarkMode ? 'calc(100% - 17px)' : '3px', 
+                            bottom: '3px',
+                            backgroundColor: 'var(--umbil-surface)',
+                            transition: '0.4s', borderRadius: '50%'
+                        }}></span>
+                    </span>
+                </label>
+            </div>
+          </div>
+        </div>
 
         <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
           <div className="card__body">
@@ -136,7 +174,6 @@ export default function SettingsPage() {
             </p>
           </div>
         </div>
-        
       </div>
     </section>
   );

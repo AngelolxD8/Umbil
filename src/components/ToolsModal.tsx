@@ -1,11 +1,12 @@
 // src/components/ToolsModal.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
+// Export the Type
+export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
 
 interface ToolConfig {
   id: ToolId;
@@ -15,7 +16,6 @@ interface ToolConfig {
   desc: string;
 }
 
-// Professional SVG Icons
 const Icons = {
   Referral: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
   Shield: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
@@ -23,7 +23,7 @@ const Icons = {
   Discharge: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
 };
 
-const TOOLS: ToolConfig[] = [
+export const TOOLS_CONFIG: ToolConfig[] = [
   { 
     id: 'referral', 
     label: 'Referral Writer', 
@@ -57,15 +57,25 @@ const TOOLS: ToolConfig[] = [
 type ToolsModalProps = {
   isOpen: boolean;
   onClose: () => void;
+  initialTool?: ToolId; // New prop
 };
 
-export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
-  const [activeToolId, setActiveToolId] = useState<ToolId>('referral');
+export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }: ToolsModalProps) {
+  const [activeToolId, setActiveToolId] = useState<ToolId>(initialTool);
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const activeTool = TOOLS.find(t => t.id === activeToolId)!;
+  // Sync active tool when opening
+  useEffect(() => {
+    if (isOpen && initialTool) {
+      setActiveToolId(initialTool);
+      setInput("");
+      setOutput("");
+    }
+  }, [isOpen, initialTool]);
+
+  const activeTool = TOOLS_CONFIG.find(t => t.id === activeToolId) || TOOLS_CONFIG[0];
 
   const handleGenerate = async () => {
     if (!input.trim()) return;
@@ -121,9 +131,8 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
 
         <div className="tools-body">
           
-          {/* Sidebar (Gemini Style Selection) */}
           <div className="tools-sidebar">
-            {TOOLS.map((t) => (
+            {TOOLS_CONFIG.map((t) => (
               <button
                 key={t.id}
                 className={`tool-button ${activeToolId === t.id ? 'active' : ''}`}
@@ -135,10 +144,7 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
             ))}
           </div>
 
-          {/* Main Content Area */}
           <div className="tools-main">
-            
-            {/* Input Section */}
             <div className="input-section">
               <div style={{ marginBottom: '12px' }}>
                 <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '4px' }}>{activeTool.label}</h4>
@@ -171,7 +177,6 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
               </div>
             </div>
 
-            {/* Output Section */}
             <div className="output-section" style={{ borderTop: '1px solid var(--umbil-divider)', paddingTop: '20px', marginTop: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <label className="form-label" style={{marginBottom:0}}>Result</label>
