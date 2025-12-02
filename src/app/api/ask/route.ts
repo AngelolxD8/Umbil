@@ -6,6 +6,7 @@ import { createHash } from "crypto";
 import { streamText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
+import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts"; // IMPORT PROMPTS
 
 // Remove 'export const runtime = edge' to support Tavily (Node.js)
 // export const runtime = 'edge'; 
@@ -37,23 +38,8 @@ function sanitizeQuery(q: string): string {
   return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient").replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date").replace(/\b\d{6,10}\b/g, "an identifier").replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
-const BASE_PROMPT = `
-You are Umbil, a UK clinical assistant. 
-Your primary goal is patient safety.
-You must provide answers based ONLY on the provided "Context" (search results) or general medical consensus if context is missing.
-If the user asks about drug dosing, YOU MUST CITE THE SOURCE (e.g. BNF, NICE) explicitly from the context.
-If the Context suggests conflicting dosages, list BOTH and the conditions for each.
-Use UK English and markdown. 
-NEVER use HTML tags. 
-Start with a concise summary.
-`.trim();
-
 const getStyleModifier = (style: AnswerStyle | null): string => {
-  switch (style) {
-    case 'clinic': return "Your answer must be extremely concise and under 150 words. Focus on 4-6 critical bullet points: likely diagnosis, key actions, and safety-netting.";
-    case 'deepDive': return "Provide a comprehensive answer suitable for teaching. Discuss evidence, pathophysiology, and guidelines.";
-    case 'standard': default: return "Provide a concise, balanced answer, ideally under 200 words. Focus on key clinical points.";
-  }
+  return STYLE_MODIFIERS[style || 'standard'] || STYLE_MODIFIERS.standard;
 };
 
 async function getUserId(req: NextRequest): Promise<string | null> {
@@ -92,7 +78,6 @@ export async function POST(req: NextRequest) {
   const deviceId = req.headers.get("x-device-id") || "unknown";
 
   try {
-    // NEW: Extract conversationId from request
     const { messages, profile, answerStyle, saveToHistory, conversationId } = await req.json();
     
     if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400 });
@@ -105,7 +90,8 @@ export async function POST(req: NextRequest) {
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
     
-    const systemPrompt = `${BASE_PROMPT}\n${styleModifier}\n${gradeNote}\n${context}`.trim();
+    // Use the imported constant here
+    const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${context}`.trim();
 
     const cacheKeyContent = JSON.stringify({ model: MODEL_SLUG, query: normalizedQuery, style: answerStyle || 'standard' });
     const cacheKey = sha256(cacheKeyContent);
@@ -119,11 +105,10 @@ export async function POST(req: NextRequest) {
           device_id: deviceId 
       });
       
-      // Save cached response to history with conversation_id
       if (userId && latestUserMessage.role === 'user' && saveToHistory) {
          await supabaseService.from(HISTORY_TABLE).insert({ 
              user_id: userId, 
-             conversation_id: conversationId, // Save ID
+             conversation_id: conversationId, 
              question: latestUserMessage.content, 
              answer: cached.answer 
          });
@@ -155,11 +140,10 @@ export async function POST(req: NextRequest) {
           await supabaseService.from(CACHE_TABLE).upsert({ query_hash: cacheKey, answer, full_query_key: cacheKeyContent });
         }
 
-        // Save fresh response to history with conversation_id
         if (userId && latestUserMessage.role === 'user' && saveToHistory) {
             await supabaseService.from(HISTORY_TABLE).insert({ 
                 user_id: userId, 
-                conversation_id: conversationId, // Save ID
+                conversation_id: conversationId,
                 question: latestUserMessage.content,
                 answer: answer 
             });

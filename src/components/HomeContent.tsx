@@ -13,47 +13,29 @@ import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { v4 as uuidv4 } from 'uuid'; 
+import { useSpeechRecognition } from "@/hooks/useSpeechRecognition"; // IMPORT THE HOOK
 
-// Dynamic Imports
+// --- Dynamic Imports ---
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
 const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
 
+// --- Types ---
 type AnswerStyle = "clinic" | "standard" | "deepDive";
-const styleDisplayNames: Record<AnswerStyle, string> = { clinic: "Clinic", standard: "Standard", deepDive: "Deep Dive" };
 type AskResponse = { answer?: string; error?: string; };
 type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; };
 type ClientMessage = { role: "user" | "assistant"; content: string; };
 
-// --- Speech Recognition Types (Fixes 'any' errors) ---
-interface SpeechRecognitionResult {
-  0: { transcript: string };
-}
-interface SpeechRecognitionEvent {
-  results: {
-    0: SpeechRecognitionResult;
-  };
-}
-interface SpeechRecognitionError {
-  error: string;
-}
-interface ISpeechRecognition {
-  continuous: boolean;
-  interimResults: boolean;
-  lang: string;
-  start: () => void;
-  stop: () => void;
-  onstart: () => void;
-  onresult: (event: SpeechRecognitionEvent) => void;
-  onerror: (event: SpeechRecognitionError) => void;
-  onend: () => void;
-}
+const styleDisplayNames: Record<AnswerStyle, string> = { clinic: "Clinic", standard: "Standard", deepDive: "Deep Dive" };
+const loadingMessages = ["Umbil is thinking...", "Consulting the guidelines...", "Synthesizing clinical data...", "Checking local formularies...", "Almost there...", "Crafting your response..."];
 
-// Extend Window to include webkitSpeechRecognition
-interface IWindow extends Window {
-  webkitSpeechRecognition: new () => ISpeechRecognition;
-  SpeechRecognition: new () => ISpeechRecognition;
-}
+const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
+  { type: "user", content: "What are the red flags for a headache?", question: "What are the red flags for a headache?" },
+  { type: "umbil", content: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional", question: "What are the red flags for a headache?" }
+];
+const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
+
+// --- Sub-components ---
 
 function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
   return (
@@ -76,6 +58,7 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
 const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: (style: AnswerStyle) => void; }> = ({ currentStyle, onStyleChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false);
@@ -83,7 +66,9 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
   const handleSelect = (style: AnswerStyle) => { onStyleChange(style); setIsOpen(false); };
+  
   return (
     <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef}>
       <button className="style-dropdown-button" onClick={() => setIsOpen(!isOpen)} title="Change answer style">
@@ -105,13 +90,6 @@ const getErrorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
   return "An unexpected error occurred.";
 };
-
-const loadingMessages = ["Umbil is thinking...", "Consulting the guidelines...", "Synthesizing clinical data...", "Checking local formularies...", "Almost there...", "Crafting your response..."];
-const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
-  { type: "user", content: "What are the red flags for a headache?", question: "What are the red flags for a headache?" },
-  { type: "umbil", content: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional", question: "What are the red flags for a headache?" }
-];
-const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
 
 type SearchInputAreaProps = {
   q: string;
@@ -161,7 +139,6 @@ const SearchInputArea = ({
       
       <div className="ask-bar-actions">
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* TOOLS BUTTON (Left Side) */}
           <button 
             className="action-icon-btn" 
             title="Medical Tools"
@@ -176,10 +153,8 @@ const SearchInputArea = ({
         </div>
 
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* STANDARD DROPDOWN (Right Side) */}
           <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
 
-          {/* MIC BUTTON */}
           <button 
             className={`action-icon-btn ${isRecording ? "recording" : ""}`}
             onClick={handleMicClick}
@@ -195,7 +170,6 @@ const SearchInputArea = ({
             )}
           </button>
 
-          {/* SEND BUTTON */}
           <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading || !q.trim()}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
@@ -231,9 +205,11 @@ export default function HomeContent() {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
 
-  const [isRecording, setIsRecording] = useState(false);
-  // Use unknown here to avoid explicit 'any' error, we cast it later
-  const recognitionRef = useRef<ISpeechRecognition | null>(null);
+  // --- Using the new Hook ---
+  const { isRecording, toggleRecording } = useSpeechRecognition({
+    onTranscript: (text) => setQ((prev) => (prev ? prev + " " + text : text)),
+    onError: (msg) => setToastMessage(msg),
+  });
 
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
@@ -296,7 +272,7 @@ export default function HomeContent() {
     } else {
       checkTour();
     }
-  }, [searchParams, email, router, userLoading, conversationId]); // Fixed dependency
+  }, [searchParams, email, router, userLoading, conversationId]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.visualViewport) {
@@ -337,49 +313,6 @@ export default function HomeContent() {
       setLoadingMsg(loadingMessages[0]);
     }
   }, [loading]);
-
-  const handleMicClick = useCallback(() => {
-    if (isRecording) {
-      recognitionRef.current?.stop();
-      setIsRecording(false);
-      return;
-    }
-
-    const w = window as unknown as IWindow;
-    const SpeechRecognition = w.SpeechRecognition || w.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setToastMessage("Speech recognition not supported in this browser.");
-      return;
-    }
-
-    const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'en-GB';
-
-    recognition.onstart = () => {
-      setIsRecording(true);
-    };
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      const transcript = event.results[0][0].transcript;
-      setQ((prev) => (prev ? prev + " " + transcript : transcript));
-    };
-
-    recognition.onerror = (event: SpeechRecognitionError) => {
-      console.error("Speech recognition error", event.error);
-      setIsRecording(false);
-      setToastMessage("Microphone error. Please check permissions.");
-    };
-
-    recognition.onend = () => {
-      setIsRecording(false);
-    };
-
-    recognitionRef.current = recognition;
-    recognition.start();
-  }, [isRecording]);
 
   const handleStartTour = () => { setShowWelcomeModal(false); setIsTourOpen(true); setTourStep(0); };
   const handleSkipTour = () => { setShowWelcomeModal(false); localStorage.setItem("hasCompletedQuickTour", "true"); };
@@ -467,7 +400,6 @@ export default function HomeContent() {
     let currentCid = conversationId;
     if (!currentCid) {
         currentCid = uuidv4();
-        
         setConversationId(currentCid);
         window.history.replaceState({}, document.title, `/?c=${currentCid}`);
     }
@@ -572,11 +504,10 @@ export default function HomeContent() {
 
             <div className="sticky-input-wrapper" style={{ position: 'relative', flexShrink: 0, background: 'var(--umbil-bg)', borderTop: '1px solid var(--umbil-divider)', zIndex: 50, padding: '20px' }}>
               <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
-                {/* USE EXTRACTED COMPONENT */}
                 <SearchInputArea 
                   q={q} setQ={setQ} ask={ask} loading={loading} 
                   isTourOpen={isTourOpen} isRecording={isRecording} 
-                  handleMicClick={handleMicClick} answerStyle={answerStyle} 
+                  handleMicClick={toggleRecording} answerStyle={answerStyle} 
                   setAnswerStyle={setAnswerStyle} setIsToolsOpen={setIsToolsOpen}
                   handleTourStepChange={handleTourStepChange}
                 />
@@ -587,11 +518,10 @@ export default function HomeContent() {
           <div className="hero" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
             <div style={{ marginTop: "24px", position: 'relative', width: '100%', maxWidth: '700px' }}>
-              {/* USE EXTRACTED COMPONENT */}
               <SearchInputArea 
                   q={q} setQ={setQ} ask={ask} loading={loading} 
                   isTourOpen={isTourOpen} isRecording={isRecording} 
-                  handleMicClick={handleMicClick} answerStyle={answerStyle} 
+                  handleMicClick={toggleRecording} answerStyle={answerStyle} 
                   setAnswerStyle={setAnswerStyle} setIsToolsOpen={setIsToolsOpen}
                   handleTourStepChange={handleTourStepChange}
                 />
@@ -606,7 +536,6 @@ export default function HomeContent() {
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined} />
       )}
       
-      {/* TOOLS MODAL */}
       <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} />
 
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />

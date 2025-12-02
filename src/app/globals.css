@@ -53,10 +53,19 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  height: 100vh;
+  height: 100dvh; /* Changed from 100vh to 100dvh for better mobile support */
   display: flex;
   flex-direction: column;
+  overflow: hidden; /* Prevent body scroll, handle scroll in child containers */
   transition: background-color 0.3s, color 0.3s;
+}
+
+/* Added #root to ensure full height structure in Next.js/React */
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 * {
@@ -71,7 +80,7 @@ a {
 }
 
 .container {
-  max-width: 900px; /* Increased from 800px */
+  max-width: 900px;
   margin: 0 auto;
   padding: 20px;
   width: 100%;
@@ -99,7 +108,7 @@ a {
 
 .message-thread {
   width: 100%;
-  max-width: 900px; /* Increased width on desktop */
+  max-width: 900px; 
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -126,7 +135,7 @@ a {
   padding: 16px;
   border-radius: var(--umbil-radius-sm);
   box-shadow: var(--umbil-shadow-sm);
-  max-width: 85%; /* Desktop default */
+  max-width: 85%;
   animation: fadeIn 0.5s ease-out;
   transition: background-color 0.3s, border-color 0.3s;
 }
@@ -150,7 +159,7 @@ a {
 .table-scroll-wrapper table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 600px; /* Force scroll on small screens */
+  min-width: 600px;
 }
 
 .markdown-content-wrapper th,
@@ -163,25 +172,21 @@ a {
 
 /* --- MOBILE SPECIFIC FIXES --- */
 @media (max-width: 768px) {
-  /* Reduce outer padding so content goes edge-to-edge */
   .message-thread {
     padding: 10px; 
-    padding-bottom: 140px; /* Extra space for input bar */
+    padding-bottom: 140px;
   }
 
-  /* Make bubbles effectively full width on mobile */
   .message-bubble {
     max-width: 100%; 
     padding: 14px;
     border-radius: 12px;
   }
 
-  /* Keep user bubbles slightly constrained to distinguish them */
   .user-message {
     max-width: 90%; 
   }
 
-  /* Let Umbil (bot) take full width for tables */
   .umbil-message {
     max-width: 100%;
     margin-right: 0;
