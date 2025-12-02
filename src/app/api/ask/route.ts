@@ -7,13 +7,15 @@ import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 
+// Remove 'export const runtime = edge' to support Tavily (Node.js)
+// export const runtime = 'edge'; 
+
 type ClientMessage = { role: "user" | "assistant"; content: string };
 type AnswerStyle = "clinic" | "standard" | "deepDive";
 
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
-// --- CONFIG: Keeping your original efficient model ---
 const MODEL_SLUG = "openai/gpt-oss-120b";
 
 const CACHE_TABLE = "api_cache";
@@ -21,7 +23,6 @@ const ANALYTICS_TABLE = "app_analytics";
 const HISTORY_TABLE = "chat_history"; 
 
 const together = createTogetherAI({ apiKey: API_KEY });
-// Initialize Tavily only if key is present
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 function sha256(str: string): string {
@@ -36,7 +37,6 @@ function sanitizeQuery(q: string): string {
   return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient").replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date").replace(/\b\d{6,10}\b/g, "an identifier").replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
-// --- PROMPT: Updated to demand reliance on Search Context ---
 const BASE_PROMPT = `
 You are Umbil, a UK clinical assistant. 
 Your primary goal is patient safety.
@@ -52,7 +52,7 @@ const getStyleModifier = (style: AnswerStyle | null): string => {
   switch (style) {
     case 'clinic': return "Your answer must be extremely concise and under 150 words. Focus on 4-6 critical bullet points: likely diagnosis, key actions, and safety-netting.";
     case 'deepDive': return "Provide a comprehensive answer suitable for teaching. Discuss evidence, pathophysiology, and guidelines.";
-    case 'standard': default: return "Provide a standard, balanced answer, under 400 words.";
+    case 'standard': default: return "Provide a concise, balanced answer, ideally under 200 words. Focus on key clinical points.";
   }
 };
 
@@ -69,11 +69,9 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
   try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
 }
 
-// --- NEW: Lightweight Web Search (Grounding) ---
 async function getWebContext(query: string): Promise<string> {
   if (!tvly) return "";
   try {
-    // We use 'basic' depth for speed. Switch to 'advanced' if you need deeper page scraping.
     const searchContext = await tvly.search(`${query} site:nice.org.uk OR site:bnf.nice.org.uk OR site:cks.nice.org.uk`, {
       searchDepth: "advanced", 
       maxResults: 3,
@@ -91,48 +89,44 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "TOGETHER_API_KEY not set" }, { status: 500 });
 
   const userId = await getUserId(req);
-  
-  // --- NEW: Capture Device ID from headers ---
   const deviceId = req.headers.get("x-device-id") || "unknown";
 
   try {
-    const { messages, profile, answerStyle, saveToHistory } = await req.json();
+    // NEW: Extract conversationId from request
+    const { messages, profile, answerStyle, saveToHistory, conversationId } = await req.json();
+    
     if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
     const latestUserMessage = messages[messages.length - 1];
     const normalizedQuery = sanitizeAndNormalizeQuery(latestUserMessage.content);
-    
-    // 1. Get Grounding Context (This adds ~0.5s - 1s latency but ensures accuracy)
-    // We do this BEFORE the cache check so we can potentially include context in the future or just use it for generation.
-    // Note: If you want maximum speed, you could check cache *first*, and only search if cache misses.
-    // However, for medical questions, context is vital.
     
     const context = await getWebContext(latestUserMessage.content);
 
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
     
-    // 2. Inject Context into System Prompt
     const systemPrompt = `${BASE_PROMPT}\n${styleModifier}\n${gradeNote}\n${context}`.trim();
 
-    // Cache key logic remains the same
     const cacheKeyContent = JSON.stringify({ model: MODEL_SLUG, query: normalizedQuery, style: answerStyle || 'standard' });
     const cacheKey = sha256(cacheKeyContent);
 
     const { data: cached } = await supabase.from(CACHE_TABLE).select("answer").eq("query_hash", cacheKey).single();
 
     if (cached) {
-      // --- UPDATED: Pass deviceId to logs ---
       await logAnalytics(userId, "question_asked", { 
           cache: "hit", 
           style: answerStyle || 'standard',
           device_id: deviceId 
       });
       
+      // Save cached response to history with conversation_id
       if (userId && latestUserMessage.role === 'user' && saveToHistory) {
-         const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-         supabaseService.from(HISTORY_TABLE).insert({ user_id: userId, question: latestUserMessage.content, answer: cached.answer }).then(() => {});
-         supabaseService.from(HISTORY_TABLE).delete().eq('user_id', userId).lt('created_at', sevenDaysAgo.toISOString()).then(() => {});
+         await supabaseService.from(HISTORY_TABLE).insert({ 
+             user_id: userId, 
+             conversation_id: conversationId, // Save ID
+             question: latestUserMessage.content, 
+             answer: cached.answer 
+         });
       }
 
       return NextResponse.json({ answer: cached.answer });
@@ -144,14 +138,12 @@ export async function POST(req: NextRequest) {
         { role: "system", content: systemPrompt }, 
         ...messages.map((m: ClientMessage) => ({ ...m, content: m.role === "user" ? sanitizeQuery(m.content) : m.content })),
       ],
-      // Lower temperature slightly to force model to stick to the Search Context
       temperature: 0.2, 
       topP: 0.8,
       maxOutputTokens: 4096, 
       async onFinish({ text, usage }) {
         const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
 
-        // --- UPDATED: Pass deviceId to logs ---
         await logAnalytics(userId, "question_asked", { 
             cache: "miss", 
             total_tokens: usage.totalTokens, 
@@ -163,16 +155,14 @@ export async function POST(req: NextRequest) {
           await supabaseService.from(CACHE_TABLE).upsert({ query_hash: cacheKey, answer, full_query_key: cacheKeyContent });
         }
 
+        // Save fresh response to history with conversation_id
         if (userId && latestUserMessage.role === 'user' && saveToHistory) {
-            const sevenDaysAgo = new Date(); sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-            await Promise.allSettled([
-                supabaseService.from(HISTORY_TABLE).insert({ 
-                    user_id: userId, 
-                    question: latestUserMessage.content,
-                    answer: answer 
-                }),
-                supabaseService.from(HISTORY_TABLE).delete().eq('user_id', userId).lt('created_at', sevenDaysAgo.toISOString())
-            ]);
+            await supabaseService.from(HISTORY_TABLE).insert({ 
+                user_id: userId, 
+                conversation_id: conversationId, // Save ID
+                question: latestUserMessage.content,
+                answer: answer 
+            });
         }
       },
     });

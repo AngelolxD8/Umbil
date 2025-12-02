@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "@/components/Toast";
-import { addCPD, CPDEntry, getHistoryItem, getDeviceId } from "@/lib/store"; 
+import { addCPD, CPDEntry, getConversationMessages, getDeviceId } from "@/lib/store"; // Updated import
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
@@ -205,7 +205,8 @@ export default function HomeContent() {
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
-  const lastFetchedHistoryId = useRef<string | null>(null);
+  // NEW: Track the current conversation ID
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
   const [isTourOpen, setIsTourOpen] = useState(false);
@@ -219,38 +220,51 @@ export default function HomeContent() {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
 
+  // --- UPDATED: Load conversation logic ---
   useEffect(() => {
     if (userLoading) return;
     
+    // Check for "new chat" flag
     if (searchParams.get("new-chat")) {
       setConversation([]);
       setQ("");
-      lastFetchedHistoryId.current = null;
+      setConversationId(null);
+      // Clean URL
       window.history.replaceState({}, document.title, "/");
+      return;
     }
 
-    const historyId = searchParams.get("history_id");
+    // Check for conversation ID in URL (using 'c' parameter)
+    const cid = searchParams.get("c"); 
     
-    if (historyId && historyId !== lastFetchedHistoryId.current) {
-        lastFetchedHistoryId.current = historyId; 
+    if (cid && cid !== conversationId) {
+        setConversationId(cid);
         setLoading(true);
         setQ(""); 
 
-        getHistoryItem(historyId).then(item => {
-            if (item && item.answer) {
-                const restoredConvo: ConversationEntry[] = [
-                    { type: "user", content: item.question, question: item.question },
-                    { type: "umbil", content: item.answer, question: item.question }
-                ];
-                setConversation(restoredConvo);
+        getConversationMessages(cid).then(items => {
+            if (items && items.length > 0) {
+                // Reconstruct conversation from history items
+                const reconstructed: ConversationEntry[] = [];
+                items.forEach(item => {
+                    reconstructed.push({ type: "user", content: item.question, question: item.question });
+                    if(item.answer) {
+                        reconstructed.push({ type: "umbil", content: item.answer, question: item.question });
+                    }
+                });
+                setConversation(reconstructed);
             } else {
-                setToastMessage("Could not load history item.");
+                // ID exists in URL but no messages found (or invalid ID)
+                setConversation([]);
             }
             setLoading(false);
-            window.history.replaceState({}, document.title, "/");
         });
+    } else if (!cid && !conversationId && !searchParams.get("tour")) {
+        // No ID, standard home view
+        setConversation([]);
     }
 
+    // Tour Logic check
     const checkTour = () => {
       const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
       const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
@@ -264,13 +278,14 @@ export default function HomeContent() {
       }
       if (justLoggedIn) sessionStorage.removeItem("justLoggedIn");
     };
+    
     if (searchParams.get("tour")) {
       if (!email) { router.push("/auth"); return; }
       checkTour();
     } else {
       checkTour();
     }
-  }, [searchParams, email, router, userLoading]);
+  }, [searchParams, email, router, userLoading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Viewport resize logic
   useEffect(() => {
@@ -375,7 +390,11 @@ export default function HomeContent() {
     if (sidebar) { (sidebar.querySelector('.sidebar-header button') as HTMLElement)?.click(); }
   }, []);
 
-  const fetchUmbilResponse = async (currentConversation: ConversationEntry[], styleOverride: AnswerStyle | null = null) => {
+  const fetchUmbilResponse = async (
+      currentConversation: ConversationEntry[], 
+      styleOverride: AnswerStyle | null = null,
+      activeConversationId: string | null
+  ) => {
     setLoading(true);
     const lastUserQuestion = [...currentConversation].reverse().find((e) => e.type === "user")?.question;
     try {
@@ -384,9 +403,6 @@ export default function HomeContent() {
       const messagesToSend: ClientMessage[] = currentConversation.map((entry) => ({ role: entry.type === "user" ? "user" : "assistant", content: entry.content }));
       const styleToUse = styleOverride || answerStyle;
       
-      // FIX: Always try to save to history for every response
-      const shouldSaveToHistory = true; 
-
       const res = await fetch("/api/ask", {
         method: "POST",
         headers: { 
@@ -398,7 +414,8 @@ export default function HomeContent() {
             messages: messagesToSend, 
             profile, 
             answerStyle: styleToUse,
-            saveToHistory: shouldSaveToHistory 
+            conversationId: activeConversationId, // New: Send ID to API
+            saveToHistory: true 
         }),
       });
 
@@ -438,13 +455,29 @@ export default function HomeContent() {
 
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
+    
+    // NEW: Ensure we have a conversation ID. If not, generate one.
+    let currentCid = conversationId;
+    if (!currentCid) {
+        // Simple manual UUID generator (since we want to avoid extra deps if possible, 
+        // but normally use the 'uuid' package or crypto.randomUUID)
+        currentCid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+        
+        setConversationId(currentCid);
+        // Silently update URL so refresh works
+        window.history.replaceState({}, document.title, `/?c=${currentCid}`);
+    }
+
     const newQuestion = q;
     setQ("");
     
     const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];
     setConversation(updatedConversation);
     scrollToBottom(true);
-    await fetchUmbilResponse(updatedConversation, null); 
+    await fetchUmbilResponse(updatedConversation, null, currentCid); 
   };
 
   const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
@@ -462,13 +495,13 @@ export default function HomeContent() {
     if (lastEntry.type !== "umbil") return;
     const conversationForRegen = conversation.slice(0, -1);
     setConversation(conversationForRegen);
-    await fetchUmbilResponse(conversationForRegen, null);
+    await fetchUmbilResponse(conversationForRegen, null, conversationId);
   };
   const handleDeepDive = async (entry: ConversationEntry, index: number) => {
     if (loading || isTourOpen) return;
     if (!entry.question) { setToastMessage("❌ Cannot deep-dive on this message."); return; }
     const historyForDeepDive = conversation.slice(0, index);
-    await fetchUmbilResponse(historyForDeepDive, 'deepDive');
+    await fetchUmbilResponse(historyForDeepDive, 'deepDive', conversationId);
   };
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
     if (isTourOpen) return;

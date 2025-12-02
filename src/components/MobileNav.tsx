@@ -8,7 +8,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { useEffect, useState } from "react";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks"; 
-import { getChatHistory, ChatHistoryItem } from "@/lib/store"; 
+import { getChatHistory, ChatConversation } from "@/lib/store"; // Updated Import
 import Toast from "@/components/Toast";
 
 type MobileNavProps = {
@@ -25,13 +25,20 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   
   const { email } = useUserEmail();
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
-  const [history, setHistory] = useState<ChatHistoryItem[]>([]); 
+  const [history, setHistory] = useState<ChatConversation[]>([]); 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
-  // NEW: State to toggle history expansion
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(false);
+  const [windowWidth, setWindowWidth] = useState(0); // For responsive logic
   
   const { currentStreak, loading: streaksLoading, hasLoggedToday } = useCpdStreaks();
+
+  useEffect(() => {
+    // Initial width check
+    setWindowWidth(window.innerWidth);
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const loadData = async () => {
@@ -51,11 +58,10 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   const handleSignOut = async () => { await supabase.auth.signOut(); onClose(); router.push("/"); };
   const handleStartTour = () => { onClose(); router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`); };
 
+  // New handler for clicking a conversation thread
   const handleHistoryClick = (id: string) => {
       onClose();
-      const params = new URLSearchParams();
-      params.set("history_id", id);
-      router.push(`/?${params.toString()}`);
+      router.push(`/?c=${id}`); // Now uses 'c' parameter for conversationId
   };
 
   const handleInvite = async () => {
@@ -64,7 +70,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
     else { navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`).then(() => setToastMessage("Invite link copied!")); }
   };
 
-  // --- Navigation Groups ---
   const coreLinks = [
     { href: "/cpd", label: "My CPD" },
     { href: "/pdp", label: "My PDP" },
@@ -72,9 +77,10 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
   ];
 
   // --- Logic for Displaying History ---
-  const INITIAL_HISTORY_COUNT = 5;
-  const visibleHistory = isHistoryExpanded ? history : history.slice(0, INITIAL_HISTORY_COUNT);
-  const hiddenCount = Math.max(0, history.length - INITIAL_HISTORY_COUNT);
+  // Mobile (<768px): Show 5 items initially. Desktop: Show 10 items.
+  const historyLimit = windowWidth < 768 ? 5 : 10;
+  const visibleHistory = isHistoryExpanded ? history : history.slice(0, historyLimit);
+  const hiddenCount = Math.max(0, history.length - historyLimit);
 
   return (
     <>
@@ -90,22 +96,19 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
           </button>
         </div>
 
-        {/* 2. SCROLLABLE AREA (Top Actions + Recent) */}
+        {/* 2. SCROLLABLE AREA */}
         <div className="sidebar-scroll-area">
             
-            {/* New Chat Button */}
             <button className="new-chat-button" onClick={handleNewChat}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> New Chat
             </button>
 
-            {/* CPD Streak */}
             {userEmail && !streaksLoading && currentStreak > 0 && (
                 <Link href="/profile" className={`streak-display-sidebar ${!hasLoggedToday ? 'faded-streak' : ''}`} onClick={onClose}>
                     <span style={{fontWeight: 700}}>🔥 CPD Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}</span>
                 </Link>
             )}
 
-            {/* Core Links */}
             <nav className="nav-group">
                 {coreLinks.map((item) => (
                     <Link key={item.href} href={item.href} className={`nav-item ${pathname === item.href ? "active" : ""}`} onClick={onClose}>
@@ -114,20 +117,18 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                 ))}
             </nav>
 
-            {/* Recent History - IMPROVED */}
+            {/* Recent History */}
             {userEmail && history.length > 0 && (
                 <div className="history-section">
-                    {/* UPDATED LABEL HERE */}
-                    <div className="section-label">Recent (Last 7 Days)</div>
+                    <div className="section-label">Recent Chats</div>
                     <div className="history-list">
                         {visibleHistory.map((item) => (
-                            <button key={item.id} onClick={() => handleHistoryClick(item.id)} className="history-item">
-                                <span className="history-text">{item.question}</span>
+                            <button key={item.conversation_id} onClick={() => handleHistoryClick(item.conversation_id)} className="history-item">
+                                <span className="history-text">{item.first_question}</span>
                             </button>
                         ))}
                         
-                        {/* Toggle Button for Older Items */}
-                        {history.length > INITIAL_HISTORY_COUNT && (
+                        {history.length > historyLimit && (
                              <button 
                                 onClick={() => setIsHistoryExpanded(!isHistoryExpanded)} 
                                 className="history-toggle-btn"
@@ -152,13 +153,10 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
 
         {/* 3. STICKY FOOTER */}
         <div className="sidebar-footer">
-            
-            {/* Umbil Pro Link */}
             <Link href="/pro" className="pro-link" onClick={onClose}>
                <span>Umbil Pro ✨</span>
             </Link>
 
-            {/* 2x2 Grid of Colorful Teal Buttons */}
             <div className="footer-grid">
                 <button onClick={() => { handleInvite(); onClose(); }} className="footer-btn">
                     Invite
@@ -174,7 +172,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                 </Link>
             </div>
 
-            {/* Profile Info & Sign Out */}
             {userEmail && (
                 <div className="profile-section">
                     <div className="profile-info">
@@ -187,7 +184,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
                 </div>
             )}
 
-            {/* Dark Mode Toggle */}
             <div className="dark-mode-toggle">
                 <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}</span>
                 <label className="switch"><input type="checkbox" checked={isDarkMode} onChange={toggleDarkMode} /><span className="slider round"></span></label>
@@ -198,6 +194,7 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       
       <style jsx global>{`
+        /* ... (Keep your previous style block here, it is unchanged) ... */
         .sidebar {
             display: flex;
             flex-direction: column;
@@ -207,10 +204,9 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
         .sidebar-header {
             flex-shrink: 0;
             padding-bottom: 0;
-            margin-bottom: 16px; /* Tighter spacing */
+            margin-bottom: 16px; 
         }
 
-        /* Scrollable Middle Section */
         .sidebar-scroll-area {
             flex-grow: 1;
             overflow-y: auto;
@@ -222,21 +218,19 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             display: none;
         }
 
-        /* Overriding the global margin for the new chat button to tighten layout */
         .new-chat-button {
             margin-bottom: 12px !important;
         }
 
-        /* Navigation Items */
         .nav-group {
             display: flex;
             flex-direction: column;
-            gap: 2px; /* Tighter gap between items */
-            margin-bottom: 16px; /* Less space before history */
+            gap: 2px; 
+            margin-bottom: 16px; 
         }
         .nav-item {
             display: block;
-            padding: 8px 16px; /* Reduced vertical padding (was 10px) */
+            padding: 8px 16px; 
             font-size: 1rem;
             font-weight: 500;
             color: var(--umbil-text);
@@ -248,14 +242,13 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             color: var(--umbil-brand-teal);
         }
 
-        /* Streak Button Style */
         .streak-display-sidebar { 
-            padding: 10px 16px; /* Slightly tighter */
+            padding: 10px 16px; 
             font-size: 1rem; 
             color: var(--umbil-brand-teal); 
             background-color: var(--umbil-hover-bg); 
             border-radius: var(--umbil-radius-sm); 
-            margin: 0 0 12px 0; /* Reduced margin bottom (was 16px) */
+            margin: 0 0 12px 0; 
             text-align: center; 
             transition: opacity 0.3s, background-color 0.2s; 
             display: block; 
@@ -270,9 +263,8 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             opacity: 0.6; 
         }
 
-        /* History Section */
         .history-section {
-            margin-top: 0px; /* Removed extra top margin */
+            margin-top: 0px; 
             padding-top: 12px;
             border-top: 1px solid var(--umbil-divider);
         }
@@ -313,7 +305,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             text-overflow: ellipsis;
         }
         
-        /* NEW: Toggle Button Style */
         .history-toggle-btn {
             display: flex;
             align-items: center;
@@ -334,7 +325,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             background-color: var(--umbil-hover-bg);
         }
 
-        /* Sticky Footer Section */
         .sidebar-footer {
             flex-shrink: 0;
             border-top: 1px solid var(--umbil-divider);
@@ -345,7 +335,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             gap: 12px;
         }
 
-        /* Pro Link */
         .pro-link {
             display: block;
             color: var(--umbil-brand-teal) !important;
@@ -361,7 +350,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             background-color: rgba(31, 184, 205, 0.2);
         }
 
-        /* Colorful Teal Grid Buttons */
         .footer-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -389,7 +377,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             color: var(--umbil-surface);
         }
 
-        /* Profile Info Section */
         .profile-section {
             display: flex;
             justify-content: space-between;
@@ -428,7 +415,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             border-color: #fca5a5;
         }
 
-        /* Dark Mode Toggle */
         .dark-mode-toggle {
             display: flex;
             justify-content: space-between;
@@ -438,7 +424,6 @@ export default function MobileNav({ isOpen, onClose, userEmail, isDarkMode, togg
             border-radius: var(--umbil-radius-sm);
         }
 
-        /* Switches */
         .switch { position: relative; display: inline-block; width: 36px; height: 20px; }
         .switch input { opacity: 0; width: 0; height: 0; }
         .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--umbil-card-border); transition: 0.4s; border-radius: 24px; }

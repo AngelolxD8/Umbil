@@ -25,9 +25,17 @@ export type PDPGoal = {
 
 export type ChatHistoryItem = {
   id: string;
+  conversation_id?: string; // Added field
   question: string;
   answer?: string; 
   created_at: string;
+};
+
+// New Type for the Sidebar List
+export type ChatConversation = {
+  conversation_id: string;
+  first_question: string;
+  last_active: string;
 };
 
 const CPD_TABLE = "cpd_entries";
@@ -37,7 +45,6 @@ const PDP_TABLE = "pdp_goals";
 
 // --- Remote Functions (CPD) ---
 
-// NEW: Robust fetcher for client-side filtering
 export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: PostgrestError | null }> {
   const { data, error } = await supabase
     .from(CPD_TABLE)
@@ -69,7 +76,6 @@ export async function getCPDPage(options: { page: number; limit: number; q?: str
     query = query.or(`question.ilike.%${q}%,answer.ilike.%${q}%,reflection.ilike.%${q}%`);
   }
   
-  // Fallback: using ilike is often more robust than contains for mixed column types (JSON/Text)
   if (tag) {
     query = query.ilike('tags', `%${tag}%`);
   }
@@ -113,26 +119,71 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
   return { data: data as CPDEntry | null, error };
 }
 
-// --- History Functions ---
+// --- History Functions (UPDATED FOR THREADS) ---
 
-export async function getChatHistory(): Promise<ChatHistoryItem[]> {
-  const { data, error } = await supabase
+/**
+ * Fetches the list of conversations (threads) for the sidebar.
+ * Uses the RPC function 'get_user_conversations' for performance if available.
+ */
+export async function getChatHistory(): Promise<ChatConversation[]> {
+  // 1. Try to use the optimized RPC function we just created
+  const { data, error } = await supabase.rpc('get_user_conversations');
+
+  if (!error && data) {
+    return data as ChatConversation[];
+  }
+
+  // 2. Fallback: If RPC fails (e.g., hasn't run yet), do client-side grouping.
+  // This is slower but prevents the app from breaking.
+  console.warn("RPC fetch failed, using fallback:", error);
+  
+  const { data: rawData, error: rawError } = await supabase
     .from(HISTORY_TABLE)
-    .select("id, question, created_at")
-    .order("created_at", { ascending: false })
-    .limit(50); // Increased limit to support "Show More" feature
+    .select("conversation_id, question, created_at")
+    .order("created_at", { ascending: false });
 
-  if (error) { console.error("Error fetching history:", error); return []; }
-  return data as ChatHistoryItem[];
+  if (rawError) { console.error("Error fetching history:", rawError); return []; }
+
+  const seen = new Set();
+  const conversations: ChatConversation[] = [];
+
+  rawData?.forEach((row) => {
+    // If we haven't seen this conversation ID yet, add it as a new thread
+    // (Since we sort by date DESC, the first one we see is the latest one)
+    if (row.conversation_id && !seen.has(row.conversation_id)) {
+      seen.add(row.conversation_id);
+      conversations.push({
+        conversation_id: row.conversation_id,
+        first_question: row.question,
+        last_active: row.created_at
+      });
+    }
+  });
+
+  return conversations;
 }
 
-export async function getHistoryItem(id: string): Promise<ChatHistoryItem | null> {
+/**
+ * Fetches all messages for a specific conversation ID.
+ * Used when you click a chat in the sidebar.
+ */
+export async function getConversationMessages(conversationId: string): Promise<ChatHistoryItem[]> {
   const { data, error } = await supabase
     .from(HISTORY_TABLE)
     .select("*") 
-    .eq("id", id)
-    .single();
+    .eq("conversation_id", conversationId)
+    .order("created_at", { ascending: true }); // Oldest first to reconstruct chat flow
 
+  if (error) {
+    console.error("Error fetching conversation:", error);
+    return [];
+  }
+  return data as ChatHistoryItem[];
+}
+
+// Legacy function support (can likely be removed later)
+export async function getHistoryItem(id: string): Promise<ChatHistoryItem | null> {
+  const { data, error } = await supabase.from(HISTORY_TABLE).select("*").eq("id", id).single();
   if (error) return null;
   return data as ChatHistoryItem;
 }
@@ -195,13 +246,12 @@ export function clearAll() {
   }
 }
 
-// --- NEW: Device ID Utility for Analytics ---
+// --- Device ID Utility for Analytics ---
 export function getDeviceId(): string {
   if (typeof window === 'undefined') return 'server-side';
   
   let id = localStorage.getItem('umbil_device_id');
   if (!id) {
-    // Use crypto.randomUUID if available, otherwise a simple fallback
     id = typeof crypto !== 'undefined' && crypto.randomUUID 
       ? crypto.randomUUID() 
       : `device_${Math.random().toString(36).slice(2)}_${Date.now()}`;
