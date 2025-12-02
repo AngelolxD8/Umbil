@@ -243,21 +243,21 @@ a {
 .logo-link {
   display: flex;
   flex-direction: column;
-  align-items: center; /* CHANGED: Center items horizontally */
+  align-items: center;
   line-height: 1;
   text-decoration: none;
 }
 
 .umbil-logo-text {
-  font-size: 32px; /* INCREASED: Bigger text */
+  font-size: 28px; /* CHANGED: Slightly smaller than 32px */
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--umbil-brand-teal); /* CHANGED: Now teal */
+  color: var(--umbil-brand-teal);
   margin-bottom: 2px;
 }
 
 .tagline {
-  font-size: 11px;
+  font-size: 13px; /* CHANGED: Slightly larger than 11px */
   font-weight: 500;
   color: var(--umbil-muted);
 }
