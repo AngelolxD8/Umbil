@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm"; // Import this plugin
+import remarkGfm from "remark-gfm";
 
 type ToolType = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
 
@@ -139,9 +139,12 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
                   whiteSpace: 'pre-wrap',
                   lineHeight: '1.6',
                   minHeight: '150px',
-                  width: '100%',        /* Force container width */
-                  maxWidth: '100%',     /* Prevent expansion */
-                  overflowX: 'hidden'   /* Hide horizontal scroll on the text container itself */
+                  width: '100%',
+                  maxWidth: '100%',
+                  // --- FIX START ---
+                  overflowX: 'auto',  // Allow horizontal scrolling for the whole container
+                  display: 'block'    // Ensure block layout for scrolling
+                  // --- FIX END ---
                 }}
               >
                 {output ? (
@@ -149,11 +152,17 @@ export default function ToolsModal({ isOpen, onClose }: ToolsModalProps) {
                     <ReactMarkdown 
                       remarkPlugins={[remarkGfm]}
                       components={{
-                        // This table wrapper creates a scrollbar JUST for the table
+                        // Table Wrapper: Forces horizontal scroll specifically for tables
                         table: ({ ...props }) => (
-                          <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%', marginBottom: '1em' }}>
-                            <table {...props} style={{ borderCollapse: 'collapse', width: '100%' }} />
+                          <div className="table-scroll-wrapper" style={{ overflowX: 'auto', width: '100%', marginBottom: '1em', display: 'block' }}>
+                            <table {...props} style={{ borderCollapse: 'collapse', width: '100%', minWidth: 'max-content' }} /> 
                           </div>
+                        ),
+                        // Code Block Wrapper: Ensures code blocks scroll instead of breaking layout
+                        pre: ({ ...props }) => (
+                           <div style={{ overflowX: 'auto', width: '100%', backgroundColor: 'rgba(0,0,0,0.03)', padding: '10px', borderRadius: '4px' }}>
+                             <pre {...props} />
+                           </div>
                         )
                       }}
                     >
