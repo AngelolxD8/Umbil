@@ -6,12 +6,13 @@ import dynamic from 'next/dynamic';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "@/components/Toast";
-import { addCPD, CPDEntry, getConversationMessages, getDeviceId } from "@/lib/store"; // Updated import
+import { addCPD, CPDEntry, getConversationMessages, getDeviceId } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams, useRouter } from "next/navigation";
 import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
+import { v4 as uuidv4 } from 'uuid'; // Imported and now used below
 
 // Dynamic Imports
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
@@ -205,7 +206,7 @@ export default function HomeContent() {
   const { currentStreak, loading: streakLoading } = useCpdStreaks();
   const [answerStyle, setAnswerStyle] = useState<AnswerStyle>("standard");
   
-  // NEW: Track the current conversation ID
+  // Track the current conversation ID
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
@@ -459,12 +460,8 @@ export default function HomeContent() {
     // NEW: Ensure we have a conversation ID. If not, generate one.
     let currentCid = conversationId;
     if (!currentCid) {
-        // Simple manual UUID generator (since we want to avoid extra deps if possible, 
-        // but normally use the 'uuid' package or crypto.randomUUID)
-        currentCid = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
+        // FIX: Removed manual 'var' implementation and use uuidv4()
+        currentCid = uuidv4();
         
         setConversationId(currentCid);
         // Silently update URL so refresh works

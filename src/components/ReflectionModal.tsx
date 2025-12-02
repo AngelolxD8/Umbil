@@ -93,7 +93,7 @@ export default function ReflectionModal({
       // Append original text at bottom for reference
       setReflection(prev => `${prev}\n\n--- Original Text ---\n${originalText}`);
 
-    } catch (err) {
+    } catch {
       setError("Translation failed. Please try again.");
       setReflection(originalText); // Revert on fail
     } finally {
