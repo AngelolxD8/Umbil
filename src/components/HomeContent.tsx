@@ -6,7 +6,6 @@ import dynamic from 'next/dynamic';
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "@/components/Toast";
-// --- CHANGED: Added getDeviceId to import ---
 import { addCPD, CPDEntry, getHistoryItem, getDeviceId } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -14,8 +13,10 @@ import { getMyProfile, Profile } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 
+// Dynamic Imports
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
+const ToolsModal = dynamic(() => import('@/components/ToolsModal')); // NEW
 
 type AnswerStyle = "clinic" | "standard" | "deepDive";
 const styleDisplayNames: Record<AnswerStyle, string> = { clinic: "Clinic", standard: "Standard", deepDive: "Deep Dive" };
@@ -23,7 +24,6 @@ type AskResponse = { answer?: string; error?: string; };
 type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; };
 type ClientMessage = { role: "user" | "assistant"; content: string; };
 
-// --- Types for Speech Recognition ---
 interface IWindow extends Window {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   webkitSpeechRecognition: any;
@@ -31,6 +31,7 @@ interface IWindow extends Window {
   SpeechRecognition: any;
 }
 
+// ... [Keep TourWelcomeModal component as is] ...
 function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
   return (
     <div className="modal-overlay">
@@ -49,6 +50,7 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
   );
 }
 
+// ... [Keep AnswerStyleDropdown component as is] ...
 const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: (style: AnswerStyle) => void; }> = ({ currentStyle, onStyleChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -61,7 +63,7 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
   }, []);
   const handleSelect = (style: AnswerStyle) => { onStyleChange(style); setIsOpen(false); };
   return (
-    <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef} style={{ right: '75px' }}>
+    <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef}>
       <button className="style-dropdown-button" onClick={() => setIsOpen(!isOpen)} title="Change answer style">
         {styleDisplayNames[currentStyle]}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.7 }}><path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -79,8 +81,6 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
 
 const getErrorMessage = (err: unknown): string => {
   if (err instanceof Error) return err.message;
-  if (typeof err === "object" && err !== null && "message" in err && typeof (err as { message: unknown }).message === "string") return (err as { message: string }).message;
-  if (typeof err === "string") return err;
   return "An unexpected error occurred.";
 };
 
@@ -98,7 +98,10 @@ export default function HomeContent() {
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  
+  // Modals state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false); // NEW
   
   const [currentCpdEntry, setCurrentCpdEntry] = useState<{ question: string; answer: string; } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -116,10 +119,18 @@ export default function HomeContent() {
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
 
-  // --- Microphone / Dictation State ---
   const [isRecording, setIsRecording] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea logic
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
+    }
+  }, [q]);
 
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
@@ -128,14 +139,11 @@ export default function HomeContent() {
   useEffect(() => {
     if (userLoading) return;
     
-    // Check for new chat command
     if (searchParams.get("new-chat")) {
       setConversation([]);
       setQ("");
       setIsHistorySaved(false); 
       lastFetchedHistoryId.current = null;
-      
-      // FIX: Clean URL immediately after handling new-chat
       window.history.replaceState({}, document.title, "/");
     }
 
@@ -158,7 +166,6 @@ export default function HomeContent() {
                 setToastMessage("Could not load history item.");
             }
             setLoading(false);
-            // FIX: Clean URL immediately after loading history
             window.history.replaceState({}, document.title, "/");
         });
     }
@@ -184,7 +191,7 @@ export default function HomeContent() {
     }
   }, [searchParams, email, router, userLoading]);
 
-  // --- Keyboard/Viewport Fix (Gemini Effect) ---
+  // Viewport resize logic
   useEffect(() => {
     if (typeof window !== 'undefined' && window.visualViewport) {
       const handleResize = () => {
@@ -295,16 +302,14 @@ export default function HomeContent() {
       const token = session?.access_token;
       const messagesToSend: ClientMessage[] = currentConversation.map((entry) => ({ role: entry.type === "user" ? "user" : "assistant", content: entry.content }));
       const styleToUse = styleOverride || answerStyle;
-      
       const shouldSaveToHistory = !isHistorySaved;
 
       const res = await fetch("/api/ask", {
         method: "POST",
-        // --- CHANGED: Added Headers ---
         headers: { 
             "Content-Type": "application/json", 
             ...(token && { Authorization: `Bearer ${token}` }),
-            "x-device-id": getDeviceId() // <--- NEW: Sending Device ID
+            "x-device-id": getDeviceId() 
         },
         body: JSON.stringify({ 
             messages: messagesToSend, 
@@ -356,6 +361,8 @@ export default function HomeContent() {
     if (!q.trim() || loading || isTourOpen) return;
     const newQuestion = q;
     setQ("");
+    if(textareaRef.current) textareaRef.current.style.height = 'auto'; // Reset height
+    
     const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];
     setConversation(updatedConversation);
     scrollToBottom(true);
@@ -364,6 +371,7 @@ export default function HomeContent() {
 
   const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
 
+  // Handlers for messages
   const handleCopyMessage = (content: string) => { navigator.clipboard.writeText(content).then(() => setToastMessage("Copied to clipboard!")).catch((err) => { console.error(err); setToastMessage("❌ Failed to copy text."); }); };
   const handleShare = async () => {
     const textContent = convoToShow.map((entry) => { const prefix = entry.type === "user" ? "You" : "Umbil"; return `${prefix}:\n${entry.content}\n\n--------------------\n`; }).join("\n");
@@ -427,6 +435,69 @@ export default function HomeContent() {
     );
   };
 
+  // --- GEMINI-STYLE SEARCH COMPONENT ---
+  const SearchInputArea = () => (
+    <div id="tour-highlight-askbar" className="ask-bar-container-new">
+      <textarea
+        ref={textareaRef}
+        className="ask-bar-textarea"
+        placeholder="Ask Umbil anything..."
+        value={isTourOpen ? "What are the red flags for a headache?" : q}
+        onChange={(e) => setQ(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            ask();
+          }
+        }}
+        disabled={isTourOpen}
+        rows={1}
+      />
+      
+      <div className="ask-bar-actions">
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* TOOLS BUTTON */}
+          <button 
+            className="action-icon-btn" 
+            title="Medical Tools"
+            onClick={() => setIsToolsOpen(true)}
+            disabled={isTourOpen}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"></path></svg>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tools</span>
+            </div>
+          </button>
+          
+          <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          {/* MIC BUTTON */}
+          <button 
+            className={`action-icon-btn ${isRecording ? "recording" : ""}`}
+            onClick={handleMicClick}
+            disabled={loading || isTourOpen}
+            title={isRecording ? "Stop Recording" : "Start Dictation"}
+          >
+            {isRecording ? (
+                <div className="recording-pulse">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                </div>
+            ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            )}
+          </button>
+
+          {/* SEND BUTTON */}
+          <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading || !q.trim()}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       {isTourOpen && ( <QuickTour isOpen={isTourOpen} currentStep={tourStep} onClose={handleTourClose} onStepChange={handleTourStepChange} /> )}
@@ -452,100 +523,30 @@ export default function HomeContent() {
             </div>
 
             <div className="sticky-input-wrapper" style={{ position: 'relative', flexShrink: 0, background: 'var(--umbil-bg)', borderTop: '1px solid var(--umbil-divider)', zIndex: 50, padding: '20px' }}>
-              <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: 0, maxWidth: '800px', margin: '0 auto', position: 'relative', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input 
-                    className="ask-bar-input" 
-                    placeholder="Ask Umbil anything..." 
-                    value={isTourOpen ? "What are the red flags for a headache?" : q} 
-                    onChange={(e) => setQ(e.target.value)} 
-                    onKeyDown={(e) => e.key === "Enter" && ask()} 
-                    disabled={isTourOpen} 
-                    style={{ paddingRight: '190px' }} 
-                />
-                
-                <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
-                
-                <button 
-                    className={`ask-bar-mic-button ${isRecording ? "recording" : ""}`}
-                    onClick={handleMicClick}
-                    disabled={loading || isTourOpen}
-                    title={isRecording ? "Stop Recording" : "Start Dictation"}
-                    style={{
-                        position: 'absolute',
-                        right: '56px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: isRecording ? '#ef4444' : 'var(--umbil-muted)',
-                        transition: 'color 0.2s'
-                    }}
-                >
-                    {isRecording ? (
-                        <div className="recording-pulse">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-                        </div>
-                    ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-                    )}
-                </button>
-
-                <button className="ask-bar-send-button" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
+              <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
+                <SearchInputArea />
               </div>
             </div>
           </>
         ) : (
           <div className="hero" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
             <h1 className="hero-headline">Smarter medicine starts here.</h1>
-            <div id="tour-highlight-askbar" className="ask-bar-container" style={{ marginTop: "24px", position: 'relative' }}>
-              <input 
-                className="ask-bar-input" 
-                placeholder="Ask Umbil anything..." 
-                value={isTourOpen ? "What are the red flags for a headache?" : q} 
-                onChange={(e) => setQ(e.target.value)} 
-                onKeyDown={(e) => e.key === "Enter" && ask()} 
-                disabled={isTourOpen} 
-                style={{ paddingRight: '190px' }} 
-              />
-              <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
-              
-                <button 
-                    className={`ask-bar-mic-button ${isRecording ? "recording" : ""}`}
-                    onClick={handleMicClick}
-                    disabled={loading || isTourOpen}
-                    title={isRecording ? "Stop Recording" : "Start Dictation"}
-                    style={{
-                        position: 'absolute',
-                        right: '56px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        color: isRecording ? '#ef4444' : 'var(--umbil-muted)',
-                        transition: 'color 0.2s'
-                    }}
-                >
-                    {isRecording ? (
-                        <div className="recording-pulse">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
-                        </div>
-                    ) : (
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-                    )}
-                </button>
-
-              <button className="ask-bar-send-button" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading}><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>
+            <div style={{ marginTop: "24px", position: 'relative', width: '100%', maxWidth: '700px' }}>
+              <SearchInputArea />
             </div>
             <p className="disclaimer" style={{ marginTop: "36px" }}><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 16v-4M12 8h.01"></path></svg> Please don’t enter any patient-identifiable information.</p>
           </div>
         )}
       </div>
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
+      
       {(isModalOpen || (isTourOpen && tourStep === 4)) && (
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined} />
       )}
+      
+      {/* TOOLS MODAL */}
+      <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} />
+
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       
       <style jsx>{`
@@ -559,9 +560,6 @@ export default function HomeContent() {
             display: flex;
             align-items: center;
             justify-content: center;
-        }
-        .ask-bar-mic-button:hover {
-            color: var(--umbil-text) !important;
         }
       `}</style>
     </>

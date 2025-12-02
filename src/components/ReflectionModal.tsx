@@ -39,6 +39,7 @@ export default function ReflectionModal({
   const [tags, setTags] = useState(""); 
   
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false); // NEW
   const [generatedTags, setGeneratedTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,6 +50,7 @@ export default function ReflectionModal({
       setGeneratedTags([]);
       setError(null);
       setIsGeneratingReflection(false);
+      setIsTranslating(false);
     }
   }, [isOpen]);
 
@@ -58,6 +60,45 @@ export default function ReflectionModal({
       setTags((prev) => (prev ? `${prev}, ${tagToAdd}` : tagToAdd));
     }
     setGeneratedTags(prev => prev.filter((t: string) => t !== tagToAdd));
+  };
+
+  // --- NEW TRANSLATE FUNCTION ---
+  const handleTranslate = async () => {
+    if (!reflection.trim()) return;
+    setIsTranslating(true);
+    // Keep a backup of original in case they want it
+    const originalText = reflection; 
+    let translatedText = "";
+
+    try {
+      const res = await fetch("/api/tools", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toolType: "translate_reflection", input: reflection }),
+      });
+
+      if (!res.ok || !res.body) throw new Error("Translation failed");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        translatedText += decoder.decode(value, { stream: true });
+        // Stream directly into the box
+        setReflection(translatedText); 
+      }
+      
+      // Append original text at bottom for reference
+      setReflection(prev => `${prev}\n\n--- Original Text ---\n${originalText}`);
+
+    } catch (err) {
+      setError("Translation failed. Please try again.");
+      setReflection(originalText); // Revert on fail
+    } finally {
+      setIsTranslating(false);
+    }
   };
 
   const handleGenerateReflection = async () => {
@@ -110,7 +151,6 @@ export default function ReflectionModal({
             setGeneratedTags(newTags);
           }
         } catch {
-          // FIX: Removed 'e' from catch block since it was unused
           const fallbackTags = tagText.replace(/[\[\]"]/g, "").split(",").map((t) => t.trim()).filter(Boolean);
           setGeneratedTags(fallbackTags);
         }
@@ -151,14 +191,26 @@ export default function ReflectionModal({
         {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
 
         <div className="form-group">
-          <label className="form-label">Your Reflection (GMC-style)</label>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '6px'}}>
+             <label className="form-label" style={{marginBottom:0}}>Your Reflection</label>
+             {/* TRANSLATE BUTTON */}
+             <button 
+                onClick={handleTranslate} 
+                className="action-button" 
+                disabled={isTranslating || !reflection}
+                title="Translate reflection to English for appraisal"
+             >
+                {isTranslating ? 'Translating...' : '🌍 Translate to English'}
+             </button>
+          </div>
+          
           <textarea
             className="form-control"
             rows={8}
             value={reflection}
             onChange={(e) => setReflection(e.target.value)}
-            placeholder="e.g., What did I learn? How will this change my practice? Click 'Generate' for help!"
-            disabled={isGeneratingReflection}
+            placeholder="Type in English or your native language. Click 'Generate' for AI help, or 'Translate' to convert to English."
+            disabled={isGeneratingReflection || isTranslating}
           />
         </div>
 
