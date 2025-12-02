@@ -64,7 +64,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 </button>
               </div>
               
-              {/* UPDATED LOGO SECTION */}
+              {/* UPDATED LOGO SECTION: Stacked Vertically */}
               <div className="logo-section">
                 <Link href="/?new-chat=true" className="logo-link">
                   <h2 className="umbil-logo-text">Umbil</h2>
