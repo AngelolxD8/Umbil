@@ -14,7 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { v4 as uuidv4 } from 'uuid'; 
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
-import { ToolId, TOOLS_CONFIG } from "@/components/ToolsModal"; // Import Config
+import { ToolId, TOOLS_CONFIG } from "@/components/ToolsModal"; 
 
 // --- Dynamic Imports ---
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
@@ -57,7 +57,7 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
   );
 }
 
-// --- NEW TOOLS DROPDOWN ---
+// --- NEW TOOLS DROPDOWN (Cleaned up) ---
 const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -88,9 +88,9 @@ const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSel
       {isOpen && (
         <div className="style-dropdown-menu" style={{ minWidth: '180px' }}>
           {TOOLS_CONFIG.map((tool) => (
-             <button key={tool.id} onClick={() => handleSelect(tool.id)} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '1.1rem' }}>{tool.id === 'referral' ? '📝' : tool.id === 'safety_netting' ? '🛡️' : tool.id === 'sbar' ? '🏥' : '📋'}</span>
-                <strong>{tool.label}</strong>
+             <button key={tool.id} onClick={() => handleSelect(tool.id)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px' }}>
+                {/* Emoji removed for cleaner aesthetic */}
+                <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{tool.label}</span>
              </button>
           ))}
         </div>
@@ -145,7 +145,6 @@ type SearchInputAreaProps = {
   handleMicClick: () => void;
   answerStyle: AnswerStyle;
   setAnswerStyle: (s: AnswerStyle) => void;
-  // Updated props: removed setIsToolsOpen boolean, replaced with handler
   onToolSelect: (id: ToolId) => void;
   handleTourStepChange: (step: number) => void;
 };
@@ -184,7 +183,6 @@ const SearchInputArea = ({
       
       <div className="ask-bar-actions">
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-          {/* Replaced old button with Dropdown */}
           <ToolsDropdown onSelect={onToolSelect} />
         </div>
 
@@ -225,7 +223,6 @@ export default function HomeContent() {
   
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false); 
-  // New state for selected tool
   const [selectedTool, setSelectedTool] = useState<ToolId>('referral');
   
   const [currentCpdEntry, setCurrentCpdEntry] = useState<{ question: string; answer: string; } | null>(null);

@@ -9,7 +9,7 @@ import Link from "next/link";
 import { useUserEmail } from "@/hooks/useUser";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { Analytics } from "@vercel/analytics/react"; 
-import { ThemeProvider } from "@/hooks/useTheme"; // Import the new provider
+import { ThemeProvider } from "@/hooks/useTheme";
 import { useState } from "react";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
@@ -43,7 +43,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="en">
-      {/* Wrap everything in ThemeProvider */}
       <ThemeProvider>
         <body
           suppressHydrationWarning
@@ -64,12 +63,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                   </svg>
                 </button>
               </div>
+              
+              {/* UPDATED LOGO SECTION */}
               <div className="logo-section">
-                <Link href="/?new-chat=true" className="flex items-center" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                  <h2 className="umbil-logo-text" style={{ fontSize: '24px', fontWeight: '600' }}>Umbil</h2>
-                  <p className="tagline" style={{ fontSize: '14px', marginLeft: '10px', marginBottom: '3px' }}>Your Medical Lifeline</p>
+                <Link href="/?new-chat=true" className="logo-link">
+                  <h2 className="umbil-logo-text">Umbil</h2>
+                  <p className="tagline">Your Medical Lifeline</p>
                 </Link>
               </div>
+
               <div className="header-right">
                 <GlobalStreakDisplay />
                 <AuthButtons />
@@ -84,7 +86,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               isOpen={isMobileNavOpen} 
               onClose={() => setIsMobileNavOpen(false)} 
               userEmail={email} 
-              // Removed props: isDarkMode & toggleDarkMode (now handled internally)
             />
           </div>
           <Analytics /> 
