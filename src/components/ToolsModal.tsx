@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-// Export the Type
+// Export the Type so HomeContent can use it
 export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
 
 interface ToolConfig {
@@ -17,10 +17,10 @@ interface ToolConfig {
 }
 
 const Icons = {
-  Referral: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
-  Shield: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-  Sbar: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
-  Discharge: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
+  Referral: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
+  Shield: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  Sbar: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
+  Discharge: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
 };
 
 export const TOOLS_CONFIG: ToolConfig[] = [
@@ -57,25 +57,24 @@ export const TOOLS_CONFIG: ToolConfig[] = [
 type ToolsModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  initialTool?: ToolId; // New prop
+  initialTool?: ToolId;
 };
 
 export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }: ToolsModalProps) {
-  const [activeToolId, setActiveToolId] = useState<ToolId>(initialTool);
+  // We strictly use the initialTool passed in. No sidebar switching inside.
   const [input, setInput] = useState("");
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Sync active tool when opening
+  // Reset state when modal opens with a new tool
   useEffect(() => {
-    if (isOpen && initialTool) {
-      setActiveToolId(initialTool);
+    if (isOpen) {
       setInput("");
       setOutput("");
     }
   }, [isOpen, initialTool]);
 
-  const activeTool = TOOLS_CONFIG.find(t => t.id === activeToolId) || TOOLS_CONFIG[0];
+  const activeTool = TOOLS_CONFIG.find(t => t.id === initialTool) || TOOLS_CONFIG[0];
 
   const handleGenerate = async () => {
     if (!input.trim()) return;
@@ -86,7 +85,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
       const res = await fetch("/api/tools", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ toolType: activeToolId, input }),
+        body: JSON.stringify({ toolType: activeTool.id, input }),
       });
 
       if (!res.ok || !res.body) throw new Error("Failed");
@@ -118,11 +117,14 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     <div className="modal-overlay">
       <div className="modal-content tools-modal-content">
         
-        {/* Header */}
+        {/* Header - Simplified */}
         <div className="tools-header">
-          <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-             <span style={{ fontSize: '1.2rem' }}>✨</span>
-             <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Clinical Tools</h3>
+          <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+             <div style={{ color: 'var(--umbil-brand-teal)' }}>{activeTool.icon}</div>
+             <div>
+               <h3 style={{ fontSize: '1.1rem', fontWeight: 600, lineHeight: 1.2 }}>{activeTool.label}</h3>
+               <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', fontWeight: 400 }}>{activeTool.desc}</p>
+             </div>
           </div>
           <button onClick={onClose} className="close-button" style={{ position: 'static' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -130,27 +132,11 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         </div>
 
         <div className="tools-body">
-          
-          <div className="tools-sidebar">
-            {TOOLS_CONFIG.map((t) => (
-              <button
-                key={t.id}
-                className={`tool-button ${activeToolId === t.id ? 'active' : ''}`}
-                onClick={() => { setActiveToolId(t.id); setInput(""); setOutput(""); }}
-              >
-                <span className="tool-icon" style={{ opacity: activeToolId === t.id ? 1 : 0.7 }}>{t.icon}</span> 
-                <span className="tool-label">{t.label}</span>
-              </button>
-            ))}
-          </div>
-
           <div className="tools-main">
+            
+            {/* Input Section */}
             <div className="input-section">
-              <div style={{ marginBottom: '12px' }}>
-                <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '4px' }}>{activeTool.label}</h4>
-                <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)' }}>{activeTool.desc}</p>
-              </div>
-              
+              <label className="form-label">Clinical Notes</label>
               <textarea
                 className="form-control"
                 style={{ 
@@ -158,7 +144,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                     resize: 'none', 
                     fontSize: '0.95rem',
                     backgroundColor: 'var(--umbil-bg)',
-                    border: '1px solid var(--umbil-divider)' 
+                    border: '1px solid var(--umbil-divider)',
+                    fontFamily: 'inherit'
                 }}
                 placeholder={activeTool.placeholder}
                 value={input}
@@ -177,7 +164,9 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
               </div>
             </div>
 
-            <div className="output-section" style={{ borderTop: '1px solid var(--umbil-divider)', paddingTop: '20px', marginTop: '20px' }}>
+            {/* Output Section */}
+            {/* Only show this block if there is output or loading, to keep UI clean initially */}
+            <div className="output-section" style={{ borderTop: '1px solid var(--umbil-divider)', paddingTop: '20px', marginTop: '20px', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                 <label className="form-label" style={{marginBottom:0}}>Result</label>
                 {output && (
@@ -194,9 +183,9 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                   flex: 1, 
                   overflowY: 'auto', 
                   backgroundColor: 'var(--umbil-surface)',
-                  minHeight: '200px',
                   border: 'none',
-                  padding: 0
+                  padding: 0,
+                  minHeight: '200px'
                 }}
               >
                 {output ? (
@@ -204,8 +193,12 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                     <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
                   </div>
                 ) : (
-                  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--umbil-muted)', opacity: 0.5 }}>
-                    <span style={{ fontSize: '0.9rem' }}>Output will appear here</span>
+                  <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--umbil-muted)', opacity: 0.5, flexDirection: 'column', gap: '8px' }}>
+                    {loading ? (
+                        <span>Generating...</span>
+                    ) : (
+                        <span style={{ fontSize: '0.9rem' }}>Output will appear here</span>
+                    )}
                   </div>
                 )}
               </div>
