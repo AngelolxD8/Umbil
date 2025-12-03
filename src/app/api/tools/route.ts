@@ -4,9 +4,6 @@ import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 
-// Remove 'export const runtime = edge' to support Tavily (Node.js)
-// export const runtime = 'edge'; 
-
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
@@ -16,7 +13,6 @@ const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 // --- TYPE DEFINITIONS ---
-// Matches your new ToolsModal list (removed translate_reflection)
 type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
 
 interface ToolConfig {
@@ -36,65 +32,76 @@ const TOOLS: Record<ToolId, ToolConfig> = {
       return `NICE CKS referral guidelines UK ${input}`;
     },
     systemPrompt: `
-      You are an expert Medical Secretary for a UK General Practitioner.
-      Your task is to write a formal hospital referral letter based on the user's rough notes.
+      You are an expert Medical Secretary. Write a formal, concise hospital referral letter based on the user's notes.
       
       RULES:
-      1.  Output standard letter format (Dear [Specialty], Re: [Patient details]).
-      2.  Do NOT use Markdown formatting (no bold **, no headers #). Keep it plain text.
-      3.  If "Context" is provided below, you MUST check if the patient meets the referral criteria.
-      4.  If criteria are NOT met based on the input, add a "[NOTE TO GP: ...]" at the top.
+      1. Output standard letter format (Dear [Specialty], Re: [Patient details]).
+      2. No Markdown (* or #). Plain text only.
+      3. Verify criteria against Context if provided.
+      4. STRICT LIMIT: Maximum 200 words. Be direct.
       
       Structure:
       - Salutation
-      - Patient details (extract age/gender/name from input)
-      - "Thank you for seeing this patient with..."
-      - History of Complaint (expand the notes into full sentences)
-      - Examination & Vitals
-      - PMH / DH (if provided)
-      - Specific reason for referral
-      - Sign off: "Kind regards, Dr [Name]"
+      - Patient details (Age/Sex from input)
+      - "Thank you for seeing..."
+      - HxC (Concise history)
+      - Exam/Vitals
+      - PMH/DH
+      - Reason for referral
+      - "Kind regards, Dr [Name]"
     `
   },
   safety_netting: {
     useSearch: true,
     searchQueryGenerator: (input) => `NICE CKS safety netting red flags ${input}`,
     systemPrompt: `
-      You are a Medico-Legal Assistant for a UK Doctor.
-      Create a "Safety Netting" documentation block based on the clinical presentation provided.
+      You are a Clinical Documentation Assistant.
+      Create an extremely concise "Safety Netting" entry for medical notes.
       
-      OUTPUT FORMAT (Strictly follow this):
-      "Safety netting advice given: [General advice, e.g. fluid intake].
-      Return immediately if: [List specific RED FLAGS based on the condition].
-      Discussed [Relevant Guideline, e.g. NICE Traffic Light system/Sepsis risks]."
-
-      Tone: Professional, concise, ready to paste into EMIS/SystmOne.
-      Ensure the Red Flags are accurate to the specific condition described in the notes.
+      RULES:
+      1. STRICT LIMIT: Maximum 60 words.
+      2. Use telegraphic style (omit "The patient should...").
+      3. Focus entirely on specific Red Flags.
+      
+      OUTPUT FORMAT:
+      "Advice: [Fluids/Analgesia/Rest].
+      Return immediately if: [Comma separated list of specific RED FLAGS].
+      discussed [Guideline Name, e.g. Sepsis/Traffic Light]."
     `
   },
   sbar: {
     useSearch: false,
     systemPrompt: `
-      Convert the user's unstructured notes into a structured SBAR (Situation, Background, Assessment, Recommendation) handover.
-      This is for an urgent call to a hospital registrar.
+      Convert the user's notes into a high-priority SBAR handover for a Registrar.
       
-      - Situation: Who/Where/Acute concern.
-      - Background: Relevant history.
-      - Assessment: Vitals/Exam.
-      - Recommendation: Specific request (e.g. "Review immediately").
+      RULES:
+      1. STRICT LIMIT: Maximum 100 words.
+      2. Use bullet points.
+      3. Be urgent and direct.
+      
+      Structure:
+      - S: (Who/Where/Main Issue)
+      - B: (Relevant Hx only)
+      - A: (Vitals/Exam findings)
+      - R: (Specific action required now)
     `
   },
   discharge_summary: {
     useSearch: false,
     systemPrompt: `
-      Condense these messy ward notes into a concise GP Discharge Summary.
-      Sections required: 
-      1. Primary Diagnosis
-      2. Key Procedures/Events
-      3. Medication Changes (Start/Stop/Change)
-      4. Follow-up Required (What does the GP actually need to do?)
+      Condense these ward notes into a structured Discharge Summary.
       
-      Ignore daily "patient stable" updates. Focus on the plan and changes.
+      RULES:
+      1. STRICT LIMIT: Maximum 200 words.
+      2. IGNORE daily "patient stable" updates.
+      3. Use a telegraphic, skimmable style.
+      4. DO NOT assume this is for a GP; make it generic for any follow-up clinician.
+      
+      OUTPUT TEMPLATE:
+      **DX:** [Primary Diagnosis]
+      **KEY EVENTS:** [Procedures/scans/complications only. No daily narrative.]
+      **MED CHANGES:** [Started/Stopped/Changed only]
+      **PLAN:** [Follow up instructions & Outstanding investigations]
     `
   }
 };
@@ -121,7 +128,6 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
   try {
-    // We now strictly expect a single 'input' string
     const { toolType, input } = await req.json();
     
     const toolConfig = TOOLS[toolType as ToolId];
@@ -152,7 +158,7 @@ OUTPUT:
       model: together(MODEL_SLUG),
       messages: [{ role: "user", content: finalPrompt }],
       temperature: 0.2, 
-      maxOutputTokens: 1024,
+      maxOutputTokens: 1024, // Sufficient for the restricted word counts
     });
 
     return result.toTextStreamResponse();

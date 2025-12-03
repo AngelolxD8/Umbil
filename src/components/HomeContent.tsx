@@ -57,7 +57,7 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
   );
 }
 
-// --- NEW TOOLS DROPDOWN (Cleaned up) ---
+// --- NEW TOOLS DROPDOWN ---
 const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -89,7 +89,6 @@ const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSel
         <div className="style-dropdown-menu" style={{ minWidth: '180px' }}>
           {TOOLS_CONFIG.map((tool) => (
              <button key={tool.id} onClick={() => handleSelect(tool.id)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px' }}>
-                {/* Emoji removed for cleaner aesthetic */}
                 <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{tool.label}</span>
              </button>
           ))}
@@ -254,19 +253,23 @@ export default function HomeContent() {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
 
+  // --- Initial Load & URL Parameter Handling ---
   useEffect(() => {
     if (userLoading) return;
     
+    // Check if new-chat flag is present
     if (searchParams.get("new-chat")) {
       setConversation([]);
       setQ("");
       setConversationId(null);
-      window.history.replaceState({}, document.title, "/");
+      // Clean the URL without reload
+      router.replace("/", { scroll: false });
       return;
     }
 
     const cid = searchParams.get("c"); 
     
+    // If URL has a conversation ID and it's different from state, load it
     if (cid && cid !== conversationId) {
         setConversationId(cid);
         setLoading(true);
@@ -288,6 +291,7 @@ export default function HomeContent() {
             setLoading(false);
         });
     } else if (!cid && !conversationId && !searchParams.get("tour")) {
+        // No ID in URL or State, and not tour -> Reset
         setConversation([]);
     }
 
@@ -449,12 +453,15 @@ export default function HomeContent() {
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
     
+    // --- THIS BLOCK FIXES THE ID PERSISTENCE ---
     let currentCid = conversationId;
     if (!currentCid) {
         currentCid = uuidv4();
         setConversationId(currentCid);
-        window.history.replaceState({}, document.title, `/?c=${currentCid}`);
+        // Use router.replace to update URL cleanly without reload
+        router.replace(`/?c=${currentCid}`, { scroll: false });
     }
+    // -------------------------------------------
 
     const newQuestion = q;
     setQ("");
