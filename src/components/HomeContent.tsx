@@ -155,12 +155,18 @@ const SearchInputArea = ({
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
+  // FIX: Extracted logic to reusable function
+  const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
     }
-  }, [q]);
+  }, []);
+
+  // Adjust on text change
+  useEffect(() => {
+    adjustHeight();
+  }, [q, adjustHeight]);
 
   return (
     <div id="tour-highlight-askbar" className="ask-bar-container-new">
@@ -170,6 +176,9 @@ const SearchInputArea = ({
         placeholder="Ask Umbil anything..."
         value={isTourOpen ? "What are the red flags for a headache?" : q}
         onChange={(e) => setQ(e.target.value)}
+        // FIX: Added onFocus and onClick to trigger expansion immediately
+        onFocus={adjustHeight}
+        onClick={adjustHeight}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             e.preventDefault();
