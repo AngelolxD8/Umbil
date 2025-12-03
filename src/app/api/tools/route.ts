@@ -62,6 +62,8 @@ const TOOLS: Record<ToolId, ToolConfig> = {
       1. STRICT LIMIT: Maximum 60 words.
       2. Use telegraphic style (omit "The patient should...").
       3. Focus entirely on specific Red Flags.
+      4. Context Awareness: If the patient already has a symptom for X days, ensure the "return if" duration makes sense (e.g. "Fever > 5 days" rather than "Fever > 48h" if they are already at day 2).
+      5. Functional Symptoms: Prefer "blue lips/breathless at rest" over "O2 < 90%" unless the patient likely has equipment.
       
       OUTPUT FORMAT:
       "Advice: [Fluids/Analgesia/Rest].
@@ -158,7 +160,7 @@ OUTPUT:
       model: together(MODEL_SLUG),
       messages: [{ role: "user", content: finalPrompt }],
       temperature: 0.2, 
-      maxOutputTokens: 1024, // Sufficient for the restricted word counts
+      maxOutputTokens: 1024, 
     });
 
     return result.toTextStreamResponse();
