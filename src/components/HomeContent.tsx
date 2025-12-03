@@ -155,7 +155,7 @@ const SearchInputArea = ({
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Extracted logic to reusable function
+  // Helper to adjust height immediately
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -163,7 +163,6 @@ const SearchInputArea = ({
     }
   }, []);
 
-  // Adjust on text change
   useEffect(() => {
     adjustHeight();
   }, [q, adjustHeight]);
@@ -176,7 +175,6 @@ const SearchInputArea = ({
         placeholder="Ask Umbil anything..."
         value={isTourOpen ? "What are the red flags for a headache?" : q}
         onChange={(e) => setQ(e.target.value)}
-        // Added onFocus and onClick to trigger expansion immediately
         onFocus={adjustHeight}
         onClick={adjustHeight}
         onKeyDown={(e) => {
@@ -212,7 +210,6 @@ const SearchInputArea = ({
             )}
           </button>
 
-          {/* Tour Step 3 is now the answer, so we jump to index 3 */}
           <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(3) : ask} disabled={loading || !q.trim()}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
@@ -267,19 +264,30 @@ export default function HomeContent() {
   useEffect(() => {
     if (userLoading) return;
     
-    // Check if new-chat flag is present
-    if (searchParams.get("new-chat")) {
+    // --- UPDATED LOGIC TO FIX TOUR START BUG ---
+    const isNewChat = searchParams.get("new-chat");
+    const isTour = searchParams.get("tour") === "true";
+    const isForceTour = searchParams.get("forceTour") === "true";
+
+    // 1. Handle New Chat Reset
+    if (isNewChat) {
       setConversation([]);
       setQ("");
       setConversationId(null);
+      
+      // If we are starting a tour, enable it BEFORE cleaning the URL
+      if (isTour && isForceTour) {
+        setIsTourOpen(true);
+        setTourStep(0);
+      }
+
       // Clean the URL without reload
       router.replace("/", { scroll: false });
       return;
     }
 
+    // 2. Handle Existing Chat Loading (only if NOT starting a new chat)
     const cid = searchParams.get("c"); 
-    
-    // If URL has a conversation ID and it's different from state, load it
     if (cid && cid !== conversationId) {
         setConversationId(cid);
         setLoading(true);
@@ -300,7 +308,7 @@ export default function HomeContent() {
             }
             setLoading(false);
         });
-    } else if (!cid && !conversationId && !searchParams.get("tour")) {
+    } else if (!cid && !conversationId && !isTour) {
         // No ID in URL or State, and not tour -> Reset
         setConversation([]);
     }
@@ -308,23 +316,20 @@ export default function HomeContent() {
     const checkTour = () => {
       const justLoggedIn = sessionStorage.getItem("justLoggedIn") === "true";
       const hasCompletedTour = localStorage.getItem("hasCompletedQuickTour") === "true";
-      const forceTour = searchParams.get("tour") === "true" && searchParams.get("forceTour") === "true";
 
-      if (forceTour) {
+      // If already handled above, this is redundant but safe
+      if (isTour && isForceTour) {
         setIsTourOpen(true);
         setTourStep(0);
       } else if (justLoggedIn && !hasCompletedTour) {
         setShowWelcomeModal(true);
       }
+      
       if (justLoggedIn) sessionStorage.removeItem("justLoggedIn");
     };
     
-    if (searchParams.get("tour")) {
-      if (!email) { router.push("/auth"); return; }
-      checkTour();
-    } else {
-      checkTour();
-    }
+    checkTour();
+
   }, [searchParams, email, router, userLoading, conversationId]);
 
   useEffect(() => {
@@ -374,10 +379,10 @@ export default function HomeContent() {
 
   const handleTourStepChange = useCallback((stepIndex: number) => {
     setTourStep(stepIndex); 
-    // Step 5 (Index 5) is now the Reflect Modal
+    // Step 5 is Reflection Modal (in new 8-step tour)
     if (stepIndex === 5) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); } 
     else if (isModalOpen) { setIsModalOpen(false); }
-    // Step 8 (Index 7) is Analytics/Sidebar
+    // Step 7 is Sidebar/Analytics
     if (stepIndex === 7) { const menuButton = document.getElementById("tour-highlight-sidebar-button"); menuButton?.click(); }
   }, [isModalOpen]); 
 
@@ -484,7 +489,6 @@ export default function HomeContent() {
     await fetchUmbilResponse(updatedConversation, null, currentCid); 
   };
 
-  // Show conversation only if tour step is >= 3 (Answer step)
   const convoToShow = isTourOpen && tourStep >= 3 ? DUMMY_TOUR_CONVERSATION : conversation;
 
   const handleCopyMessage = (content: string) => { navigator.clipboard.writeText(content).then(() => setToastMessage("Copied to clipboard!")).catch((err) => { console.error(err); setToastMessage("❌ Failed to copy text."); }); };
@@ -514,7 +518,7 @@ export default function HomeContent() {
     setIsModalOpen(true);
   };
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
-    // Step 5 is Modal/Reflection during tour
+    // Step 5 is Modal Step (Index 5)
     if (isTourOpen) { handleTourStepChange(6); return; }
     if (!currentCpdEntry) return;
     
@@ -561,7 +565,6 @@ export default function HomeContent() {
             <button className="action-button" onClick={() => handleCopyMessage(entry.content)} title="Copy this message"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy</button>
             {isLastMessage && !loading && entry.question && ( <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic"><svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive</button> )}
             {isLastMessage && !loading && ( <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate</button> )}
-            {/* Step 5 is now Modal opening */}
             <button id={isTourOpen ? "tour-highlight-cpd-button" : undefined} className="action-button" onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} title="Add reflection to your CPD log"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Log learning (CPD)</button>
           </div>
         )}
@@ -625,7 +628,7 @@ export default function HomeContent() {
       </div>
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
       
-      {/* Updated: Check for step 5 */}
+      {/* Updated: Check for step 5 (Modal) */}
       {(isModalOpen || (isTourOpen && tourStep === 5)) && (
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
       )}
