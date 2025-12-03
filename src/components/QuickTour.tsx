@@ -5,14 +5,60 @@ import { useState, useLayoutEffect, useCallback } from "react";
 
 // Define the steps of our tour
 const tourSteps = [
-  { id: "step-0", title: "1. Ask Your Question", text: "Start here. You can ask anything—clinical questions, drug dosages, or reflective prompts.", highlightId: "tour-highlight-askbar" },
-  { id: "step-1", title: "2. Choose Your Depth", text: "Need a quick answer for the ward or a detailed explanation for study? Switch between 'Clinic', 'Standard', and 'Deep Dive' modes here.", highlightId: "tour-highlight-style-dropdown" },
-  { id: "step-2", title: "3. Get Your Answer", text: "Umbil provides a concise, evidence-based answer. Now, let's turn this knowledge into a permanent record.", highlightId: "tour-highlight-message" },
-  { id: "step-3", title: "4. Log Learning", text: "Click 'Log learning (CPD)' to save this interaction. This keeps your streak alive and builds your professional portfolio automatically.", highlightId: "tour-highlight-cpd-button" },
-  { id: "step-4", title: "5. Reflect & Save", text: "Write your own notes, add tags to organise your learning, or click 'Generate' to let AI create a GMC-compliant reflection for you. Click 'Save' to finish.", highlightId: "tour-highlight-modal" },
-  { id: "step-5", title: "6. Automated PDP Goals", text: "Umbil works in the background. If you tag a topic (e.g., 'Asthma') 7 times, we'll automatically suggest a Personal Development Plan goal to help formalize your learning.", highlightId: null },
-  { id: "step-6", title: "7. Explore Analytics", text: "Open the menu to see your learning turn into visual charts. Track your GMC domain coverage, clinical topics, and maintain your streaks!", highlightId: "tour-highlight-sidebar" },
-  { id: "step-7", title: "You're all set!", text: "You can re-take this tour anytime from the menu. Happy learning!", highlightId: null },
+  { 
+    id: "step-0", 
+    title: "1. Ask Your Question", 
+    text: "Start here. You can ask anything—clinical questions, drug dosages, or reflective prompts.", 
+    highlightId: "tour-highlight-askbar" 
+  },
+  { 
+    id: "step-1", 
+    title: "2. Medical Tools", 
+    text: "Find specialized tools here like the Referral Writer, Safety Netting generator, and SBAR handover tool to speed up your documentation.", 
+    highlightId: "tour-highlight-tools-dropdown" 
+  },
+  { 
+    id: "step-2", 
+    title: "3. Choose Your Depth", 
+    text: "Need a quick answer for the ward or a detailed explanation for study? Switch between 'Clinic', 'Standard', and 'Deep Dive' modes here.", 
+    highlightId: "tour-highlight-style-dropdown" 
+  },
+  { 
+    id: "step-3", 
+    title: "4. Get Your Answer", 
+    text: "Umbil provides a concise, evidence-based answer. Now, let's turn this knowledge into a permanent record.", 
+    highlightId: "tour-highlight-message" 
+  },
+  { 
+    id: "step-4", 
+    title: "5. Log Learning", 
+    text: "Click 'Log learning (CPD)' to save this interaction. This keeps your streak alive and builds your professional portfolio automatically.", 
+    highlightId: "tour-highlight-cpd-button" 
+  },
+  { 
+    id: "step-5", 
+    title: "6. Reflect & Save (Multilingual)", 
+    text: "Write your notes or let AI generate them. You can even write in your native language and click 'Translate' to convert it to English for your appraisal. Add tags and click 'Save' to finish.", 
+    highlightId: "tour-highlight-modal" 
+  },
+  { 
+    id: "step-6", 
+    title: "7. Automated PDP Goals", 
+    text: "Umbil works in the background. If you tag a topic (e.g., 'Asthma') 7 times, we'll automatically suggest a Personal Development Plan goal to help formalize your learning.", 
+    highlightId: null 
+  },
+  { 
+    id: "step-7", 
+    title: "8. Explore Analytics", 
+    text: "Open the menu to see your learning turn into visual charts. Track your GMC domain coverage, clinical topics, and maintain your streaks!", 
+    highlightId: "tour-highlight-sidebar" 
+  },
+  { 
+    id: "step-8", 
+    title: "You're all set!", 
+    text: "You can re-take this tour anytime from the menu. Happy learning!", 
+    highlightId: null 
+  },
 ];
 
 type QuickTourProps = {
@@ -31,7 +77,6 @@ export default function QuickTour({
   
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
 
-  // FIX: Wrap in useCallback so it can be a dependency
   const updatePosition = useCallback(() => {
     const step = tourSteps[currentStep];
     if (!step?.highlightId) {
@@ -58,7 +103,7 @@ export default function QuickTour({
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [isOpen, updatePosition]); // FIX: Added updatePosition to dependencies
+  }, [isOpen, updatePosition]);
 
   const handleNext = () => {
     const nextStep = currentStep + 1;
@@ -100,7 +145,7 @@ export default function QuickTour({
        boxStyle.left = '50%';
        boxStyle.transform = 'translate(-50%, -50%)';
     } 
-    else if (step.id === 'step-6') { 
+    else if (step.id === 'step-7') { // Analytics step (Sidebar)
       boxStyle.top = `${highlightRect.top + 20}px`;
       boxStyle.left = `${highlightRect.right + 20}px`;
       boxStyle.right = 'auto';

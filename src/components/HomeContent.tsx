@@ -73,7 +73,7 @@ const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSel
   const handleSelect = (id: ToolId) => { onSelect(id); setIsOpen(false); };
   
   return (
-    <div className="style-dropdown-container" ref={dropdownRef}>
+    <div id="tour-highlight-tools-dropdown" className="style-dropdown-container" ref={dropdownRef}>
       <button 
         className="action-icon-btn" 
         title="Medical Tools"
@@ -155,7 +155,7 @@ const SearchInputArea = ({
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // FIX: Extracted logic to reusable function
+  // Extracted logic to reusable function
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -176,7 +176,7 @@ const SearchInputArea = ({
         placeholder="Ask Umbil anything..."
         value={isTourOpen ? "What are the red flags for a headache?" : q}
         onChange={(e) => setQ(e.target.value)}
-        // FIX: Added onFocus and onClick to trigger expansion immediately
+        // Added onFocus and onClick to trigger expansion immediately
         onFocus={adjustHeight}
         onClick={adjustHeight}
         onKeyDown={(e) => {
@@ -212,7 +212,8 @@ const SearchInputArea = ({
             )}
           </button>
 
-          <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(2) : ask} disabled={loading || !q.trim()}>
+          {/* Tour Step 3 is now the answer, so we jump to index 3 */}
+          <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(3) : ask} disabled={loading || !q.trim()}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
         </div>
@@ -373,9 +374,11 @@ export default function HomeContent() {
 
   const handleTourStepChange = useCallback((stepIndex: number) => {
     setTourStep(stepIndex); 
-    if (stepIndex === 4) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); } 
+    // Step 5 (Index 5) is now the Reflect Modal
+    if (stepIndex === 5) { setCurrentCpdEntry(DUMMY_CPD_ENTRY); setIsModalOpen(true); } 
     else if (isModalOpen) { setIsModalOpen(false); }
-    if (stepIndex === 6) { const menuButton = document.getElementById("tour-highlight-sidebar-button"); menuButton?.click(); }
+    // Step 8 (Index 7) is Analytics/Sidebar
+    if (stepIndex === 7) { const menuButton = document.getElementById("tour-highlight-sidebar-button"); menuButton?.click(); }
   }, [isModalOpen]); 
 
   const handleTourClose = useCallback(() => {
@@ -481,7 +484,8 @@ export default function HomeContent() {
     await fetchUmbilResponse(updatedConversation, null, currentCid); 
   };
 
-  const convoToShow = isTourOpen && tourStep >= 2 ? DUMMY_TOUR_CONVERSATION : conversation;
+  // Show conversation only if tour step is >= 3 (Answer step)
+  const convoToShow = isTourOpen && tourStep >= 3 ? DUMMY_TOUR_CONVERSATION : conversation;
 
   const handleCopyMessage = (content: string) => { navigator.clipboard.writeText(content).then(() => setToastMessage("Copied to clipboard!")).catch((err) => { console.error(err); setToastMessage("❌ Failed to copy text."); }); };
   const handleShare = async () => {
@@ -510,7 +514,8 @@ export default function HomeContent() {
     setIsModalOpen(true);
   };
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
-    if (isTourOpen) { handleTourStepChange(5); return; }
+    // Step 5 is Modal/Reflection during tour
+    if (isTourOpen) { handleTourStepChange(6); return; }
     if (!currentCpdEntry) return;
     
     const isFirstLogToday = !hasLoggedToday;
@@ -556,6 +561,7 @@ export default function HomeContent() {
             <button className="action-button" onClick={() => handleCopyMessage(entry.content)} title="Copy this message"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy</button>
             {isLastMessage && !loading && entry.question && ( <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic"><svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive</button> )}
             {isLastMessage && !loading && ( <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate</button> )}
+            {/* Step 5 is now Modal opening */}
             <button id={isTourOpen ? "tour-highlight-cpd-button" : undefined} className="action-button" onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} title="Add reflection to your CPD log"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Log learning (CPD)</button>
           </div>
         )}
@@ -619,8 +625,9 @@ export default function HomeContent() {
       </div>
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
       
-      {(isModalOpen || (isTourOpen && tourStep === 4)) && (
-        <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 4 ? "tour-highlight-modal" : undefined} />
+      {/* Updated: Check for step 5 */}
+      {(isModalOpen || (isTourOpen && tourStep === 5)) && (
+        <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
       )}
       
       <StreakPopup 
