@@ -10,8 +10,14 @@ export default function SettingsPage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     const v = localStorage.getItem("no_phi_ack");
+    const comms = localStorage.getItem("comms_pref");
     setAccepted(v === "yes");
   }, []);
+
+  const saveCommsPref = () => {
+    localStorage.setItem("comms_pref", accepted ? "yes" : "no");
+    alert("Communication preferences saved.");
+  };
 
   const saveAck = () => {
     localStorage.setItem("no_phi_ack", accepted ? "yes" : "no");
@@ -42,6 +48,30 @@ export default function SettingsPage() {
     <section className="main-content">
       <div className="container">
         <h2>Settings</h2>
+
+        {/* Marketing Preferences*/}
+        <div className="card" style={{ marginTop: 24, marginBottom: 24}}>
+          <div className="card__body">
+            <h3 style={{ marginBottom: 12 }}>Communication Preferences</h3>
+            <p className="section-description" style={{ marginBottom: 16 }}>
+              Please select if you would like to opt-in to our updates and weekly newsletters:
+            </p>
+
+            {/*Checklist of comms preferences */}
+            <div style={{marginBottom: 16, paddingTop: 8}}>
+              <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input type="checkbox"/>
+                <label>General updates about Umbil and new upcoming features.</label>
+              </div>
+              <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input type="checkbox"/>
+                <label>Subscribe to our weekly newsletter on tips & best practices when using Umbil.</label>
+              </div>
+            </div>
+
+            <button className="btn btn--primary" onClick={saveCommsPref}>Save communication preferences</button>
+          </div>
+        </div>
 
         {/* GDPR Safety and Consent Check */}
         <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
