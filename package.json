@@ -24,6 +24,7 @@
     "react-markdown": "^10.1.0",
     "recharts": "^2.12.7",
     "remark-gfm": "^4.0.1",
+    "resend": "^6.5.2",
     "uuid": "^13.0.0"
   },
   "devDependencies": {

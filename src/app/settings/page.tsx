@@ -5,23 +5,43 @@ import { clearAll } from "@/lib/store";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { useTheme } from "@/hooks/useTheme"; // Import the hook
+import { useTheme } from "@/hooks/useTheme";
 
 export default function SettingsPage() {
+  // --- Existing State ---
   const [accepted, setAccepted] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // --- New Newsletter State ---
+  const [optInUpdates, setOptInUpdates] = useState(false);
+  const [optInNewsletter, setOptInNewsletter] = useState(false);
+
   const router = useRouter();
-  const { isDarkMode, toggleDarkMode } = useTheme(); // Use the hook
+  const { isDarkMode, toggleDarkMode } = useTheme();
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    
+    // Load GDPR Acknowledgement
     const v = localStorage.getItem("no_phi_ack");
     setAccepted(v === "yes");
+
+    // Load Communication Preferences
+    setOptInUpdates(localStorage.getItem("opt_in_updates") === "yes");
+    setOptInNewsletter(localStorage.getItem("opt_in_newsletter") === "yes");
   }, []);
+
+  // --- Handlers ---
 
   const saveAck = () => {
     localStorage.setItem("no_phi_ack", accepted ? "yes" : "no");
     alert("Safety setting saved.");
+  };
+
+  const saveCommsPref = () => {
+    localStorage.setItem("opt_in_updates", optInUpdates ? "yes" : "no");
+    localStorage.setItem("opt_in_newsletter", optInNewsletter ? "yes" : "no");
+    alert("Communication preferences saved.");
   };
 
   const deleteAccount = async () => {
@@ -125,6 +145,38 @@ export default function SettingsPage() {
           </div>
         </div>
 
+        {/* --- NEW: Communication Preferences Section --- */}
+        <div className="card" style={{ marginTop: 24, marginBottom: 24}}>
+          <div className="card__body">
+            <h3 style={{ marginBottom: 12 }}>Communication Preferences</h3>
+            <p className="section-description" style={{ marginBottom: 16 }}>
+              Please select if you would like to opt-in to our updates and weekly newsletters:
+            </p>
+
+            <div style={{marginBottom: 16, paddingTop: 8}}>
+              <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input 
+                    type="checkbox" 
+                    checked={optInUpdates} 
+                    onChange={(e) => setOptInUpdates(e.target.checked)} 
+                />
+                <label>General updates about Umbil and new upcoming features.</label>
+              </div>
+              <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
+                <input 
+                    type="checkbox" 
+                    checked={optInNewsletter} 
+                    onChange={(e) => setOptInNewsletter(e.target.checked)} 
+                />
+                <label>Subscribe to our weekly newsletter on tips & best practices.</label>
+              </div>
+            </div>
+
+            <button className="btn btn--primary" onClick={saveCommsPref}>Save Preferences</button>
+          </div>
+        </div>
+
+        {/* --- GDPR / Data Safety Checklist --- */}
         <div className="card" style={{ marginTop: 24, marginBottom: 24 }}>
           <div className="card__body">
             <h3 style={{marginBottom: 12}}>GDPR / Data Safety Checklist</h3>
@@ -151,6 +203,7 @@ export default function SettingsPage() {
           </div>
         </div>
         
+        {/* --- Danger Zone --- */}
         <div className="card" style={{ borderColor: '#fee2e2', backgroundColor: 'var(--umbil-surface)' }}>
           <div className="card__body">
             <h3 style={{marginBottom: 8, color: '#dc2626'}}>Danger Zone: Account Deletion</h3>
