@@ -6,29 +6,41 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/hooks/useTheme";
+// NEW: Import profile functions
+import { getMyProfile, upsertMyProfile } from "@/lib/profile";
 
 export default function SettingsPage() {
-  // --- Existing State ---
+  // State
   const [accepted, setAccepted] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [savingComms, setSavingComms] = useState(false);
   
-  // --- New Newsletter State ---
+  // Communication Preferences State
   const [optInUpdates, setOptInUpdates] = useState(false);
   const [optInNewsletter, setOptInNewsletter] = useState(false);
 
   const router = useRouter();
   const { isDarkMode, toggleDarkMode } = useTheme();
 
+  // --- Load Data from Database ---
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    
-    // Load GDPR Acknowledgement
-    const v = localStorage.getItem("no_phi_ack");
-    setAccepted(v === "yes");
+    // 1. Load LocalStorage items (GDPR is fine here as it's a UI acknowledgment)
+    if (typeof window !== "undefined") {
+      const v = localStorage.getItem("no_phi_ack");
+      setAccepted(v === "yes");
+    }
 
-    // Load Communication Preferences
-    setOptInUpdates(localStorage.getItem("opt_in_updates") === "yes");
-    setOptInNewsletter(localStorage.getItem("opt_in_newsletter") === "yes");
+    // 2. Load Profile Data from Supabase
+    const loadProfileSettings = async () => {
+      const profile = await getMyProfile();
+      if (profile) {
+        // Default to false if value is missing/null
+        setOptInUpdates(!!profile.opt_in_updates);
+        setOptInNewsletter(!!profile.opt_in_newsletter);
+      }
+    };
+    
+    loadProfileSettings();
   }, []);
 
   // --- Handlers ---
@@ -38,10 +50,21 @@ export default function SettingsPage() {
     alert("Safety setting saved.");
   };
 
-  const saveCommsPref = () => {
-    localStorage.setItem("opt_in_updates", optInUpdates ? "yes" : "no");
-    localStorage.setItem("opt_in_newsletter", optInNewsletter ? "yes" : "no");
-    alert("Communication preferences saved.");
+  // NEW: Save to Supabase
+  const saveCommsPref = async () => {
+    setSavingComms(true);
+    try {
+      await upsertMyProfile({
+        opt_in_updates: optInUpdates,
+        opt_in_newsletter: optInNewsletter
+      });
+      alert("Communication preferences saved to your profile.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to save preferences. Please try again.");
+    } finally {
+      setSavingComms(false);
+    }
   };
 
   const deleteAccount = async () => {
@@ -114,7 +137,6 @@ export default function SettingsPage() {
                 <div style={{ fontWeight: 500 }}>
                     {isDarkMode ? '🌙 Dark Mode' : '☀️ Light Mode'}
                 </div>
-                {/* Switch Toggle UI */}
                 <label className="switch" style={{ position: 'relative', display: 'inline-block', width: '36px', height: '20px' }}>
                     <input 
                         type="checkbox" 
@@ -145,7 +167,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* --- NEW: Communication Preferences Section --- */}
+        {/* --- Communication Preferences Section --- */}
         <div className="card" style={{ marginTop: 24, marginBottom: 24}}>
           <div className="card__body">
             <h3 style={{ marginBottom: 12 }}>Communication Preferences</h3>
@@ -156,23 +178,37 @@ export default function SettingsPage() {
             <div style={{marginBottom: 16, paddingTop: 8}}>
               <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input 
+                    id="opt-updates"
                     type="checkbox" 
                     checked={optInUpdates} 
                     onChange={(e) => setOptInUpdates(e.target.checked)} 
+                    style={{ cursor: 'pointer' }}
                 />
-                <label>General updates about Umbil and new upcoming features.</label>
+                <label htmlFor="opt-updates" style={{ cursor: 'pointer' }}>
+                    General updates about Umbil and new upcoming features.
+                </label>
               </div>
               <div style={{ marginBottom: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
                 <input 
+                    id="opt-newsletter"
                     type="checkbox" 
                     checked={optInNewsletter} 
                     onChange={(e) => setOptInNewsletter(e.target.checked)} 
+                    style={{ cursor: 'pointer' }}
                 />
-                <label>Subscribe to our weekly newsletter on tips & best practices.</label>
+                <label htmlFor="opt-newsletter" style={{ cursor: 'pointer' }}>
+                    Subscribe to our weekly newsletter on tips & best practices.
+                </label>
               </div>
             </div>
 
-            <button className="btn btn--primary" onClick={saveCommsPref}>Save Preferences</button>
+            <button 
+                className="btn btn--primary" 
+                onClick={saveCommsPref}
+                disabled={savingComms}
+            >
+                {savingComms ? "Saving..." : "Save Preferences"}
+            </button>
           </div>
         </div>
 

@@ -5,8 +5,10 @@ export type Profile = {
   id: string;
   full_name: string | null;
   grade: string | null;
-  // title: string | null; // This was correctly removed
-  dob: string | null; // ISO date
+  dob: string | null;
+  // NEW: Add these fields
+  opt_in_updates?: boolean;
+  opt_in_newsletter?: boolean;
 };
 
 export async function getMyProfile(): Promise<Profile | null> {
@@ -20,15 +22,15 @@ export async function getMyProfile(): Promise<Profile | null> {
     .single();
 
   if (error) {
-    // FIX: Check if this is a new user from sign-up
-    // The user exists in auth, but not in profiles yet.
-    // We check 'user_metadata' (not 'raw_user_meta_data')
-    if (user && user.user_metadata && (user.user_metadata.grade || user.user_metadata.full_name)) {
+    // If user exists in Auth but not Profile table yet, return basic metadata
+    if (user && user.user_metadata) {
       return {
         id: user.id,
         full_name: user.user_metadata.full_name || null,
         grade: user.user_metadata.grade || null,
         dob: null,
+        opt_in_updates: false,
+        opt_in_newsletter: false
       } as Profile;
     }
     return null;
@@ -40,18 +42,15 @@ export async function upsertMyProfile(p: Partial<Profile>) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Not signed in");
 
-  // --- THIS IS THE FIX ---
-  // We explicitly create the payload using only the properties
-  // defined in the 'Profile' type. This prevents any extra
-  // properties (like 'title') from being included and avoids
-  // both the 'no-unused-vars' and 'no-explicit-any' errors.
   const payload: Partial<Profile> = {
     id: user.id,
     full_name: p.full_name,
     grade: p.grade,
-    dob: p.dob
+    dob: p.dob,
+    // NEW: Include these in the save payload
+    opt_in_updates: p.opt_in_updates,
+    opt_in_newsletter: p.opt_in_newsletter
   };
-  // --- END OF FIX ---
 
   const { error } = await supabase.from("profiles").upsert(payload, { onConflict: "id" });
   if (error) throw error;
