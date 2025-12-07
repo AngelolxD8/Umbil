@@ -3,12 +3,12 @@ import { supabase } from "@/lib/supabase";
 
 export type Profile = {
   id: string;
+  email: string | null; // NEW: Added email
   full_name: string | null;
   grade: string | null;
   dob: string | null;
-  // NEW: Add these fields
-  opt_in_updates?: boolean;
-  opt_in_newsletter?: boolean;
+  opt_in_updates?: boolean;    // NEW: Newsletter field
+  opt_in_newsletter?: boolean; // NEW: Newsletter field
 };
 
 export async function getMyProfile(): Promise<Profile | null> {
@@ -23,11 +23,12 @@ export async function getMyProfile(): Promise<Profile | null> {
 
   if (error) {
     // If user exists in Auth but not Profile table yet, return basic metadata
-    if (user && user.user_metadata) {
+    if (user) {
       return {
         id: user.id,
-        full_name: user.user_metadata.full_name || null,
-        grade: user.user_metadata.grade || null,
+        email: user.email || null, // Use auth email as fallback
+        full_name: user.user_metadata?.full_name || null,
+        grade: user.user_metadata?.grade || null,
         dob: null,
         opt_in_updates: false,
         opt_in_newsletter: false
@@ -44,10 +45,10 @@ export async function upsertMyProfile(p: Partial<Profile>) {
 
   const payload: Partial<Profile> = {
     id: user.id,
+    email: user.email, // Always ensure email is kept in sync
     full_name: p.full_name,
     grade: p.grade,
     dob: p.dob,
-    // NEW: Include these in the save payload
     opt_in_updates: p.opt_in_updates,
     opt_in_newsletter: p.opt_in_newsletter
   };

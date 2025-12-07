@@ -1,11 +1,10 @@
-// src/app/page.tsx
 import { Suspense } from 'react';
-import HomeContent from '@/components/HomeContent';
+import MainWrapper from '@/components/MainWrapper';
 
 export default function Home() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <HomeContent />
+    <Suspense fallback={<div>Loading Umbil...</div>}>
+      <MainWrapper />
     </Suspense>
   );
 }
