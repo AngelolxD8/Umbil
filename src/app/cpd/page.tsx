@@ -9,59 +9,73 @@ import remarkGfm from "remark-gfm";
 
 const PAGE_SIZE = 10;
 
-// --- SUPER CLEANER FUNCTION ---
-// This strips all Markdown symbols so the CSV is plain and clean for SOAR.
-function cleanText(text: string): string {
+// --- 1. SUPER CLEANER (For CSV) ---
+// This strips symbols but keeps the text structure readable for Excel
+function cleanForCSV(text: string): string {
   if (!text) return "";
-  
   let clean = text;
 
-  // 1. Remove Table structure lines (e.g. |---|---|)
-  clean = clean.replace(/\|[\s-]+\|[\s-|]+/g, "");
-  
-  // 2. Replace Table pipes (|) with a simple separator
-  clean = clean.replace(/\|/g, " - ");
+  // Replace Markdown Tables with a list format
+  // e.g. | Drug | Dose | -> Drug: Dose
+  clean = clean.replace(/\|/g, " "); 
 
-  // 3. Remove Bold/Italic markers (** or __ or *)
-  clean = clean.replace(/\*\*/g, ""); // Remove double stars
-  clean = clean.replace(/__/g, "");   // Remove double underscores
-  clean = clean.replace(/\*/g, "");   // Remove single stars
+  // Remove Bold/Italic markers (** or __)
+  clean = clean.replace(/\*\*/g, ""); 
+  clean = clean.replace(/__/g, "");
+  clean = clean.replace(/\*/g, "");
 
-  // 4. Remove Headers (### Title -> Title)
-  clean = clean.replace(/^#+\s+/gm, "");
+  // Convert Markdown Headers (###) to Uppercase for emphasis in plain text
+  clean = clean.replace(/^### (.*$)/gm, (match, p1) => `\n[${p1.toUpperCase()}]`);
+  clean = clean.replace(/^## (.*$)/gm, (match, p1) => `\n[${p1.toUpperCase()}]`);
 
-  // 5. Turn list items (- item) into bullets (• item)
+  // Convert Lists (- item) to nice bullet points (• item)
   clean = clean.replace(/^\s*-\s+/gm, "• ");
+  clean = clean.replace(/^\s*\*\s+/gm, "• ");
 
-  // 6. Remove Links [text](url) -> keep just 'text'
+  // Remove links [text](url) -> keep just 'text'
   clean = clean.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 
-  // 7. Remove Horizontal Rules (---)
-  clean = clean.replace(/^-{3,}/gm, "");
-
-  // 8. Remove Code blocks (`)
-  clean = clean.replace(/`/g, "");
-
-  // 9. Collapse multiple newlines into just one or two
+  // Fix excessive newlines
   clean = clean.replace(/\n{3,}/g, "\n\n");
 
   return clean.trim();
 }
 
+// --- 2. MARKDOWN RESTORER (For PDF/Print) ---
+// This ensures the PDF keeps the Bold/Italics that the CSV loses
+function formatForPrint(text: string): string {
+  if (!text) return "";
+  let html = text
+    // Escape HTML characters to prevent injection
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    // Convert **bold** to <b>bold</b>
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    // Convert *italic* to <i>italic</i>
+    .replace(/\*(.*?)\*/g, '<i>$1</i>')
+    // Convert ### Header to <h3>Header</h3>
+    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+    // Convert - List item to <li>List item</li> (simplified)
+    .replace(/^\s*-\s+(.*$)/gm, '<li>$1</li>')
+    // Convert Newlines to <br>
+    .replace(/\n/g, '<br/>');
+
+  return html;
+}
+
 function toCSV(rows: CPDEntry[]) {
-  // BOM (Byte Order Mark) to force Excel to read UTF-8 correctly
+  // BOM (Byte Order Mark) forces Excel (Mac/Win) to use UTF-8
   const BOM = "\uFEFF"; 
-  
   const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
   
   const body = rows.map((r) => {
-    // Run the Super Cleaner on every text field
-    const q = cleanText(r.question || "");
-    const a = cleanText(r.answer || "");
-    const refl = cleanText(r.reflection || "");
+    // We use the Super Cleaner here
+    const q = cleanForCSV(r.question || "");
+    const a = cleanForCSV(r.answer || "");
+    const refl = cleanForCSV(r.reflection || "");
     const t = (r.tags || []).join("; ");
 
-    // Escape double quotes by doubling them (" -> "") to prevent CSV breaking
+    // CSV Formatting: Wrap in quotes, escape existing quotes
     return [
       r.timestamp,
       `"${q.replace(/"/g, '""')}"`,
@@ -80,7 +94,6 @@ function CPDInner() {
   
   const [q, setQ] = useState("");
   const [tag, setTag] = useState("");
-  
   const [currentPage, setCurrentPage] = useState(0);
   
   const [allTags, setAllTags] = useState<string[]>([]);
@@ -90,7 +103,6 @@ function CPDInner() {
     const fetchData = async () => {
       setLoading(true);
       const { data, error } = await getAllLogs();
-      
       if (error) {
         console.error("Error fetching CPD logs:", error);
       } else {
@@ -110,9 +122,7 @@ function CPDInner() {
         (e.answer || "").toLowerCase().includes(q.toLowerCase()) ||
         (e.reflection || "").toLowerCase().includes(q.toLowerCase())
       );
-      
       const matchesTag = !tag || (e.tags || []).includes(tag);
-      
       return matchesSearch && matchesTag;
     });
   }, [allEntries, q, tag]);
@@ -129,7 +139,7 @@ function CPDInner() {
     setCurrentPage(0);
   }, [q, tag]);
 
-  // --- CSV DOWNLOAD ---
+  // --- HANDLER: Download CSV ---
   const downloadCSV = () => {
     const csvContent = toCSV(filteredEntries);
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
@@ -143,7 +153,7 @@ function CPDInner() {
     URL.revokeObjectURL(url);
   };
 
-  // --- PRINT / PDF ---
+  // --- HANDLER: Print / PDF ---
   const printCPD = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -151,44 +161,60 @@ function CPDInner() {
         return;
     }
 
+    // We build a nice HTML page for the print view
     const htmlContent = `
       <html>
         <head>
           <title>Umbil CPD Log - ${new Date().toLocaleDateString()}</title>
           <style>
-            body { font-family: sans-serif; padding: 40px; color: #333; max-width: 800px; margin: 0 auto; }
-            h1 { color: #1fb8cd; border-bottom: 2px solid #eee; padding-bottom: 10px; }
-            .entry { margin-bottom: 30px; page-break-inside: avoid; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
-            .meta { font-size: 0.85rem; color: #666; margin-bottom: 10px; }
-            .question { font-weight: bold; font-size: 1.1rem; margin-bottom: 10px; }
-            .answer { font-size: 0.95rem; line-height: 1.5; margin-bottom: 15px; white-space: pre-wrap; }
-            .reflection { background: #f9f9f9; padding: 15px; border-left: 4px solid #1fb8cd; font-style: italic; }
-            .tags { margin-top: 10px; font-size: 0.8rem; }
-            .tag { background: #eee; padding: 2px 8px; border-radius: 4px; margin-right: 5px; border: 1px solid #ddd; }
-            @media print { .no-print { display: none; } }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; max-width: 850px; margin: 0 auto; }
+            h1 { color: #0e7490; border-bottom: 3px solid #0e7490; padding-bottom: 15px; margin-bottom: 30px; }
+            .meta-info { margin-bottom: 40px; color: #64748b; font-size: 0.9rem; }
+            .entry { margin-bottom: 35px; page-break-inside: avoid; border: 1px solid #e2e8f0; padding: 25px; border-radius: 12px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+            .date { font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+            .question { font-weight: 800; font-size: 1.15rem; margin-bottom: 15px; color: #0f172a; }
+            .answer { font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; color: #334155; }
+            .answer b { color: #0e7490; font-weight: 700; }
+            .answer h3, .answer h2 { margin-top: 10px; margin-bottom: 5px; font-size: 1rem; color: #0e7490; }
+            .answer li { margin-bottom: 4px; }
+            .reflection { background: #f0f9ff; padding: 15px 20px; border-left: 4px solid #0ea5e9; border-radius: 4px; margin-top: 15px; }
+            .reflection-label { font-weight: 700; font-size: 0.85rem; color: #0369a1; margin-bottom: 5px; text-transform: uppercase; }
+            .reflection-text { font-style: italic; color: #0c4a6e; font-size: 0.95rem; }
+            .tags { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px; }
+            .tag { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid #cbd5e1; }
+            @media print { 
+              body { padding: 0; background: white; } 
+              .no-print { display: none; }
+              .entry { box-shadow: none; border: 1px solid #ccc; }
+            }
           </style>
         </head>
         <body>
-          <h1>My CPD Log</h1>
-          <p>Generated by Umbil on ${new Date().toLocaleDateString()}</p>
-          <p class="no-print"><em>Press Cmd+P (Mac) or Ctrl+P (Windows) to save as PDF.</em></p>
+          <h1>My CPD Learning Log</h1>
+          <div class="meta-info">
+            Generated by Umbil on ${new Date().toLocaleDateString()} <br/>
+            ${filteredEntries.length} Entries found.
+            <p class="no-print" style="margin-top: 10px; color: #0e7490; font-weight: bold;">
+              👉 Press Cmd+P (Mac) or Ctrl+P (Windows) to save as PDF for SOAR/Appraisal.
+            </p>
+          </div>
           
-          ${filteredEntries.map(e => {
-             // We run basic cleaning for PDF view too, but keep newlines
-             const cleanA = cleanText(e.answer || "").replace(/\n/g, '<br/>');
-             const cleanR = cleanText(e.reflection || "").replace(/\n/g, '<br/>');
-             return `
+          ${filteredEntries.map(e => `
             <div class="entry">
-              <div class="meta">${new Date(e.timestamp).toLocaleString()}</div>
+              <div class="date">${new Date(e.timestamp).toLocaleDateString()} • ${new Date(e.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
               <div class="question">${e.question}</div>
-              <div class="answer">${cleanA}</div>
-              ${e.reflection ? `<div class="reflection"><strong>Reflection:</strong><br/>${cleanR}</div>` : ''}
+              <div class="answer">${formatForPrint(e.answer || "")}</div>
+              ${e.reflection ? `
+                <div class="reflection">
+                    <div class="reflection-label">My Reflection</div>
+                    <div class="reflection-text">${formatForPrint(e.reflection)}</div>
+                </div>` : ''}
               ${e.tags && e.tags.length > 0 ? `<div class="tags">${e.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
             </div>
-          `}).join('')}
+          `).join('')}
           
           <script>
-            window.onload = function() { setTimeout(() => window.print(), 500); }
+            window.onload = function() { setTimeout(() => window.print(), 800); }
           </script>
         </body>
       </html>
@@ -220,10 +246,10 @@ function CPDInner() {
           <h2>My CPD Learning Log</h2>
           {totalCount > 0 && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn--outline" onClick={printCPD} title="Save as PDF via Print">
-                🖨️ Print / Save PDF
+              <button className="btn btn--outline" onClick={printCPD} title="Best format for SOAR/Appraisal">
+                🖨️ Save as PDF
               </button>
-              <button className="btn btn--outline" onClick={downloadCSV} title="Download for Excel">
+              <button className="btn btn--outline" onClick={downloadCSV} title="Raw data for spreadsheets">
                 📥 Download CSV
               </button>
             </div>
@@ -284,7 +310,7 @@ function CPDInner() {
                       </button>
                   )}
                 </div>
-                {/* IN THE UI, WE STILL USE REACT MARKDOWN SO IT LOOKS PRETTY */}
+                {/* On screen, we keep it beautiful with ReactMarkdown */}
                 <div style={{ fontSize: '0.9rem' }}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
                 </div>
