@@ -9,51 +9,69 @@ import remarkGfm from "remark-gfm";
 
 const PAGE_SIZE = 10;
 
-// --- CLEANER FUNCTION ---
-// Removes Markdown symbols (*, #, |, ---) so the CSV looks clean
+// --- SUPER CLEANER FUNCTION ---
+// This strips all Markdown symbols so the CSV is plain and clean for SOAR.
 function cleanText(text: string): string {
   if (!text) return "";
-  return text
-    // Remove bold/italic markers (** or __)
-    .replace(/\*\*/g, "")
-    .replace(/__/g, "")
-    // Replace list bullets (* item) with a clean bullet (• item)
-    .replace(/^\s*\*\s/gm, "• ")
-    // Remove remaining single asterisks (italics)
-    .replace(/\*/g, "")
-    // Remove headers (###)
-    .replace(/#{1,6}\s?/g, "")
-    // Remove horizontal rules (---)
-    .replace(/^-{3,}/gm, "")
-    // Remove table formatting characters (|) and replace with space
-    .replace(/\|/g, " ")
-    // Remove links [text](url) -> just keep 'text'
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    // Remove code ticks (`)
-    .replace(/`/g, "")
-    // Collapse excessive newlines
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  
+  let clean = text;
+
+  // 1. Remove Table structure lines (e.g. |---|---|)
+  clean = clean.replace(/\|[\s-]+\|[\s-|]+/g, "");
+  
+  // 2. Replace Table pipes (|) with a simple separator
+  clean = clean.replace(/\|/g, " - ");
+
+  // 3. Remove Bold/Italic markers (** or __ or *)
+  clean = clean.replace(/\*\*/g, ""); // Remove double stars
+  clean = clean.replace(/__/g, "");   // Remove double underscores
+  clean = clean.replace(/\*/g, "");   // Remove single stars
+
+  // 4. Remove Headers (### Title -> Title)
+  clean = clean.replace(/^#+\s+/gm, "");
+
+  // 5. Turn list items (- item) into bullets (• item)
+  clean = clean.replace(/^\s*-\s+/gm, "• ");
+
+  // 6. Remove Links [text](url) -> keep just 'text'
+  clean = clean.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+
+  // 7. Remove Horizontal Rules (---)
+  clean = clean.replace(/^-{3,}/gm, "");
+
+  // 8. Remove Code blocks (`)
+  clean = clean.replace(/`/g, "");
+
+  // 9. Collapse multiple newlines into just one or two
+  clean = clean.replace(/\n{3,}/g, "\n\n");
+
+  return clean.trim();
 }
 
 function toCSV(rows: CPDEntry[]) {
+  // BOM (Byte Order Mark) to force Excel to read UTF-8 correctly
+  const BOM = "\uFEFF"; 
+  
   const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
+  
   const body = rows.map((r) => {
-    // Run the cleaner on text fields
+    // Run the Super Cleaner on every text field
     const q = cleanText(r.question || "");
     const a = cleanText(r.answer || "");
     const refl = cleanText(r.reflection || "");
     const t = (r.tags || []).join("; ");
 
+    // Escape double quotes by doubling them (" -> "") to prevent CSV breaking
     return [
       r.timestamp,
       `"${q.replace(/"/g, '""')}"`,
       `"${a.replace(/"/g, '""')}"`,
       `"${refl.replace(/"/g, '""')}"`,
       `"${t.replace(/"/g, '""')}"`,
-    ].join(",")
+    ].join(",");
   });
-  return [header.join(","), ...body].join("\n");
+
+  return BOM + [header.join(","), ...body].join("\n");
 }
 
 function CPDInner() {
@@ -65,11 +83,9 @@ function CPDInner() {
   
   const [currentPage, setCurrentPage] = useState(0);
   
-  // Derived state for filters
   const [allTags, setAllTags] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // 1. Load ALL data once on mount
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -79,7 +95,6 @@ function CPDInner() {
         console.error("Error fetching CPD logs:", error);
       } else {
         setAllEntries(data);
-        // Extract unique tags
         const tags = Array.from(new Set(data.flatMap((e) => e.tags || []))).sort();
         setAllTags(tags);
       }
@@ -88,7 +103,6 @@ function CPDInner() {
     fetchData();
   }, []);
 
-  // 2. Filter data in memory
   const filteredEntries = useMemo(() => {
     return allEntries.filter((e) => {
       const matchesSearch = !q || (
@@ -97,14 +111,12 @@ function CPDInner() {
         (e.reflection || "").toLowerCase().includes(q.toLowerCase())
       );
       
-      // Exact match for tags
       const matchesTag = !tag || (e.tags || []).includes(tag);
       
       return matchesSearch && matchesTag;
     });
   }, [allEntries, q, tag]);
 
-  // 3. Paginate the filtered results
   const paginatedList = useMemo(() => {
     const start = currentPage * PAGE_SIZE;
     return filteredEntries.slice(start, start + PAGE_SIZE);
@@ -113,16 +125,14 @@ function CPDInner() {
   const totalCount = filteredEntries.length;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  // Reset page when filters change
   useEffect(() => {
     setCurrentPage(0);
   }, [q, tag]);
 
-  // --- CSV Download Handler ---
+  // --- CSV DOWNLOAD ---
   const downloadCSV = () => {
-    const csvContent = toCSV(filteredEntries); 
-    // The \uFEFF is a BOM (Byte Order Mark). It forces Excel (Mac/Windows) to read UTF-8 correctly.
-    const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8" });
+    const csvContent = toCSV(filteredEntries);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -133,7 +143,7 @@ function CPDInner() {
     URL.revokeObjectURL(url);
   };
 
-  // --- Print / PDF Handler ---
+  // --- PRINT / PDF ---
   const printCPD = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -141,7 +151,6 @@ function CPDInner() {
         return;
     }
 
-    // Generate a clean, printer-friendly HTML view
     const htmlContent = `
       <html>
         <head>
@@ -164,18 +173,21 @@ function CPDInner() {
           <p>Generated by Umbil on ${new Date().toLocaleDateString()}</p>
           <p class="no-print"><em>Press Cmd+P (Mac) or Ctrl+P (Windows) to save as PDF.</em></p>
           
-          ${filteredEntries.map(e => `
+          ${filteredEntries.map(e => {
+             // We run basic cleaning for PDF view too, but keep newlines
+             const cleanA = cleanText(e.answer || "").replace(/\n/g, '<br/>');
+             const cleanR = cleanText(e.reflection || "").replace(/\n/g, '<br/>');
+             return `
             <div class="entry">
               <div class="meta">${new Date(e.timestamp).toLocaleString()}</div>
               <div class="question">${e.question}</div>
-              <div class="answer">${e.answer ? e.answer.replace(/\n/g, '<br/>') : ''}</div>
-              ${e.reflection ? `<div class="reflection"><strong>Reflection:</strong><br/>${e.reflection.replace(/\n/g, '<br/>')}</div>` : ''}
+              <div class="answer">${cleanA}</div>
+              ${e.reflection ? `<div class="reflection"><strong>Reflection:</strong><br/>${cleanR}</div>` : ''}
               ${e.tags && e.tags.length > 0 ? `<div class="tags">${e.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
             </div>
-          `).join('')}
+          `}).join('')}
           
           <script>
-            // Automatically trigger print dialog when fully loaded
             window.onload = function() { setTimeout(() => window.print(), 500); }
           </script>
         </body>
@@ -272,7 +284,7 @@ function CPDInner() {
                       </button>
                   )}
                 </div>
-                {/* We still use ReactMarkdown here for the UI, so it looks pretty in the app */}
+                {/* IN THE UI, WE STILL USE REACT MARKDOWN SO IT LOOKS PRETTY */}
                 <div style={{ fontSize: '0.9rem' }}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
                 </div>
