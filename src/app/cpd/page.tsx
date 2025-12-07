@@ -9,17 +9,50 @@ import remarkGfm from "remark-gfm";
 
 const PAGE_SIZE = 10;
 
+// --- CLEANER FUNCTION ---
+// Removes Markdown symbols (*, #, |, ---) so the CSV looks clean
+function cleanText(text: string): string {
+  if (!text) return "";
+  return text
+    // Remove bold/italic markers (** or __)
+    .replace(/\*\*/g, "")
+    .replace(/__/g, "")
+    // Replace list bullets (* item) with a clean bullet (• item)
+    .replace(/^\s*\*\s/gm, "• ")
+    // Remove remaining single asterisks (italics)
+    .replace(/\*/g, "")
+    // Remove headers (###)
+    .replace(/#{1,6}\s?/g, "")
+    // Remove horizontal rules (---)
+    .replace(/^-{3,}/gm, "")
+    // Remove table formatting characters (|) and replace with space
+    .replace(/\|/g, " ")
+    // Remove links [text](url) -> just keep 'text'
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+    // Remove code ticks (`)
+    .replace(/`/g, "")
+    // Collapse excessive newlines
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 function toCSV(rows: CPDEntry[]) {
   const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
-  const body = rows.map((r) =>
-    [
+  const body = rows.map((r) => {
+    // Run the cleaner on text fields
+    const q = cleanText(r.question || "");
+    const a = cleanText(r.answer || "");
+    const refl = cleanText(r.reflection || "");
+    const t = (r.tags || []).join("; ");
+
+    return [
       r.timestamp,
-      `"${(r.question || "").replace(/"/g, '""')}"`,
-      `"${(r.answer || "").replace(/"/g, '""')}"`,
-      `"${(r.reflection || "").replace(/"/g, '""')}"`,
-      `"${(r.tags || []).join("; ")}"`,
+      `"${q.replace(/"/g, '""')}"`,
+      `"${a.replace(/"/g, '""')}"`,
+      `"${refl.replace(/"/g, '""')}"`,
+      `"${t.replace(/"/g, '""')}"`,
     ].join(",")
-  );
+  });
   return [header.join(","), ...body].join("\n");
 }
 
@@ -36,7 +69,7 @@ function CPDInner() {
   const [allTags, setAllTags] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  // 1. Load ALL data once on mount (Client-side filtering strategy)
+  // 1. Load ALL data once on mount
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
@@ -64,7 +97,7 @@ function CPDInner() {
         (e.reflection || "").toLowerCase().includes(q.toLowerCase())
       );
       
-      // Exact match for tags is cleaner in JS
+      // Exact match for tags
       const matchesTag = !tag || (e.tags || []).includes(tag);
       
       return matchesSearch && matchesTag;
@@ -85,11 +118,10 @@ function CPDInner() {
     setCurrentPage(0);
   }, [q, tag]);
 
-  // --- FIX 1: Mac/SOAR Compatible CSV ---
+  // --- CSV Download Handler ---
   const downloadCSV = () => {
     const csvContent = toCSV(filteredEntries); 
-    // The \uFEFF is a BOM (Byte Order Mark). It tells Excel/Mac that this file is UTF-8.
-    // Without this, Mac saves it in a way that SOAR/Windows often rejects.
+    // The \uFEFF is a BOM (Byte Order Mark). It forces Excel (Mac/Windows) to read UTF-8 correctly.
     const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -101,7 +133,7 @@ function CPDInner() {
     URL.revokeObjectURL(url);
   };
 
-  // --- FIX 2: Print / PDF Option (Best for Appraisal) ---
+  // --- Print / PDF Handler ---
   const printCPD = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -176,7 +208,6 @@ function CPDInner() {
           <h2>My CPD Learning Log</h2>
           {totalCount > 0 && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              {/* Added the Print / PDF Button here */}
               <button className="btn btn--outline" onClick={printCPD} title="Save as PDF via Print">
                 🖨️ Print / Save PDF
               </button>
@@ -241,6 +272,7 @@ function CPDInner() {
                       </button>
                   )}
                 </div>
+                {/* We still use ReactMarkdown here for the UI, so it looks pretty in the app */}
                 <div style={{ fontSize: '0.9rem' }}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
                 </div>
