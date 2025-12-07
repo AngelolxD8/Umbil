@@ -6,82 +6,62 @@ import { CPDEntry, getAllLogs, deleteCPD } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { renderToStaticMarkup } from "react-dom/server"; // <--- THE SECRET INGREDIENT
 
 const PAGE_SIZE = 10;
 
-// --- 1. SUPER CLEANER (For CSV) ---
-// This strips symbols but keeps the text structure readable for Excel
+// --- 1. SUPER CLEANER (For CSV Only) ---
+// CSVs are plain text. They CANNOT have tables or bold.
+// We must strip everything down to readable text.
 function cleanForCSV(text: string): string {
   if (!text) return "";
   let clean = text;
 
-  // Replace Markdown Tables with a list format
-  // e.g. | Drug | Dose | -> Drug: Dose
-  clean = clean.replace(/\|/g, " "); 
+  // Remove Table separator lines (e.g. |---|---|)
+  clean = clean.replace(/^\|?[\s-]+\|[\s-]+\|?$/gm, "");
+  
+  // Replace Table pipes (|) with a simple separator
+  clean = clean.replace(/\|/g, " - "); 
 
-  // Remove Bold/Italic markers (** or __)
+  // Remove Bold/Italic markers
   clean = clean.replace(/\*\*/g, ""); 
   clean = clean.replace(/__/g, "");
   clean = clean.replace(/\*/g, "");
 
-  // Convert Markdown Headers (###) to Uppercase for emphasis in plain text
-  clean = clean.replace(/^### (.*$)/gm, (match, p1) => `\n[${p1.toUpperCase()}]`);
-  clean = clean.replace(/^## (.*$)/gm, (match, p1) => `\n[${p1.toUpperCase()}]`);
+  // Convert Headers (###) to Uppercase for emphasis
+  clean = clean.replace(/^#{1,6}\s+(.*$)/gm, (match, p1) => `\n[${p1.toUpperCase()}]`);
 
-  // Convert Lists (- item) to nice bullet points (• item)
-  clean = clean.replace(/^\s*-\s+/gm, "• ");
-  clean = clean.replace(/^\s*\*\s+/gm, "• ");
+  // Convert Lists to bullets
+  clean = clean.replace(/^\s*[-*]\s+/gm, "• ");
 
-  // Remove links [text](url) -> keep just 'text'
+  // Remove links
   clean = clean.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
 
-  // Fix excessive newlines
+  // Collapse newlines
   clean = clean.replace(/\n{3,}/g, "\n\n");
 
   return clean.trim();
 }
 
-// --- 2. MARKDOWN RESTORER (For PDF/Print) ---
-// This ensures the PDF keeps the Bold/Italics that the CSV loses
-function formatForPrint(text: string): string {
-  if (!text) return "";
-  let html = text
-    // Escape HTML characters to prevent injection
-    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-    // Convert **bold** to <b>bold</b>
-    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
-    // Convert *italic* to <i>italic</i>
-    .replace(/\*(.*?)\*/g, '<i>$1</i>')
-    // Convert ### Header to <h3>Header</h3>
-    .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-    .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-    // Convert - List item to <li>List item</li> (simplified)
-    .replace(/^\s*-\s+(.*$)/gm, '<li>$1</li>')
-    // Convert Newlines to <br>
-    .replace(/\n/g, '<br/>');
-
-  return html;
-}
-
 function toCSV(rows: CPDEntry[]) {
-  // BOM (Byte Order Mark) forces Excel (Mac/Win) to use UTF-8
   const BOM = "\uFEFF"; 
-  const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags"];
+  const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags", "GMC Domains"];
   
   const body = rows.map((r) => {
-    // We use the Super Cleaner here
     const q = cleanForCSV(r.question || "");
     const a = cleanForCSV(r.answer || "");
     const refl = cleanForCSV(r.reflection || "");
     const t = (r.tags || []).join("; ");
+    // Default domain if not tagged explicitly
+    const gmc = "Knowledge, Skills & Performance"; 
 
-    // CSV Formatting: Wrap in quotes, escape existing quotes
     return [
       r.timestamp,
       `"${q.replace(/"/g, '""')}"`,
       `"${a.replace(/"/g, '""')}"`,
       `"${refl.replace(/"/g, '""')}"`,
       `"${t.replace(/"/g, '""')}"`,
+      `"${gmc}"`
     ].join(",");
   });
 
@@ -146,14 +126,14 @@ function CPDInner() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `umbil_cpd_log_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `Umbil_Appraisal_Log_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // --- HANDLER: Print / PDF ---
+  // --- HANDLER: Print / PDF (The "Magic" Part) ---
   const printCPD = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -161,59 +141,115 @@ function CPDInner() {
         return;
     }
 
-    // We build a nice HTML page for the print view
+    // 1. Generate HTML for every entry using React's own renderer
+    // This preserves Tables, Bold, Italics exactly as they appear in the app!
+    const entriesHtml = filteredEntries.map(e => {
+        // Render the answer markdown to real HTML
+        const answerHtml = renderToStaticMarkup(
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {e.answer || ""}
+            </ReactMarkdown>
+        );
+        
+        // Render the reflection markdown to real HTML
+        const reflectionHtml = e.reflection ? renderToStaticMarkup(
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                {e.reflection}
+            </ReactMarkdown>
+        ) : "";
+
+        return `
+            <div class="entry">
+                <div class="entry-header">
+                    <div class="date">${new Date(e.timestamp).toLocaleDateString()}</div>
+                    <div class="type">Clinical Query / CPD</div>
+                </div>
+                
+                <div class="question">${e.question}</div>
+                
+                <div class="answer markdown-body">
+                    ${answerHtml}
+                </div>
+                
+                ${reflectionHtml ? `
+                <div class="reflection-box">
+                    <div class="reflection-title">My Reflection</div>
+                    <div class="reflection-content markdown-body">${reflectionHtml}</div>
+                </div>` : ''}
+                
+                <div class="tags">
+                    <strong>Tags:</strong> ${e.tags && e.tags.length > 0 ? e.tags.join(", ") : "General"}
+                </div>
+            </div>
+        `;
+    }).join('');
+
+    // 2. Build the full page with CSS specifically for Tables
     const htmlContent = `
       <html>
         <head>
-          <title>Umbil CPD Log - ${new Date().toLocaleDateString()}</title>
+          <title>Medical Appraisal Log - ${new Date().toLocaleDateString()}</title>
           <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; max-width: 850px; margin: 0 auto; }
-            h1 { color: #0e7490; border-bottom: 3px solid #0e7490; padding-bottom: 15px; margin-bottom: 30px; }
-            .meta-info { margin-bottom: 40px; color: #64748b; font-size: 0.9rem; }
-            .entry { margin-bottom: 35px; page-break-inside: avoid; border: 1px solid #e2e8f0; padding: 25px; border-radius: 12px; background: white; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-            .date { font-size: 0.85rem; color: #94a3b8; margin-bottom: 8px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-            .question { font-weight: 800; font-size: 1.15rem; margin-bottom: 15px; color: #0f172a; }
-            .answer { font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; color: #334155; }
-            .answer b { color: #0e7490; font-weight: 700; }
-            .answer h3, .answer h2 { margin-top: 10px; margin-bottom: 5px; font-size: 1rem; color: #0e7490; }
-            .answer li { margin-bottom: 4px; }
-            .reflection { background: #f0f9ff; padding: 15px 20px; border-left: 4px solid #0ea5e9; border-radius: 4px; margin-top: 15px; }
-            .reflection-label { font-weight: 700; font-size: 0.85rem; color: #0369a1; margin-bottom: 5px; text-transform: uppercase; }
-            .reflection-text { font-style: italic; color: #0c4a6e; font-size: 0.95rem; }
-            .tags { margin-top: 15px; display: flex; flex-wrap: wrap; gap: 8px; }
-            .tag { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; border: 1px solid #cbd5e1; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; max-width: 850px; margin: 0 auto; line-height: 1.6; }
+            h1 { color: #0e7490; border-bottom: 3px solid #0e7490; padding-bottom: 15px; margin-bottom: 10px; }
+            .subtitle { font-size: 1.1rem; color: #64748b; margin-bottom: 30px; font-weight: 500; }
+            
+            /* Report Meta Box */
+            .report-meta { background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px; font-size: 0.9rem; }
+            
+            /* Entry Card */
+            .entry { margin-bottom: 35px; page-break-inside: avoid; border: 1px solid #cbd5e1; padding: 25px; border-radius: 8px; background: white; }
+            .entry-header { display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
+            .date { font-weight: 700; color: #0e7490; }
+            .type { color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+            .question { font-weight: 800; font-size: 1.25rem; margin-bottom: 15px; color: #0f172a; line-height: 1.3; }
+            
+            /* MARKDOWN CONTENT STYLES (Tables, Bold, etc) */
+            .markdown-body { font-size: 0.95rem; color: #334155; }
+            .markdown-body strong { color: #0e7490; font-weight: 700; }
+            .markdown-body ul, .markdown-body ol { margin-left: 20px; margin-bottom: 10px; }
+            .markdown-body h3 { margin-top: 15px; margin-bottom: 5px; font-size: 1.1rem; color: #0e7490; }
+            
+            /* TABLE STYLES - This fixes your issue! */
+            .markdown-body table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.9rem; }
+            .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+            .markdown-body th { background-color: #f1f5f9; font-weight: 700; color: #0f172a; }
+            .markdown-body tr:nth-child(even) { background-color: #f8fafc; }
+
+            /* Reflection Box */
+            .reflection-box { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 15px; border-radius: 4px; margin-top: 20px; }
+            .reflection-title { font-weight: 700; color: #166534; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px; }
+            .reflection-content { font-style: italic; color: #14532d; }
+            
+            .tags { margin-top: 15px; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+            
             @media print { 
               body { padding: 0; background: white; } 
               .no-print { display: none; }
               .entry { box-shadow: none; border: 1px solid #ccc; }
+              /* Ensure backgrounds print */
+              .reflection-box, .markdown-body th, .markdown-body tr:nth-child(even) { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             }
           </style>
         </head>
         <body>
-          <h1>My CPD Learning Log</h1>
-          <div class="meta-info">
-            Generated by Umbil on ${new Date().toLocaleDateString()} <br/>
-            ${filteredEntries.length} Entries found.
-            <p class="no-print" style="margin-top: 10px; color: #0e7490; font-weight: bold;">
-              👉 Press Cmd+P (Mac) or Ctrl+P (Windows) to save as PDF for SOAR/Appraisal.
-            </p>
+          <h1>Medical Appraisal CPD Log</h1>
+          <div class="subtitle">Continuing Professional Development Portfolio</div>
+          
+          <div class="report-meta">
+            <strong>Generated by:</strong> Umbil Clinical Assistant<br/>
+            <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/>
+            <strong>Total Entries:</strong> ${filteredEntries.length}<br/>
+            <div class="no-print" style="margin-top: 10px; color: #0e7490; font-weight: 600;">
+              👉 Action: Press Print (Cmd+P / Ctrl+P) and choose "Save as PDF". <br/>
+              This file retains all formatting (tables, bold, etc.) for upload to FourteenFish / SOAR.
+            </div>
           </div>
           
-          ${filteredEntries.map(e => `
-            <div class="entry">
-              <div class="date">${new Date(e.timestamp).toLocaleDateString()} • ${new Date(e.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
-              <div class="question">${e.question}</div>
-              <div class="answer">${formatForPrint(e.answer || "")}</div>
-              ${e.reflection ? `
-                <div class="reflection">
-                    <div class="reflection-label">My Reflection</div>
-                    <div class="reflection-text">${formatForPrint(e.reflection)}</div>
-                </div>` : ''}
-              ${e.tags && e.tags.length > 0 ? `<div class="tags">${e.tags.map(t => `<span class="tag">${t}</span>`).join('')}</div>` : ''}
-            </div>
-          `).join('')}
+          ${entriesHtml}
           
           <script>
+            // Auto-trigger print dialog
             window.onload = function() { setTimeout(() => window.print(), 800); }
           </script>
         </body>
@@ -246,10 +282,10 @@ function CPDInner() {
           <h2>My CPD Learning Log</h2>
           {totalCount > 0 && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn--outline" onClick={printCPD} title="Best format for SOAR/Appraisal">
-                🖨️ Save as PDF
+              <button className="btn btn--outline" onClick={printCPD} title="Download PDF for Appraisal">
+                🖨️ Export PDF Report
               </button>
-              <button className="btn btn--outline" onClick={downloadCSV} title="Raw data for spreadsheets">
+              <button className="btn btn--outline" onClick={downloadCSV} title="Download raw data for Excel">
                 📥 Download CSV
               </button>
             </div>
@@ -310,15 +346,17 @@ function CPDInner() {
                       </button>
                   )}
                 </div>
-                {/* On screen, we keep it beautiful with ReactMarkdown */}
+                
                 <div style={{ fontSize: '0.9rem' }}>
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
                 </div>
+                
                 {e.reflection && (
                   <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--umbil-divider)', fontStyle: 'italic', color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
                     <strong>Reflection:</strong> {e.reflection}
                   </div>
                 )}
+                
                 <div style={{ marginTop: 12 }}>
                   {(e.tags || []).map((t) => (
                     <span key={t} style={{ marginRight: 8, padding: '4px 8px', borderRadius: 12, backgroundColor: 'var(--umbil-hover-bg)', fontSize: '0.8rem', color: 'var(--umbil-text)', fontWeight: 500 }}>
