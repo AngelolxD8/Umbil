@@ -1,7 +1,6 @@
 // src/components/HomeContent.tsx
 "use client";
 
-// ... existing imports ...
 import { useState, useRef, useEffect, useCallback } from "react";
 import dynamic from 'next/dynamic'; 
 import ReactMarkdown from "react-markdown";
@@ -17,12 +16,13 @@ import { v4 as uuidv4 } from 'uuid';
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { ToolId, TOOLS_CONFIG } from "@/components/ToolsModal"; 
 
-// ... Keep your existing dynamic imports and Types ...
+// --- Dynamic Imports ---
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
 const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
 const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
 
+// --- Types ---
 type AnswerStyle = "clinic" | "standard" | "deepDive";
 type AskResponse = { answer?: string; error?: string; };
 type ConversationEntry = { type: "user" | "umbil"; content: string; question?: string; };
@@ -37,7 +37,8 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
 
-// ... Keep your sub-components (TourWelcomeModal, ToolsDropdown, etc) unchanged ...
+// --- Sub-components ---
+
 function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: () => void }) {
   return (
     <div className="modal-overlay">
@@ -56,10 +57,11 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
   );
 }
 
-// Re-paste ToolsDropdown and AnswerStyleDropdown exactly as they were in your previous file
+// --- NEW TOOLS DROPDOWN ---
 const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false);
@@ -67,15 +69,22 @@ const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSel
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
   const handleSelect = (id: ToolId) => { onSelect(id); setIsOpen(false); };
+  
   return (
     <div id="tour-highlight-tools-dropdown" className="style-dropdown-container" ref={dropdownRef}>
-      <button className="action-icon-btn" title="Medical Tools" onClick={() => setIsOpen(!isOpen)}>
+      <button 
+        className="action-icon-btn" 
+        title="Medical Tools"
+        onClick={() => setIsOpen(!isOpen)}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <span style={{ fontSize: '1.1rem' }}>✨</span>
           <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Tools</span>
         </div>
       </button>
+      
       {isOpen && (
         <div className="style-dropdown-menu" style={{ minWidth: '180px' }}>
           {TOOLS_CONFIG.map((tool) => (
@@ -92,6 +101,7 @@ const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSel
 const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: (style: AnswerStyle) => void; }> = ({ currentStyle, onStyleChange }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) setIsOpen(false);
@@ -99,7 +109,9 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
   const handleSelect = (style: AnswerStyle) => { onStyleChange(style); setIsOpen(false); };
+  
   return (
     <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef}>
       <button className="style-dropdown-button" onClick={() => setIsOpen(!isOpen)} title="Change answer style">
@@ -117,7 +129,11 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
   );
 };
 
-// ... Keep SearchInputArea unchanged ...
+const getErrorMessage = (err: unknown): string => {
+  if (err instanceof Error) return err.message;
+  return "An unexpected error occurred.";
+};
+
 type SearchInputAreaProps = {
   q: string;
   setQ: (val: string) => void;
@@ -138,13 +154,18 @@ const SearchInputArea = ({
   setAnswerStyle, onToolSelect, handleTourStepChange 
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Helper to adjust height immediately
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 200) + 'px';
     }
   }, []);
-  useEffect(() => { adjustHeight(); }, [q, adjustHeight]);
+
+  useEffect(() => {
+    adjustHeight();
+  }, [q, adjustHeight]);
 
   return (
     <div id="tour-highlight-askbar" className="ask-bar-container-new">
@@ -156,19 +177,39 @@ const SearchInputArea = ({
         onChange={(e) => setQ(e.target.value)}
         onFocus={adjustHeight}
         onClick={adjustHeight}
-        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            ask();
+          }
+        }}
         disabled={isTourOpen}
         rows={1}
       />
+      
       <div className="ask-bar-actions">
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <ToolsDropdown onSelect={onToolSelect} />
         </div>
+
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
-          <button className={`action-icon-btn ${isRecording ? "recording" : ""}`} onClick={handleMicClick} disabled={loading || isTourOpen} title={isRecording ? "Stop Recording" : "Start Dictation"}>
-            {isRecording ? ( <div className="recording-pulse"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></div> ) : ( <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg> )}
+
+          <button 
+            className={`action-icon-btn ${isRecording ? "recording" : ""}`}
+            onClick={handleMicClick}
+            disabled={loading || isTourOpen}
+            title={isRecording ? "Stop Recording" : "Start Dictation"}
+          >
+            {isRecording ? (
+                <div className="recording-pulse">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                </div>
+            ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            )}
           </button>
+
           <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(3) : ask} disabled={loading || !q.trim()}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
@@ -176,11 +217,6 @@ const SearchInputArea = ({
       </div>
     </div>
   );
-};
-
-const getErrorMessage = (err: unknown): string => {
-  if (err instanceof Error) return err.message;
-  return "An unexpected error occurred.";
 };
 
 // --- UPDATED MAIN COMPONENT ---
@@ -249,7 +285,8 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       setQ("");
       setConversationId(null);
       if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
-      router.replace("/", { scroll: false });
+      // UPDATED: Redirect to dashboard
+      router.replace("/dashboard", { scroll: false });
       return;
     }
 
@@ -284,9 +321,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
 
   }, [searchParams, email, router, userLoading, conversationId, forceStartTour]);
 
-  // ... (Rest of the component logic: ask(), renderMessage(), etc. remains exactly the same)
-  // ... Paste the rest of your HomeContent.tsx logic here ... 
-  
   useEffect(() => {
     if (typeof window !== 'undefined' && window.visualViewport) {
       const handleResize = () => { scrollToBottom(true); };
@@ -394,7 +428,12 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
     let currentCid = conversationId;
-    if (!currentCid) { currentCid = uuidv4(); setConversationId(currentCid); router.replace(`/?c=${currentCid}`, { scroll: false }); }
+    if (!currentCid) { 
+        currentCid = uuidv4(); 
+        setConversationId(currentCid); 
+        // UPDATED: Redirect to dashboard with conversation ID
+        router.replace(`/dashboard?c=${currentCid}`, { scroll: false }); 
+    }
     const newQuestion = q;
     setQ("");
     const updatedConversation: ConversationEntry[] = [...conversation, { type: "user", content: newQuestion, question: newQuestion }];

@@ -15,7 +15,6 @@ type MobileNavProps = {
   isOpen: boolean;
   onClose: () => void;
   userEmail: string | null;
-  // Removed isDarkMode props
 };
 
 export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps) {
@@ -52,13 +51,27 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
     if (isOpen) loadData();
   }, [email, isOpen]);
 
-  const handleNewChat = () => { onClose(); router.push(`/?new-chat=${Date.now()}`); };
-  const handleSignOut = async () => { await supabase.auth.signOut(); onClose(); router.push("/"); };
-  const handleStartTour = () => { onClose(); router.push(`/?tour=true&forceTour=true&new-chat=${Date.now()}`); };
+  // --- UPDATED HANDLERS FOR DASHBOARD ROUTING ---
+  const handleNewChat = () => { 
+    onClose(); 
+    router.push(`/dashboard?new-chat=${Date.now()}`); 
+  };
+
+  const handleStartTour = () => { 
+    onClose(); 
+    router.push(`/dashboard?tour=true&forceTour=true&new-chat=${Date.now()}`); 
+  };
 
   const handleHistoryClick = (id: string) => {
       onClose();
-      router.push(`/?c=${id}`);
+      router.push(`/dashboard?c=${id}`);
+  };
+  // ---------------------------------------------
+
+  const handleSignOut = async () => { 
+    await supabase.auth.signOut(); 
+    onClose(); 
+    router.push("/"); 
   };
 
   const handleInvite = async () => {
@@ -171,8 +184,6 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
                     <button className="sign-out-btn" onClick={handleSignOut}>Sign Out</button>
                 </div>
             )}
-            
-            {/* REMOVED DARK MODE TOGGLE FROM HERE */}
         </div>
 
       </div>

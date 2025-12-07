@@ -1,3 +1,4 @@
+// src/components/ClientLayout.tsx
 "use client";
 
 import { useState } from "react";
@@ -36,9 +37,6 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
 
   return (
     <ThemeProvider>
-      {/* We apply the styling to a div wrapper instead of body to avoid hydration errors 
-          when mixing server/client layouts, though applying classes to body in layout.tsx is standard.
-          Here we keep the structure simple. */}
       <div id="root" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
         <header className="header" style={{ flexShrink: 0 }}>
           <div className="header-left">
@@ -55,7 +53,8 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
           </div>
 
           <div className="logo-section">
-            <Link href="/?new-chat=true" className="logo-link">
+            {/* LOGIC CHANGE: If logged in, go to Dashboard. If not, go to Landing Page. */}
+            <Link href={email ? "/dashboard" : "/"} className="logo-link">
               <h2 className="umbil-logo-text">Umbil</h2>
               <p className="tagline">Your Medical Lifeline</p>
             </Link>

@@ -1,38 +1,28 @@
-// src/components/MainWrapper.tsx
 "use client";
 
 import { useUserEmail } from "@/hooks/useUser";
 import HomeContent from "@/components/HomeContent";
-import LandingPage from "@/components/LandingPage";
 import { useEffect, useState } from "react";
-
-type ViewState = 'loading' | 'landing' | 'app';
+import { useRouter } from "next/navigation";
 
 export default function MainWrapper() {
   const { email, loading } = useUserEmail();
-  const [view, setView] = useState<ViewState>('loading');
-  const [startDemoTour, setStartDemoTour] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     if (!loading) {
       if (email) {
-        setView('app');
+        setIsAuthenticated(true);
       } else {
-        // If we are already in demo mode (user clicked the button), don't revert to landing
-        if (!startDemoTour) {
-          setView('landing');
-        }
+        // If user is trying to access dashboard but not logged in, send them to login
+        router.push("/auth");
       }
     }
-  }, [loading, email, startDemoTour]);
+  }, [loading, email, router]);
 
-  const handleStartDemo = () => {
-    setStartDemoTour(true);
-    setView('app');
-  };
-
-  if (view === 'loading') {
-    // A clean, minimal loading state that matches the brand
+  // Show loading spinner while checking auth
+  if (loading || !isAuthenticated) {
     return (
       <div style={{ 
         display: 'flex', 
@@ -54,10 +44,7 @@ export default function MainWrapper() {
     );
   }
 
-  if (view === 'landing') {
-    return <LandingPage onStartDemo={handleStartDemo} />;
-  }
-
-  // Pass the forceTour prop if we are in demo mode
-  return <HomeContent forceStartTour={startDemoTour} />;
+  // Once authenticated, render the App content
+  // Note: HomeContent can handle the 'forceStartTour' prop via URL params logic inside it
+  return <HomeContent />;
 }
