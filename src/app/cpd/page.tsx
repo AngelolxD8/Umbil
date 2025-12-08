@@ -6,62 +6,73 @@ import { CPDEntry, getAllLogs, deleteCPD } from "@/lib/store";
 import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { renderToStaticMarkup } from "react-dom/server"; // <--- THE SECRET INGREDIENT
 
 const PAGE_SIZE = 10;
+const DEFAULT_CREDITS = 1; // Assume 1 hour per reflective entry
 
-// --- 1. SUPER CLEANER (For CSV Only) ---
-// CSVs are plain text. They CANNOT have tables or bold.
-// We must strip everything down to readable text.
+// --- 1. SUPER CLEANER (For Excel/CSV) ---
 function cleanForCSV(text: string): string {
   if (!text) return "";
   let clean = text;
-
-  // Remove Table separator lines (e.g. |---|---|)
-  clean = clean.replace(/^\|?[\s-]+\|[\s-]+\|?$/gm, "");
-  
-  // Replace Table pipes (|) with a simple separator
   clean = clean.replace(/\|/g, " - "); 
-
-  // Remove Bold/Italic markers
   clean = clean.replace(/\*\*/g, ""); 
   clean = clean.replace(/__/g, "");
   clean = clean.replace(/\*/g, "");
-
-  // Convert Headers (###) to Uppercase for emphasis
   clean = clean.replace(/^#{1,6}\s+(.*$)/gm, (match, p1) => `\n[${p1.toUpperCase()}]`);
-
-  // Convert Lists to bullets
   clean = clean.replace(/^\s*[-*]\s+/gm, "• ");
-
-  // Remove links
   clean = clean.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
-
-  // Collapse newlines
   clean = clean.replace(/\n{3,}/g, "\n\n");
-
   return clean.trim();
 }
 
+// --- 2. MARKDOWN RESTORER (For PDF) ---
+function formatForPrint(text: string): string {
+  if (!text) return "";
+  let html = text
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/^### (.*$)/gm, '<h3 style="color:#0e7490; margin-top:12px; margin-bottom:4px; font-size:1rem;">$1</h3>')
+    .replace(/^## (.*$)/gm, '<h2 style="color:#0e7490; margin-top:16px; margin-bottom:8px; font-size:1.1rem;">$1</h2>')
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.*?)\*/g, '<i>$1</i>')
+    .replace(/^\s*[-*]\s+(.*$)/gm, '<div style="margin-left:15px; margin-bottom:2px;">• $1</div>')
+    .replace(/\n/g, '<br/>');
+  return html;
+}
+
+// --- 3. SOAR-COMPATIBLE CSV GENERATOR ---
 function toCSV(rows: CPDEntry[]) {
   const BOM = "\uFEFF"; 
-  const header = ["Timestamp", "Question", "Answer", "Reflection", "Tags", "GMC Domains"];
+  // HEADERS MATCHING SOAR / FOURTEENFISH EXPECTATIONS
+  const header = [
+    "Date", 
+    "Learning Activity / Topic", // Maps to 'Question'
+    "Description",               // Maps to 'Answer'
+    "Reflection",                // Critical for appraisal
+    "GMC Domain",                // Mandatory for UK
+    "Credits Claimed",           // Mandatory for SOAR
+    "Tags"
+  ];
   
   const body = rows.map((r) => {
     const q = cleanForCSV(r.question || "");
     const a = cleanForCSV(r.answer || "");
     const refl = cleanForCSV(r.reflection || "");
     const t = (r.tags || []).join("; ");
-    // Default domain if not tagged explicitly
-    const gmc = "Knowledge, Skills & Performance"; 
+    
+    // Auto-detect Domain from tags, or default
+    let domain = "Knowledge, Skills and Performance";
+    if (t.toLowerCase().includes("safety")) domain = "Safety and Quality";
+    if (t.toLowerCase().includes("communication")) domain = "Communication, Partnership and Teamwork";
+    if (t.toLowerCase().includes("trust")) domain = "Maintaining Trust";
 
     return [
-      r.timestamp,
+      new Date(r.timestamp).toLocaleDateString(),
       `"${q.replace(/"/g, '""')}"`,
       `"${a.replace(/"/g, '""')}"`,
       `"${refl.replace(/"/g, '""')}"`,
+      `"${domain}"`,
+      `"${DEFAULT_CREDITS}"`, // Default to 1 credit per entry
       `"${t.replace(/"/g, '""')}"`,
-      `"${gmc}"`
     ].join(",");
   });
 
@@ -115,6 +126,18 @@ function CPDInner() {
   const totalCount = filteredEntries.length;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
+  // Calculate Summary Stats for the PDF Dashboard
+  const totalCredits = filteredEntries.length * DEFAULT_CREDITS;
+  const domainCounts = filteredEntries.reduce((acc, curr) => {
+    const t = (curr.tags || []).join(" ").toLowerCase();
+    let d = "Knowledge, Skills & Performance";
+    if (t.includes("safety")) d = "Safety & Quality";
+    else if (t.includes("communication")) d = "Communication, Partnership & Teamwork";
+    else if (t.includes("trust")) d = "Maintaining Trust";
+    acc[d] = (acc[d] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
   useEffect(() => {
     setCurrentPage(0);
   }, [q, tag]);
@@ -133,7 +156,7 @@ function CPDInner() {
     URL.revokeObjectURL(url);
   };
 
-  // --- HANDLER: Print / PDF (The "Magic" Part) ---
+  // --- HANDLER: Print / PDF (GOLD STANDARD REPORT) ---
   const printCPD = () => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) {
@@ -141,115 +164,123 @@ function CPDInner() {
         return;
     }
 
-    // 1. Generate HTML for every entry using React's own renderer
-    // This preserves Tables, Bold, Italics exactly as they appear in the app!
-    const entriesHtml = filteredEntries.map(e => {
-        // Render the answer markdown to real HTML
-        const answerHtml = renderToStaticMarkup(
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {e.answer || ""}
-            </ReactMarkdown>
-        );
-        
-        // Render the reflection markdown to real HTML
-        const reflectionHtml = e.reflection ? renderToStaticMarkup(
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                {e.reflection}
-            </ReactMarkdown>
-        ) : "";
-
-        return `
-            <div class="entry">
-                <div class="entry-header">
-                    <div class="date">${new Date(e.timestamp).toLocaleDateString()}</div>
-                    <div class="type">Clinical Query / CPD</div>
-                </div>
-                
-                <div class="question">${e.question}</div>
-                
-                <div class="answer markdown-body">
-                    ${answerHtml}
-                </div>
-                
-                ${reflectionHtml ? `
-                <div class="reflection-box">
-                    <div class="reflection-title">My Reflection</div>
-                    <div class="reflection-content markdown-body">${reflectionHtml}</div>
-                </div>` : ''}
-                
-                <div class="tags">
-                    <strong>Tags:</strong> ${e.tags && e.tags.length > 0 ? e.tags.join(", ") : "General"}
-                </div>
-            </div>
-        `;
-    }).join('');
-
-    // 2. Build the full page with CSS specifically for Tables
     const htmlContent = `
       <html>
         <head>
-          <title>Medical Appraisal Log - ${new Date().toLocaleDateString()}</title>
+          <title>Annual Appraisal Summary - ${new Date().toLocaleDateString()}</title>
           <style>
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; max-width: 850px; margin: 0 auto; line-height: 1.6; }
-            h1 { color: #0e7490; border-bottom: 3px solid #0e7490; padding-bottom: 15px; margin-bottom: 10px; }
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px; color: #1e293b; max-width: 850px; margin: 0 auto; line-height: 1.5; }
+            
+            /* Header */
+            h1 { color: #0e7490; border-bottom: 3px solid #0e7490; padding-bottom: 10px; margin-bottom: 5px; }
             .subtitle { font-size: 1.1rem; color: #64748b; margin-bottom: 30px; font-weight: 500; }
             
-            /* Report Meta Box */
-            .report-meta { background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px; font-size: 0.9rem; }
+            /* Dashboard Box */
+            .dashboard { display: flex; gap: 20px; margin-bottom: 40px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 20px; }
+            .stat-box { flex: 1; text-align: center; border-right: 1px solid #e2e8f0; }
+            .stat-box:last-child { border-right: none; }
+            .stat-val { display: block; font-size: 2rem; font-weight: 800; color: #0e7490; }
+            .stat-label { font-size: 0.85rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+            
+            /* Domain Summary */
+            .domain-summary { margin-bottom: 40px; }
+            .domain-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; font-size: 0.9rem; }
+            .domain-name { font-weight: 600; color: #334155; }
             
             /* Entry Card */
-            .entry { margin-bottom: 35px; page-break-inside: avoid; border: 1px solid #cbd5e1; padding: 25px; border-radius: 8px; background: white; }
+            .entry { margin-bottom: 30px; page-break-inside: avoid; border: 1px solid #cbd5e1; padding: 25px; border-radius: 8px; background: white; }
             .entry-header { display: flex; justify-content: space-between; margin-bottom: 15px; border-bottom: 1px solid #f1f5f9; padding-bottom: 10px; }
             .date { font-weight: 700; color: #0e7490; }
-            .type { color: #64748b; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
-            .question { font-weight: 800; font-size: 1.25rem; margin-bottom: 15px; color: #0f172a; line-height: 1.3; }
+            .credits { background: #0e7490; color: white; padding: 2px 8px; border-radius: 4px; font-size: 0.8rem; font-weight: 600; }
             
-            /* MARKDOWN CONTENT STYLES (Tables, Bold, etc) */
-            .markdown-body { font-size: 0.95rem; color: #334155; }
-            .markdown-body strong { color: #0e7490; font-weight: 700; }
-            .markdown-body ul, .markdown-body ol { margin-left: 20px; margin-bottom: 10px; }
-            .markdown-body h3 { margin-top: 15px; margin-bottom: 5px; font-size: 1.1rem; color: #0e7490; }
+            .question { font-weight: 800; font-size: 1.1rem; margin-bottom: 10px; color: #0f172a; }
+            .answer { font-size: 0.9rem; color: #334155; margin-bottom: 15px; }
             
-            /* TABLE STYLES - This fixes your issue! */
-            .markdown-body table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.9rem; }
-            .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
-            .markdown-body th { background-color: #f1f5f9; font-weight: 700; color: #0f172a; }
-            .markdown-body tr:nth-child(even) { background-color: #f8fafc; }
-
-            /* Reflection Box */
-            .reflection-box { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 15px; border-radius: 4px; margin-top: 20px; }
-            .reflection-title { font-weight: 700; color: #166534; font-size: 0.85rem; text-transform: uppercase; margin-bottom: 5px; }
-            .reflection-content { font-style: italic; color: #14532d; }
+            /* Reflection */
+            .reflection-box { background: #f0fdf4; border-left: 4px solid #16a34a; padding: 12px 15px; border-radius: 4px; margin-top: 15px; }
+            .reflection-title { font-weight: 700; color: #166534; font-size: 0.8rem; text-transform: uppercase; margin-bottom: 4px; }
+            .reflection-content { font-style: italic; color: #14532d; font-size: 0.9rem; }
             
-            .tags { margin-top: 15px; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #f1f5f9; padding-top: 10px; }
+            .footer { margin-top: 50px; text-align: center; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; padding-top: 20px; }
             
             @media print { 
               body { padding: 0; background: white; } 
               .no-print { display: none; }
+              .dashboard { background: none; border: 1px solid #000; }
               .entry { box-shadow: none; border: 1px solid #ccc; }
-              /* Ensure backgrounds print */
-              .reflection-box, .markdown-body th, .markdown-body tr:nth-child(even) { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              button { display: none; }
             }
           </style>
         </head>
         <body>
-          <h1>Medical Appraisal CPD Log</h1>
-          <div class="subtitle">Continuing Professional Development Portfolio</div>
+          <h1>Appraisal & Revalidation Log</h1>
+          <div class="subtitle">Personal Development Portfolio</div>
           
-          <div class="report-meta">
-            <strong>Generated by:</strong> Umbil Clinical Assistant<br/>
-            <strong>Date:</strong> ${new Date().toLocaleDateString()}<br/>
-            <strong>Total Entries:</strong> ${filteredEntries.length}<br/>
-            <div class="no-print" style="margin-top: 10px; color: #0e7490; font-weight: 600;">
-              👉 Action: Press Print (Cmd+P / Ctrl+P) and choose "Save as PDF". <br/>
-              This file retains all formatting (tables, bold, etc.) for upload to FourteenFish / SOAR.
+          <div class="dashboard">
+            <div class="stat-box">
+              <span class="stat-val">${filteredEntries.length}</span>
+              <span class="stat-label">Total Activities</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-val">${totalCredits}</span>
+              <span class="stat-label">CPD Credits (Hours)</span>
             </div>
           </div>
           
-          ${entriesHtml}
+          <div class="domain-summary">
+            <h3 style="font-size: 1rem; color: #475569; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; margin-bottom: 10px;">GMC Domain Coverage</h3>
+            ${Object.entries(domainCounts).map(([k, v]) => `
+              <div class="domain-row">
+                <span class="domain-name">${k}</span>
+                <span>${v} Entries</span>
+              </div>
+            `).join('')}
+          </div>
+
+          <div class="no-print" style="margin-bottom: 20px; color: #0e7490; font-weight: 600; background: #e0f2fe; padding: 10px; border-radius: 6px; text-align: center;">
+            👉 <strong>Instructions:</strong> Press Print (Cmd+P) and "Save as PDF".<br/>
+            Upload this single file to <strong>SOAR</strong> (Domain 1), <strong>FourteenFish</strong> (Library), or <strong>Clarity</strong>.
+          </div>
+          
+          ${filteredEntries.map(e => {
+             // Calculate domain for this specific entry to show on the card
+             const t = (e.tags || []).join(" ").toLowerCase();
+             let d = "Knowledge, Skills & Performance";
+             if (t.includes("safety")) d = "Safety & Quality";
+             else if (t.includes("communication")) d = "Communication & Teamwork";
+             else if (t.includes("trust")) d = "Maintaining Trust";
+
+             return `
+            <div class="entry">
+              <div class="entry-header">
+                <div class="date">${new Date(e.timestamp).toLocaleDateString()}</div>
+                <div class="credits">1 CPD Credit</div>
+              </div>
+              
+              <div style="font-size: 0.8rem; color: #64748b; margin-bottom: 6px; text-transform: uppercase; font-weight: 600;">${d}</div>
+              <div class="question">${e.question}</div>
+              
+              <div class="answer">
+                ${formatForPrint(e.answer || "")}
+              </div>
+              
+              ${e.reflection ? `
+                <div class="reflection-box">
+                    <div class="reflection-title">Reflective Notes</div>
+                    <div class="reflection-content">${formatForPrint(e.reflection)}</div>
+                </div>` : ''}
+              
+              <div style="margin-top: 10px; font-size: 0.8rem; color: #94a3b8;">
+                <strong>Tags:</strong> ${e.tags && e.tags.length > 0 ? e.tags.join(", ") : "General"}
+              </div>
+            </div>
+          `}).join('')}
+          
+          <div class="footer">
+            Generated by Umbil • Evidence for Annual Appraisal • ${new Date().getFullYear()}
+          </div>
           
           <script>
-            // Auto-trigger print dialog
             window.onload = function() { setTimeout(() => window.print(), 800); }
           </script>
         </body>
@@ -282,8 +313,8 @@ function CPDInner() {
           <h2>My CPD Learning Log</h2>
           {totalCount > 0 && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn--outline" onClick={printCPD} title="Download PDF for Appraisal">
-                🖨️ Export PDF Report
+              <button className="btn btn--outline" onClick={printCPD} title="Download 'Appraisal Ready' PDF Report">
+                🖨️ Export Appraisal Report
               </button>
               <button className="btn btn--outline" onClick={downloadCSV} title="Download raw data for Excel">
                 📥 Download CSV
