@@ -13,7 +13,7 @@ const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 // --- TYPE DEFINITIONS ---
-type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
+type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'translate_reflection';
 
 interface ToolConfig {
   systemPrompt: string;
@@ -32,23 +32,25 @@ const TOOLS: Record<ToolId, ToolConfig> = {
       return `NICE CKS referral guidelines UK ${input}`;
     },
     systemPrompt: `
-      You are an expert Medical Secretary. Write a formal, concise hospital referral letter based on the user's notes.
+      You are an expert Medical Secretary for a UK General Practitioner.
+      Your task is to write a formal hospital referral letter based on the user's rough notes.
       
-      RULES:
-      1. Output standard letter format (Dear [Specialty], Re: [Patient details]).
-      2. No Markdown (* or #). Plain text only.
-      3. Verify criteria against Context if provided.
-      4. STRICT LIMIT: Maximum 200 words. Be direct.
+      CRITICAL RULES:
+      1.  **GENERIC PLACEHOLDERS ONLY**: If the doctor's name or patient's name is not explicitly provided in the input, YOU MUST USE PLACEHOLDERS like "[Patient Name]" or "[Dr Name]". DO NOT invent names like "Dr James Smith".
+      2.  **PHI REMOVAL**: Remove any potential patient identifiers that accidentally slipped in and replace with "[Redacted]".
+      3.  Output standard letter format (Dear [Specialty], Re: [Patient details]).
+      4.  No Markdown formatting in the letter body (no bold **, no headers #). Keep it plain text.
+      5.  Check referral criteria against Context if provided.
       
       Structure:
-      - Salutation
-      - Patient details (Age/Sex from input)
+      - Salutation (Dear [Specialty Team])
+      - Patient details (Extract Age/Sex only. Use [Patient Name] if name missing.)
       - "Thank you for seeing..."
       - HxC (Concise history)
-      - Exam/Vitals
-      - PMH/DH
-      - Reason for referral
-      - "Kind regards, Dr [Name]"
+      - Examination & Vitals
+      - PMH / DH
+      - Specific reason for referral
+      - Sign off: "Kind regards, [Dr Name]"
     `
   },
   safety_netting: {
@@ -56,54 +58,62 @@ const TOOLS: Record<ToolId, ToolConfig> = {
     searchQueryGenerator: (input) => `NICE CKS safety netting red flags ${input}`,
     systemPrompt: `
       You are a Clinical Documentation Assistant.
-      Create an extremely concise "Safety Netting" entry for medical notes.
+      Create an extremely concise "Safety Netting" documentation block.
       
       RULES:
       1. STRICT LIMIT: Maximum 60 words.
-      2. Use telegraphic style (omit "The patient should...").
+      2. Use telegraphic style.
       3. Focus entirely on specific Red Flags.
-      4. Context Awareness: If the patient already has a symptom for X days, ensure the "return if" duration makes sense (e.g. "Fever > 5 days" rather than "Fever > 48h" if they are already at day 2).
-      5. Functional Symptoms: Prefer "blue lips/breathless at rest" over "O2 < 90%" unless the patient likely has equipment.
+      4. If dates/names are missing, use generic terms.
       
       OUTPUT FORMAT:
-      "Advice: [Fluids/Analgesia/Rest].
-      Return immediately if: [Comma separated list of specific RED FLAGS].
-      discussed [Guideline Name, e.g. Sepsis/Traffic Light]."
+      "Advice: [General advice].
+      Return immediately if: [Specific RED FLAGS].
+      Discussed [Guideline Name]."
     `
   },
   sbar: {
     useSearch: false,
     systemPrompt: `
-      Convert the user's notes into a high-priority SBAR handover for a Registrar.
+      Convert the user's notes into a high-priority SBAR handover.
       
       RULES:
       1. STRICT LIMIT: Maximum 100 words.
       2. Use bullet points.
       3. Be urgent and direct.
+      4. Use placeholders like [Patient] or [Location] if not provided.
       
       Structure:
-      - S: (Who/Where/Main Issue)
-      - B: (Relevant Hx only)
-      - A: (Vitals/Exam findings)
-      - R: (Specific action required now)
+      - S: (Situation)
+      - B: (Background)
+      - A: (Assessment)
+      - R: (Recommendation)
     `
   },
   discharge_summary: {
     useSearch: false,
     systemPrompt: `
-      Condense these ward notes into a structured Discharge Summary.
+      Condense ward notes into a structured Discharge Summary.
       
       RULES:
       1. STRICT LIMIT: Maximum 200 words.
       2. IGNORE daily "patient stable" updates.
-      3. Use a telegraphic, skimmable style.
-      4. DO NOT assume this is for a GP; make it generic for any follow-up clinician.
+      3. Use placeholders for names/dates if not provided.
       
       OUTPUT TEMPLATE:
-      **DX:** [Primary Diagnosis]
-      **KEY EVENTS:** [Procedures/scans/complications only. No daily narrative.]
-      **MED CHANGES:** [Started/Stopped/Changed only]
-      **PLAN:** [Follow up instructions & Outstanding investigations]
+      **DX:** [Diagnosis]
+      **KEY EVENTS:** [Procedures/scans only]
+      **MED CHANGES:** [Started/Stopped]
+      **PLAN:** [Follow up instructions]
+    `
+  },
+  translate_reflection: {
+    useSearch: false,
+    systemPrompt: `
+      You are a professional medical translator. 
+      Translate the following reflection into professional UK English suitable for a medical appraisal/portfolio.
+      Keep the tone formal and reflective.
+      Do not add commentary, just output the translation.
     `
   }
 };
@@ -132,21 +142,22 @@ export async function POST(req: NextRequest) {
   try {
     const { toolType, input } = await req.json();
     
-    const toolConfig = TOOLS[toolType as ToolId];
+    // Explicit cast to satisfy TypeScript indexing
+    const config = TOOLS[toolType as ToolId];
     
-    if (!input || !toolConfig) {
+    if (!input || !config) {
       return NextResponse.json({ error: "Invalid input or tool type" }, { status: 400 });
     }
 
     // Context Injection
     let context = "";
-    if (toolConfig.useSearch && toolConfig.searchQueryGenerator) {
-      const searchQuery = toolConfig.searchQueryGenerator(input);
+    if (config.useSearch && config.searchQueryGenerator) {
+      const searchQuery = config.searchQueryGenerator(input);
       context = await getContext(searchQuery);
     }
 
     const finalPrompt = `
-${toolConfig.systemPrompt}
+${config.systemPrompt}
 
 ${context ? `Use the following guidelines to ensure safety/accuracy:\n${context}` : ""}
 

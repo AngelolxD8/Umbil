@@ -76,8 +76,10 @@ export default function QuickTour({
 }: QuickTourProps) {
   
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
+  const [windowWidth, setWindowWidth] = useState(0);
 
   const updatePosition = useCallback(() => {
+    setWindowWidth(window.innerWidth);
     const step = tourSteps[currentStep];
     if (!step?.highlightId) {
       setHighlightRect(null);
@@ -128,6 +130,7 @@ export default function QuickTour({
   if (!isOpen) return null;
 
   const step = tourSteps[currentStep];
+  const isMobile = windowWidth < 768; // Mobile Breakpoint
 
   const boxStyle: React.CSSProperties = {
     position: 'absolute',
@@ -140,30 +143,55 @@ export default function QuickTour({
   if (highlightRect) {
     boxStyle.transform = 'none'; 
 
-    if (step.highlightId === 'tour-highlight-modal') {
-       boxStyle.top = '50%';
-       boxStyle.left = '50%';
-       boxStyle.transform = 'translate(-50%, -50%)';
+    // --- MOBILE LOGIC (Prevent Cutoff) ---
+    if (isMobile) {
+        // On mobile, stick to bottom center (or top if element is low) 
+        // regardless of horizontal position to prevent cutoff
+        boxStyle.left = '50%';
+        boxStyle.transform = 'translateX(-50%)';
+        boxStyle.width = '90%'; // Use almost full width
+        
+        if (step.highlightId === 'tour-highlight-modal') {
+            boxStyle.top = '50%';
+            boxStyle.transform = 'translate(-50%, -50%)';
+        } else if (highlightRect.top > window.innerHeight / 2) {
+            // Element is in bottom half -> Place tour box above it
+            boxStyle.bottom = `${window.innerHeight - highlightRect.top + 20}px`;
+            boxStyle.top = 'auto';
+        } else {
+            // Element is in top half -> Place tour box below it
+            boxStyle.top = `${highlightRect.bottom + 20}px`;
+            boxStyle.bottom = 'auto';
+        }
     } 
-    else if (step.id === 'step-7') { // Analytics step (Sidebar)
-      boxStyle.top = `${highlightRect.top + 20}px`;
-      boxStyle.left = `${highlightRect.right + 20}px`;
-      boxStyle.right = 'auto';
-      boxStyle.bottom = 'auto';
-    } 
-    else if (highlightRect.top > window.innerHeight / 2) { 
-      boxStyle.bottom = `${window.innerHeight - highlightRect.top + 20}px`;
-      boxStyle.left = `${highlightRect.left}px`;
-      boxStyle.top = 'auto';
-    } else { 
-      boxStyle.top = `${highlightRect.bottom + 20}px`;
-      boxStyle.left = `${highlightRect.left}px`;
-      boxStyle.bottom = 'auto';
-    }
+    // --- DESKTOP LOGIC (Original) ---
+    else {
+        if (step.highlightId === 'tour-highlight-modal') {
+           boxStyle.top = '50%';
+           boxStyle.left = '50%';
+           boxStyle.transform = 'translate(-50%, -50%)';
+        } 
+        else if (step.id === 'step-7') { // Analytics step (Sidebar)
+          boxStyle.top = `${highlightRect.top + 20}px`;
+          boxStyle.left = `${highlightRect.right + 20}px`;
+          boxStyle.right = 'auto';
+          boxStyle.bottom = 'auto';
+        } 
+        else if (highlightRect.top > window.innerHeight / 2) { 
+          boxStyle.bottom = `${window.innerHeight - highlightRect.top + 20}px`;
+          boxStyle.left = `${highlightRect.left}px`;
+          boxStyle.top = 'auto';
+        } else { 
+          boxStyle.top = `${highlightRect.bottom + 20}px`;
+          boxStyle.left = `${highlightRect.left}px`;
+          boxStyle.bottom = 'auto';
+        }
 
-    if (highlightRect.left + 320 > window.innerWidth) {
-      boxStyle.right = '20px';
-      boxStyle.left = 'auto';
+        // Edge case: if box goes off right edge on desktop
+        if (highlightRect.left + 320 > window.innerWidth) {
+          boxStyle.right = '20px';
+          boxStyle.left = 'auto';
+        }
     }
   }
 

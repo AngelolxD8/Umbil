@@ -21,6 +21,7 @@ const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
 const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
 const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
+const ReportModal = dynamic(() => import('@/components/ReportModal')); // NEW IMPORT
 
 // --- Types ---
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -235,6 +236,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isToolsOpen, setIsToolsOpen] = useState(false); 
   const [selectedTool, setSelectedTool] = useState<ToolId>('referral');
+  
+  // -- NEW STATE FOR REPORTING --
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportEntry, setReportEntry] = useState<{ question: string; answer: string } | null>(null);
   
   const [currentCpdEntry, setCurrentCpdEntry] = useState<{ question: string; answer: string; } | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -481,6 +486,37 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     setIsModalOpen(false); setCurrentCpdEntry(null);
   };
 
+  // --- NEW: HANDLE REPORT ---
+  const handleOpenReportModal = (entry: ConversationEntry) => {
+    if(!entry.question) return;
+    setReportEntry({ question: entry.question, answer: entry.content });
+    setIsReportModalOpen(true);
+  };
+
+  const submitReport = async (reason: string) => {
+    if (!reportEntry) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      
+      const res = await fetch("/api/report", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          ...(token && { Authorization: `Bearer ${token}` })
+        },
+        body: JSON.stringify({ ...reportEntry, reason }),
+      });
+      
+      if (!res.ok) throw new Error("Failed to send report");
+      setToastMessage("✅ Report submitted. Thank you for making Umbil safer!");
+      setIsReportModalOpen(false);
+    } catch (e) {
+      console.error(e);
+      setToastMessage("❌ Failed to submit report.");
+    }
+  };
+
   const renderMessage = (entry: ConversationEntry, index: number) => {
     const isUmbil = entry.type === "umbil";
     const isLastMessage = index === convoToShow.length - 1;
@@ -496,6 +532,11 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             {isLastMessage && !loading && entry.question && ( <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic"><svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive</button> )}
             {isLastMessage && !loading && ( <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate</button> )}
             <button id={isTourOpen ? "tour-highlight-cpd-button" : undefined} className="action-button" onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} title="Add reflection to your CPD log"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Log learning (CPD)</button>
+            
+            {/* --- REPORT BUTTON --- */}
+            <button className="action-button" onClick={() => handleOpenReportModal(entry)} title="Report incorrect information" style={{color: '#9ca3af'}}>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
+            </button>
           </div>
         )}
       </div>
@@ -533,11 +574,18 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         )}
       </div>
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
+      
+      {/* MODALS */}
       {(isModalOpen || (isTourOpen && tourStep === 5)) && (
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
       )}
+      
       <StreakPopup isOpen={isStreakPopupOpen} streakCount={streakToDisplay} onClose={() => setIsStreakPopupOpen(false)} />
       <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} initialTool={selectedTool} />
+      
+      {/* REPORT MODAL */}
+      <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} entry={reportEntry} onSubmit={submitReport} />
+      
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       <style jsx>{` @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } } .recording-pulse { animation: pulse-red 1.5s infinite; display: flex; align-items: center; justify-content: center; } `}</style>
     </>
