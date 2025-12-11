@@ -87,7 +87,8 @@ export default function QuickTour({
 
     const step = tourSteps[currentStep];
     
-    // Explicitly handle steps with no highlight (like Step 8)
+    // IF NO HIGHLIGHT ID (e.g. Last Step 8, or Step 6 PDP), 
+    // explicitly set rect to null so we trigger the "Center Screen" fallback.
     if (!step?.highlightId) {
       setHighlightRect(null);
       return;
@@ -100,7 +101,6 @@ export default function QuickTour({
         setHighlightRect(rect);
       }
     } else {
-      // If element not found, fallback to null (center screen)
       setHighlightRect(null);
     }
   }, [currentStep]);
@@ -108,7 +108,6 @@ export default function QuickTour({
   useLayoutEffect(() => {
     if (!isOpen) return;
     updatePosition();
-    // Aggressive interval to catch layout shifts on mobile (keyboard, url bar)
     const timer = setInterval(updatePosition, 300);
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
@@ -142,80 +141,87 @@ export default function QuickTour({
   const isMobile = windowWidth < 768; 
   
   // -- BASE STYLES --
-  // We use fixed positioning to avoid scrolling issues
   const boxStyle: React.CSSProperties = {
     position: 'fixed',
-    zIndex: 1002, // Higher than everything else
+    zIndex: 1002, 
     width: isMobile ? '90%' : '320px',
-    maxWidth: 'calc(100vw - 32px)', // Never overflow screen width
-    maxHeight: '80vh', // Allow scrolling if content is too tall
+    maxWidth: 'calc(100vw - 32px)', 
+    maxHeight: '80vh', 
     overflowY: 'auto',
   };
 
   // -- POSITIONING CALCULATIONS --
   if (highlightRect) {
     if (isMobile) {
-        // MOBILE: Simple Top/Bottom Logic to avoid being "gone"
-        
-        // Center Horizontally
+        // === MOBILE LOGIC ===
+        // Center horizontally
         boxStyle.left = '50%';
         boxStyle.transform = 'translateX(-50%)';
 
-        // Modal Step: Dead Center
+        // Modal: Center
         if (step.highlightId === 'tour-highlight-modal') {
             boxStyle.top = '50%';
             boxStyle.bottom = 'auto';
             boxStyle.transform = 'translate(-50%, -50%)';
         } 
-        // If element is in the bottom half -> Place Box at TOP with margin
-        else if (highlightRect.top > windowHeight / 2) {
-            boxStyle.top = '70px'; // Clear of header
+        // Sidebar: Put at bottom right away (safest)
+        else if (step.highlightId === 'tour-highlight-sidebar') {
+             boxStyle.bottom = '20px';
+             boxStyle.top = 'auto';
+        }
+        // General: If element low -> Top. If element high -> Bottom.
+        else if (highlightRect.top > windowHeight * 0.5) {
+            boxStyle.top = '80px'; // Clear header
             boxStyle.bottom = 'auto';
-        } 
-        // If element is in the top half -> Place Box at BOTTOM with margin
-        else {
+        } else {
             boxStyle.bottom = '40px'; 
             boxStyle.top = 'auto';
         }
 
     } else {
-        // DESKTOP: Follow element but stay on screen
+        // === DESKTOP LOGIC ===
         
-        // 1. Horizontal: Align left, but clamp to edges
-        let leftPos = highlightRect.left;
-        
-        // Special case for Sidebar (Step 7): Push to right
-        if (step.id === 'step-7') leftPos = highlightRect.right + 20;
-
-        // Clamp Right
-        if (leftPos + 340 > windowWidth) leftPos = windowWidth - 340; 
-        // Clamp Left
-        if (leftPos < 16) leftPos = 16;
-        
-        boxStyle.left = `${leftPos}px`;
-
-        // 2. Vertical
-        if (step.highlightId === 'tour-highlight-modal') {
+        // 1. Sidebar Special Case (Place to RIGHT)
+        if (step.highlightId === 'tour-highlight-sidebar') {
+            // Position to the right of the sidebar + margin
+            let leftPos = highlightRect.right + 15;
+            // Clamp so it doesn't go off screen
+            if (leftPos + 320 > windowWidth) leftPos = windowWidth - 340;
+            
+            boxStyle.left = `${leftPos}px`;
+            boxStyle.top = `${highlightRect.top + 20}px`; // Align near top of sidebar items
+        } 
+        // 2. Modal Special Case (Center)
+        else if (step.highlightId === 'tour-highlight-modal') {
             boxStyle.top = '50%';
             boxStyle.left = '50%';
             boxStyle.transform = 'translate(-50%, -50%)';
-        } else {
-            // Default below
-            let topPos = highlightRect.bottom + 15;
+        } 
+        // 3. Standard Logic (Top/Bottom flip)
+        else {
+            let leftPos = highlightRect.left;
+            // Clamp horizontal
+            if (leftPos + 320 > windowWidth) leftPos = windowWidth - 340;
+            if (leftPos < 20) leftPos = 20;
             
-            // If going off bottom, flip to above
-            if (topPos + 250 > windowHeight) {
+            boxStyle.left = `${leftPos}px`;
+
+            // Vertical Flip
+            const spaceBelow = windowHeight - highlightRect.bottom;
+            if (spaceBelow < 250 && highlightRect.top > 250) {
+                // Not enough space below, put ABOVE
                 boxStyle.bottom = `${windowHeight - highlightRect.top + 15}px`;
                 boxStyle.top = 'auto';
             } else {
-                boxStyle.top = `${topPos}px`;
+                // Put BELOW
+                boxStyle.top = `${highlightRect.bottom + 15}px`;
                 boxStyle.bottom = 'auto';
             }
         }
     }
   } else {
-    // FALLBACK (Step 8 / No Element): Absolute Center
-    // This fixes "Step 8 is gone" by forcing it to the middle of the viewport
+    // === NO ELEMENT (Step 8, etc.) ===
+    // Force absolute center. This fixes the "Gone on mobile" issue.
     boxStyle.top = '50%';
     boxStyle.left = '50%';
     boxStyle.transform = 'translate(-50%, -50%)';
@@ -232,7 +238,7 @@ export default function QuickTour({
               left: `${highlightRect.left - 4}px`,
               width: `${highlightRect.width + 8}px`,
               height: `${highlightRect.height + 8}px`,
-              position: 'fixed', // Use fixed to match the tour box context
+              position: 'fixed', 
             }}
           ></div>
         )}
