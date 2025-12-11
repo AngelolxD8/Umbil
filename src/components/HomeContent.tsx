@@ -21,7 +21,7 @@ const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 const QuickTour = dynamic(() => import('@/components/QuickTour'));
 const ToolsModal = dynamic(() => import('@/components/ToolsModal'));
 const StreakPopup = dynamic(() => import('@/components/StreakPopup'));
-const ReportModal = dynamic(() => import('@/components/ReportModal')); // NEW IMPORT
+const ReportModal = dynamic(() => import('@/components/ReportModal')); 
 
 // --- Types ---
 type AnswerStyle = "clinic" | "standard" | "deepDive";
@@ -37,6 +37,15 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
   { type: "umbil", content: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional", question: "What are the red flags for a headache?" }
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
+
+// --- HELPER TO REMOVE <br> TAGS ---
+// This is the structural fix to ensure <br> tags from AI are converted to newlines before rendering
+function cleanMarkdown(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/<br\s*\/?>/gi, "\n") // Replace <br>, <br/>, <br /> with newline
+    .replace(/\\n/g, "\n");         // Ensure escaped newlines are real newlines
+}
 
 // --- Sub-components ---
 
@@ -58,7 +67,7 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
   );
 }
 
-// --- NEW TOOLS DROPDOWN ---
+// --- TOOLS DROPDOWN ---
 const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSelect }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -156,7 +165,6 @@ const SearchInputArea = ({
 }: SearchInputAreaProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Helper to adjust height immediately
   const adjustHeight = useCallback(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -220,9 +228,9 @@ const SearchInputArea = ({
   );
 };
 
-// --- UPDATED MAIN COMPONENT ---
+// --- MAIN COMPONENT ---
 type HomeContentProps = {
-  forceStartTour?: boolean; // New Prop
+  forceStartTour?: boolean; 
 };
 
 export default function HomeContent({ forceStartTour }: HomeContentProps) {
@@ -237,7 +245,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [isToolsOpen, setIsToolsOpen] = useState(false); 
   const [selectedTool, setSelectedTool] = useState<ToolId>('referral');
   
-  // -- NEW STATE FOR REPORTING --
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportEntry, setReportEntry] = useState<{ question: string; answer: string } | null>(null);
   
@@ -269,15 +276,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
 
-  // --- Initial Load & URL Parameter Handling ---
   useEffect(() => {
     if (userLoading) return;
     
-    // Check for demo mode prop first
     if (forceStartTour) {
       setIsTourOpen(true);
       setTourStep(0);
-      setConversation([]); // Ensure clean slate
+      setConversation([]); 
       return; 
     }
 
@@ -290,7 +295,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       setQ("");
       setConversationId(null);
       if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
-      // UPDATED: Redirect to dashboard
       router.replace("/dashboard", { scroll: false });
       return;
     }
@@ -436,7 +440,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     if (!currentCid) { 
         currentCid = uuidv4(); 
         setConversationId(currentCid); 
-        // UPDATED: Redirect to dashboard with conversation ID
         router.replace(`/dashboard?c=${currentCid}`, { scroll: false }); 
     }
     const newQuestion = q;
@@ -486,7 +489,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     setIsModalOpen(false); setCurrentCpdEntry(null);
   };
 
-  // --- NEW: HANDLE REPORT ---
   const handleOpenReportModal = (entry: ConversationEntry) => {
     if(!entry.question) return;
     setReportEntry({ question: entry.question, answer: entry.content });
@@ -524,7 +526,21 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const highlightId = isTourOpen && isUmbil ? "tour-highlight-message" : undefined;
     return (
       <div key={index} id={highlightId} className={className}>
-        {isUmbil ? ( <div className="markdown-content-wrapper"><ReactMarkdown remarkPlugins={[remarkGfm]} components={{ table: ({ ...props }) => <div className="table-scroll-wrapper"><table {...props} /></div> }}>{entry.content}</ReactMarkdown></div> ) : ( <ReactMarkdown remarkPlugins={[remarkGfm]}>{entry.content}</ReactMarkdown> )}
+        {/* --- APPLY THE CLEANER HERE --- */}
+        {isUmbil ? ( 
+            <div className="markdown-content-wrapper">
+                <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]} 
+                    components={{ table: ({ ...props }) => <div className="table-scroll-wrapper"><table {...props} /></div> }}
+                >
+                    {cleanMarkdown(entry.content)}
+                </ReactMarkdown>
+            </div> 
+        ) : ( 
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanMarkdown(entry.content)}</ReactMarkdown> 
+        )}
+        {/* -------------------------------- */}
+        
         {isUmbil && (
           <div className="umbil-message-actions">
             <button className="action-button" onClick={handleShare} title="Share conversation"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> Share</button>
@@ -532,8 +548,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             {isLastMessage && !loading && entry.question && ( <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic"><svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive</button> )}
             {isLastMessage && !loading && ( <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate</button> )}
             <button id={isTourOpen ? "tour-highlight-cpd-button" : undefined} className="action-button" onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} title="Add reflection to your CPD log"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Log learning (CPD)</button>
-            
-            {/* --- REPORT BUTTON --- */}
             <button className="action-button" onClick={() => handleOpenReportModal(entry)} title="Report incorrect information" style={{color: '#9ca3af'}}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
             </button>
@@ -575,17 +589,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       </div>
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
       
-      {/* MODALS */}
       {(isModalOpen || (isTourOpen && tourStep === 5)) && (
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
       )}
       
       <StreakPopup isOpen={isStreakPopupOpen} streakCount={streakToDisplay} onClose={() => setIsStreakPopupOpen(false)} />
       <ToolsModal isOpen={isToolsOpen} onClose={() => setIsToolsOpen(false)} initialTool={selectedTool} />
-      
-      {/* REPORT MODAL */}
       <ReportModal isOpen={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} entry={reportEntry} onSubmit={submitReport} />
-      
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
       <style jsx>{` @keyframes pulse-red { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } } .recording-pulse { animation: pulse-red 1.5s infinite; display: flex; align-items: center; justify-content: center; } `}</style>
     </>

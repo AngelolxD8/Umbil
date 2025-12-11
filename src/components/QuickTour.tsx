@@ -1,7 +1,7 @@
 // src/components/QuickTour.tsx
 "use client";
 
-import { useState, useLayoutEffect, useCallback } from "react";
+import { useState, useLayoutEffect, useCallback, useRef } from "react";
 
 // Define the steps of our tour
 const tourSteps = [
@@ -77,9 +77,12 @@ export default function QuickTour({
   
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const [windowWidth, setWindowWidth] = useState(0);
+  const [windowHeight, setWindowHeight] = useState(0);
+  const tourBoxRef = useRef<HTMLDivElement>(null);
 
   const updatePosition = useCallback(() => {
     setWindowWidth(window.innerWidth);
+    setWindowHeight(window.innerHeight);
     const step = tourSteps[currentStep];
     if (!step?.highlightId) {
       setHighlightRect(null);
@@ -97,9 +100,12 @@ export default function QuickTour({
   useLayoutEffect(() => {
     if (!isOpen) return;
     updatePosition();
-    const timer = setTimeout(updatePosition, 200);
+    // Small delay to allow UI to settle (e.g. modals opening)
+    const timer = setTimeout(updatePosition, 100);
+    
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
+    
     return () => {
       clearTimeout(timer);
       window.removeEventListener("resize", updatePosition);
@@ -130,69 +136,84 @@ export default function QuickTour({
   if (!isOpen) return null;
 
   const step = tourSteps[currentStep];
-  const isMobile = windowWidth < 768; // Mobile Breakpoint
+  const isMobile = windowWidth < 768; 
+  const boxWidth = 320; // Max width of tour box
+  const margin = 16; // Safe margin from screen edges
 
   const boxStyle: React.CSSProperties = {
-    position: 'absolute',
+    position: 'fixed', // Changed to fixed for better stability
     zIndex: 1002,
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
+    // Ensures box never overflows screen width
+    maxWidth: `calc(100vw - ${margin * 2}px)`, 
   };
 
+  // --- POSITIONING LOGIC ---
   if (highlightRect) {
-    boxStyle.transform = 'none'; 
-
-    // --- MOBILE LOGIC (Prevent Cutoff) ---
     if (isMobile) {
-        // On mobile, stick to bottom center (or top if element is low) 
-        // regardless of horizontal position to prevent cutoff
+        // MOBILE: Center horizontally, position mainly at bottom unless covered
         boxStyle.left = '50%';
         boxStyle.transform = 'translateX(-50%)';
-        boxStyle.width = '90%'; // Use almost full width
+        boxStyle.width = '90%'; 
         
+        // Special case for centered modals
         if (step.highlightId === 'tour-highlight-modal') {
             boxStyle.top = '50%';
             boxStyle.transform = 'translate(-50%, -50%)';
-        } else if (highlightRect.top > window.innerHeight / 2) {
-            // Element is in bottom half -> Place tour box above it
-            boxStyle.bottom = `${window.innerHeight - highlightRect.top + 20}px`;
+        } 
+        // If element is low on screen, put box above it
+        else if (highlightRect.top > windowHeight / 2) {
+            boxStyle.bottom = `${windowHeight - highlightRect.top + 20}px`;
             boxStyle.top = 'auto';
         } else {
-            // Element is in top half -> Place tour box below it
+            // Otherwise put box below it
             boxStyle.top = `${highlightRect.bottom + 20}px`;
             boxStyle.bottom = 'auto';
         }
-    } 
-    // --- DESKTOP LOGIC (Original) ---
-    else {
+    } else {
+        // DESKTOP: Follow element closely, but clamp to screen edges
+        
+        // Calculate ideal left position (aligned with element left)
+        let safeLeft = highlightRect.left;
+        
+        // 1. Right Edge Check: If box goes off right screen, shift left
+        if (safeLeft + boxWidth > windowWidth - margin) {
+            safeLeft = windowWidth - boxWidth - margin;
+        }
+        // 2. Left Edge Check: If shift puts it off left screen, clamp to margin
+        if (safeLeft < margin) {
+            safeLeft = margin;
+        }
+
+        boxStyle.left = `${safeLeft}px`;
+
+        // Vertical Positioning
         if (step.highlightId === 'tour-highlight-modal') {
+           // Center strictly for modal steps
            boxStyle.top = '50%';
            boxStyle.left = '50%';
            boxStyle.transform = 'translate(-50%, -50%)';
         } 
         else if (step.id === 'step-7') { // Analytics step (Sidebar)
-          boxStyle.top = `${highlightRect.top + 20}px`;
-          boxStyle.left = `${highlightRect.right + 20}px`;
-          boxStyle.right = 'auto';
-          boxStyle.bottom = 'auto';
+           // Force position to the right of the sidebar button if possible
+           boxStyle.top = `${highlightRect.top + 10}px`;
+           boxStyle.left = `${highlightRect.right + 20}px`;
         } 
-        else if (highlightRect.top > window.innerHeight / 2) { 
-          boxStyle.bottom = `${window.innerHeight - highlightRect.top + 20}px`;
-          boxStyle.left = `${highlightRect.left}px`;
+        // Standard Top/Bottom decision
+        else if (highlightRect.top > windowHeight * 0.6) { 
+          // If element is in bottom 40% of screen, place ABOVE
+          boxStyle.bottom = `${windowHeight - highlightRect.top + 16}px`;
           boxStyle.top = 'auto';
         } else { 
-          boxStyle.top = `${highlightRect.bottom + 20}px`;
-          boxStyle.left = `${highlightRect.left}px`;
+          // Otherwise place BELOW
+          boxStyle.top = `${highlightRect.bottom + 16}px`;
           boxStyle.bottom = 'auto';
         }
-
-        // Edge case: if box goes off right edge on desktop
-        if (highlightRect.left + 320 > window.innerWidth) {
-          boxStyle.right = '20px';
-          boxStyle.left = 'auto';
-        }
     }
+  } else {
+    // Fallback if no element found (center screen)
+    boxStyle.top = '50%';
+    boxStyle.left = '50%';
+    boxStyle.transform = 'translate(-50%, -50%)';
   }
 
   return (
@@ -202,16 +223,17 @@ export default function QuickTour({
           <div
             className="tour-highlight-box"
             style={{
-              top: `${highlightRect.top - 8}px`, 
-              left: `${highlightRect.left - 8}px`,
-              width: `${highlightRect.width + 16}px`,
-              height: `${highlightRect.height + 16}px`,
+              top: `${highlightRect.top - 4}px`, 
+              left: `${highlightRect.left - 4}px`,
+              width: `${highlightRect.width + 8}px`,
+              height: `${highlightRect.height + 8}px`,
+              position: 'absolute' // Highlight box stays absolute to document
             }}
           ></div>
         )}
       </div>
 
-      <div className="tour-content-box" style={boxStyle}>
+      <div ref={tourBoxRef} className="tour-content-box" style={boxStyle}>
         <button onClick={handleClose} className="tour-close-button">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
