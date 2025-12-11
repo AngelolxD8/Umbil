@@ -18,7 +18,6 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 const MODEL_SLUG = "openai/gpt-oss-120b";
-// Using a lightweight model for the intent check to save costs/time
 const INTENT_MODEL_SLUG = "meta-llama/Llama-3-8b-chat-hf"; 
 
 const CACHE_TABLE = "api_cache";
@@ -66,35 +65,39 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
   try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
 }
 
-// --- Intent Detection ---
+// --- Intent Detection (Updated with Logging) ---
 async function detectImageIntent(query: string): Promise<boolean> {
-  // 1. Cheap/Free Regex Check first
-  const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me)/i;
-  if (!imageKeywords.test(query)) return false;
+  const q = query.toLowerCase();
+  
+  // 1. Expanded Regex Check
+  // Now includes "appearance", "look like", "rash", "lesion" to be smarter about medical visuals
+  const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me|appearance|rash|lesion|visible|ecg|x-ray|scan)/i;
+  
+  const hasKeyword = imageKeywords.test(q);
+  console.log(`[Umbil] Image Intent Check: "${q}" -> Regex Match: ${hasKeyword}`);
 
-  // 2. If keywords found, confirm with AI
-  try {
-    const { text } = await generateText({
-      model: together(INTENT_MODEL_SLUG),
-      prompt: `User Query: "${query}"
-      Does the user explicitly want to see a visual image, diagram, or photo? 
-      Answer strictly YES or NO.`,
-      // Removed maxTokens to fix TS error. The prompt ensures brevity.
-    });
-    return text.trim().toUpperCase().includes("YES");
-  } catch (e) {
-    // If AI check fails, fallback to regex result (which was true)
-    return true; 
-  }
+  if (hasKeyword) return true; // Trust the regex to save AI calls
+
+  return false;
 }
 
-// --- Web Context with Image Support ---
+// --- Web Context (Updated for Reliability) ---
 async function getWebContext(query: string, wantsImage: boolean): Promise<string> {
-  if (!tvly) return "";
+  if (!tvly) {
+    console.log("[Umbil] Tavily API Key missing.");
+    return "";
+  }
   
   try {
-    const searchResult = await tvly.search(`${query} site:nice.org.uk OR site:bnf.nice.org.uk OR site:cks.nice.org.uk OR site:dermnetnz.org`, {
-      searchDepth: "basic", 
+    console.log(`[Umbil] Searching Tavily... Wants Image: ${wantsImage}`);
+
+    // LOGIC CHANGE: If user SPECIFICALLY wants an image, use 'advanced' depth.
+    // It costs 2 credits instead of 1, but 'basic' often returns 0 images for medical terms.
+    // If they just want text, keep it 'basic' (1 credit).
+    const searchDepth = wantsImage ? "advanced" : "basic";
+
+    const searchResult = await tvly.search(`${query} site:nice.org.uk OR site:bnf.nice.org.uk OR site:cks.nice.org.uk OR site:dermnetnz.org OR site:pcds.org.uk`, {
+      searchDepth: searchDepth, 
       includeImages: wantsImage,
       maxResults: 3,
     });
@@ -106,18 +109,22 @@ async function getWebContext(query: string, wantsImage: boolean): Promise<string
 
     // Add Images if requested and found
     if (wantsImage && searchResult.images && searchResult.images.length > 0) {
+      console.log(`[Umbil] Images Found: ${searchResult.images.length}`);
       contextStr += "\n\n--- RELEVANT MEDICAL IMAGES FOUND (Use markdown ![Alt](url) to display) ---\n";
+      
       // We limit to 2 images to keep prompt small
       searchResult.images.slice(0, 2).forEach((img: any) => {
          contextStr += `Image URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n\n`;
       });
+    } else if (wantsImage) {
+      console.log("[Umbil] User wanted images, but Tavily returned 0.");
     }
 
     contextStr += "\n------------------------------------------\n";
     return contextStr;
 
   } catch (e) {
-    console.error("Search grounding failed:", e);
+    console.error("[Umbil] Search failed:", e);
     return "";
   }
 }
@@ -151,8 +158,8 @@ export async function POST(req: NextRequest) {
     if (wantsImage && context.includes("RELEVANT MEDICAL IMAGES FOUND")) {
         imageInstruction = `
         IMAGES FOUND: The context contains image URLs. 
-        If they are relevant to the user's question, display them using Markdown syntax: ![Description](URL).
-        Do NOT hallucinate image URLs. Only use the ones provided in the context.
+        You MUST display them using Markdown syntax: ![Description](URL).
+        Do not just describe them. Show them.
         `;
     }
 
@@ -190,7 +197,6 @@ export async function POST(req: NextRequest) {
       ],
       temperature: 0.2, 
       topP: 0.8,
-      // Removed maxTokens to fix TS error.
       async onFinish({ text, usage }) {
         const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
 
