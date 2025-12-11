@@ -3,7 +3,6 @@
 
 import { useState, useLayoutEffect, useCallback, useRef } from "react";
 
-// Define the steps of our tour
 const tourSteps = [
   { 
     id: "step-0", 
@@ -78,37 +77,39 @@ export default function QuickTour({
   const [highlightRect, setHighlightRect] = useState<DOMRect | null>(null);
   const [windowWidth, setWindowWidth] = useState(0);
   const [windowHeight, setWindowHeight] = useState(0);
-  
-  // Use a ref to access the tour box dimensions if needed in future, 
-  // but for now we use fixed CSS width.
-  const boxRef = useRef<HTMLDivElement>(null);
+  const tourBoxRef = useRef<HTMLDivElement>(null);
 
   const updatePosition = useCallback(() => {
-    // Check if window is defined (client-side)
     if (typeof window === 'undefined') return;
 
     setWindowWidth(window.innerWidth);
     setWindowHeight(window.innerHeight);
 
     const step = tourSteps[currentStep];
+    
+    // Explicitly handle steps with no highlight (like Step 8)
     if (!step?.highlightId) {
       setHighlightRect(null);
       return;
     }
+
     const element = document.getElementById(step.highlightId);
     if (element) {
       const rect = element.getBoundingClientRect();
       if (rect.width > 0 || rect.height > 0) {
         setHighlightRect(rect);
       }
+    } else {
+      // If element not found, fallback to null (center screen)
+      setHighlightRect(null);
     }
   }, [currentStep]);
 
   useLayoutEffect(() => {
     if (!isOpen) return;
     updatePosition();
-    // Debounce/interval to catch layout shifts (e.g. keyboard appearing)
-    const timer = setInterval(updatePosition, 500); 
+    // Aggressive interval to catch layout shifts on mobile (keyboard, url bar)
+    const timer = setInterval(updatePosition, 300);
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     
@@ -140,88 +141,81 @@ export default function QuickTour({
   const step = tourSteps[currentStep];
   const isMobile = windowWidth < 768; 
   
-  // Base styles
+  // -- BASE STYLES --
+  // We use fixed positioning to avoid scrolling issues
   const boxStyle: React.CSSProperties = {
     position: 'fixed',
-    zIndex: 1002,
-    width: isMobile ? '90%' : '320px', // Responsive width
-    maxWidth: '95vw',
+    zIndex: 1002, // Higher than everything else
+    width: isMobile ? '90%' : '320px',
+    maxWidth: 'calc(100vw - 32px)', // Never overflow screen width
+    maxHeight: '80vh', // Allow scrolling if content is too tall
+    overflowY: 'auto',
   };
 
-  // --- POSITIONING LOGIC ---
+  // -- POSITIONING CALCULATIONS --
   if (highlightRect) {
     if (isMobile) {
-        // MOBILE STRATEGY: Top or Bottom based on element position
-        // Center horizontally
+        // MOBILE: Simple Top/Bottom Logic to avoid being "gone"
+        
+        // Center Horizontally
         boxStyle.left = '50%';
         boxStyle.transform = 'translateX(-50%)';
 
-        // If the element is in the bottom half of the screen, put box at the TOP
-        if (highlightRect.top > windowHeight / 2) {
-            boxStyle.top = '20px';
-            boxStyle.bottom = 'auto';
-        } else {
-            // If element is in top half, put box at the BOTTOM
-            boxStyle.bottom = '20px';
-            boxStyle.top = 'auto';
-        }
-
-        // Special override for the Modal step (center it)
+        // Modal Step: Dead Center
         if (step.highlightId === 'tour-highlight-modal') {
             boxStyle.top = '50%';
             boxStyle.bottom = 'auto';
             boxStyle.transform = 'translate(-50%, -50%)';
+        } 
+        // If element is in the bottom half -> Place Box at TOP with margin
+        else if (highlightRect.top > windowHeight / 2) {
+            boxStyle.top = '70px'; // Clear of header
+            boxStyle.bottom = 'auto';
+        } 
+        // If element is in the top half -> Place Box at BOTTOM with margin
+        else {
+            boxStyle.bottom = '40px'; 
+            boxStyle.top = 'auto';
         }
 
     } else {
-        // DESKTOP STRATEGY: Near the element, but clamped to screen edges
+        // DESKTOP: Follow element but stay on screen
         
-        // 1. Calculate ideal Left (aligned with element)
-        let safeLeft = highlightRect.left;
+        // 1. Horizontal: Align left, but clamp to edges
+        let leftPos = highlightRect.left;
         
-        // 2. Sidebar special case (put to the right of it)
-        if (step.id === 'step-7') {
-            safeLeft = highlightRect.right + 20;
-        }
+        // Special case for Sidebar (Step 7): Push to right
+        if (step.id === 'step-7') leftPos = highlightRect.right + 20;
 
-        // 3. CLAMP Horizontal: Ensure box doesn't go off right edge
-        const boxWidthApprox = 320; 
-        const margin = 20;
+        // Clamp Right
+        if (leftPos + 340 > windowWidth) leftPos = windowWidth - 340; 
+        // Clamp Left
+        if (leftPos < 16) leftPos = 16;
         
-        if (safeLeft + boxWidthApprox > windowWidth - margin) {
-            safeLeft = windowWidth - boxWidthApprox - margin;
-        }
-        if (safeLeft < margin) {
-            safeLeft = margin;
-        }
-        
-        boxStyle.left = `${safeLeft}px`;
+        boxStyle.left = `${leftPos}px`;
 
-        // 4. Vertical Positioning
-        // Default: Below the element
-        let topPos = highlightRect.bottom + 15;
-        
-        // Check if there is space below
-        if (topPos + 200 > windowHeight) { // Assuming approx 200px height for box
-             // If not enough space below, put ABOVE
-             // Use bottom property to pin it above
-             boxStyle.bottom = `${windowHeight - highlightRect.top + 15}px`;
-             boxStyle.top = 'auto';
-        } else {
-             boxStyle.top = `${topPos}px`;
-             boxStyle.bottom = 'auto';
-        }
-
-        // Modal Override for Desktop too
+        // 2. Vertical
         if (step.highlightId === 'tour-highlight-modal') {
             boxStyle.top = '50%';
             boxStyle.left = '50%';
             boxStyle.transform = 'translate(-50%, -50%)';
-            boxStyle.bottom = 'auto';
+        } else {
+            // Default below
+            let topPos = highlightRect.bottom + 15;
+            
+            // If going off bottom, flip to above
+            if (topPos + 250 > windowHeight) {
+                boxStyle.bottom = `${windowHeight - highlightRect.top + 15}px`;
+                boxStyle.top = 'auto';
+            } else {
+                boxStyle.top = `${topPos}px`;
+                boxStyle.bottom = 'auto';
+            }
         }
     }
   } else {
-    // Fallback if no element found: Absolute Center
+    // FALLBACK (Step 8 / No Element): Absolute Center
+    // This fixes "Step 8 is gone" by forcing it to the middle of the viewport
     boxStyle.top = '50%';
     boxStyle.left = '50%';
     boxStyle.transform = 'translate(-50%, -50%)';
@@ -238,13 +232,13 @@ export default function QuickTour({
               left: `${highlightRect.left - 4}px`,
               width: `${highlightRect.width + 8}px`,
               height: `${highlightRect.height + 8}px`,
-              position: 'fixed', // Fixed to match the overlay/box
+              position: 'fixed', // Use fixed to match the tour box context
             }}
           ></div>
         )}
       </div>
 
-      <div ref={boxRef} className="tour-content-box" style={boxStyle}>
+      <div ref={tourBoxRef} className="tour-content-box" style={boxStyle}>
         <button onClick={onClose} className="tour-close-button">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <line x1="18" y1="6" x2="6" y2="18"></line>
