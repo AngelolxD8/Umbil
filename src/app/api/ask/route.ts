@@ -3,12 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { createHash } from "crypto";
-import { streamText } from "ai"; 
+import { streamText, generateText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 
-// Node.js runtime required
+// Node.js runtime required for network checks
 // export const runtime = 'edge'; 
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
@@ -18,19 +18,21 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 const MODEL_SLUG = "openai/gpt-oss-120b";
+const INTENT_MODEL_SLUG = "meta-llama/Llama-3-8b-chat-hf"; 
+
 const CACHE_TABLE = "api_cache";
 const ANALYTICS_TABLE = "app_analytics";
 const HISTORY_TABLE = "chat_history"; 
 
-// Define Trusted Image Sources
+// Only fetch images from these high-quality medical sources
 const TRUSTED_SOURCES = [
   "site:nice.org.uk",
   "site:bnf.nice.org.uk",
   "site:cks.nice.org.uk",
   "site:dermnetnz.org",
   "site:pcds.org.uk",
-  "site:cdc.gov", // Added CDC for good measure
-  "site:nhs.uk"   // Added NHS
+  "site:cdc.gov",
+  "site:nhs.uk"
 ].join(" OR ");
 
 const together = createTogetherAI({ apiKey: API_KEY });
@@ -74,37 +76,49 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
   try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
 }
 
-// --- Helper to get clean source name ---
-function getDomainName(url: string): string {
-  try {
-    const hostname = new URL(url).hostname;
-    if (hostname.includes('dermnetnz')) return 'DermNet NZ';
-    if (hostname.includes('nice.org')) return 'NICE CKS';
-    if (hostname.includes('nhs.uk')) return 'NHS';
-    if (hostname.includes('cdc.gov')) return 'CDC';
-    if (hostname.includes('pcds')) return 'PCDS';
-    return hostname.replace('www.', '');
-  } catch (e) {
-    return 'Trusted Source';
-  }
-}
-
 // --- Intent Detection ---
 async function detectImageIntent(query: string): Promise<boolean> {
   const q = query.toLowerCase();
   // Regex includes specific medical visual terms
-  const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me|appearance|rash|lesion|visible|ecg|x-ray|scan|clinical feature)/i;
-  return imageKeywords.test(q);
+  const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me|appearance|rash|lesion|visible|ecg|x-ray|scan)/i;
+  
+  const hasKeyword = imageKeywords.test(q);
+  console.log(`[Umbil] Image Intent Check: "${q}" -> Regex Match: ${hasKeyword}`);
+
+  if (hasKeyword) return true; 
+
+  return false;
 }
 
-// --- Web Context (Trusted Sources & Rich Links) ---
+// --- NEW: Helper to validate if an image is accessible (prevents broken icons) ---
+async function validateImage(url: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 1500); // 1.5s timeout strictly
+
+    // We use a fake User-Agent to look like a browser, reducing chances of 403 blocks
+    const res = await fetch(url, { 
+      method: 'HEAD', 
+      signal: controller.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' } 
+    });
+    
+    clearTimeout(id);
+    return res.ok; // True if status is 200-299
+  } catch (e) {
+    return false;
+  }
+}
+
+// --- Web Context with Smart Validation & Limit Handling ---
 async function getWebContext(query: string, wantsImage: boolean): Promise<{ text: string, error?: string }> {
   if (!tvly) return { text: "" };
   
   try {
-    // Search ONLY trusted sources
+    // Tavily Search (Trusted Sources Only)
+    // Using "basic" depth to keep costs low (1 credit)
     const searchResult = await tvly.search(`${query} ${TRUSTED_SOURCES}`, {
-      searchDepth: "basic", // Keep cost low
+      searchDepth: "basic", 
       includeImages: wantsImage,
       maxResults: 3,
     });
@@ -112,15 +126,28 @@ async function getWebContext(query: string, wantsImage: boolean): Promise<{ text
     let contextStr = "\n\n--- REAL-TIME CONTEXT FROM TRUSTED GUIDELINES ---\n";
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
 
-    // --- TRUSTED IMAGE HANDLING ---
+    // --- SMART IMAGE HANDLING ---
     if (wantsImage && searchResult.images && searchResult.images.length > 0) {
-      contextStr += "\n\n--- RELEVANT IMAGES FROM TRUSTED SOURCES ---\n";
+      console.log(`[Umbil] Found ${searchResult.images.length} candidate images. Validating...`);
+      contextStr += "\n\n--- MEDICAL IMAGES FOUND ---\n";
       
-      // Take top 2 images and format them with source info for the AI
-      searchResult.images.slice(0, 2).forEach((img: any) => {
-         const sourceName = getDomainName(img.url);
-         contextStr += `Image Link: ${img.url}\nSource: ${sourceName}\nDescription: ${img.description || 'Clinical illustration'}\n\n`;
-      });
+      let validCount = 0;
+
+      // Check the first few images
+      for (const img of searchResult.images.slice(0, 3)) { 
+        if (validCount >= 1) break; // Stop after finding 1 good one to save speed
+
+        const isValid = await validateImage(img.url);
+        
+        if (isValid) {
+           // Tag it as safe to embed
+           contextStr += `[SAFE_TO_EMBED] Image URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n\n`;
+           validCount++;
+        } else {
+           // Tag it as link only (prevent broken icon)
+           contextStr += `[LINK_ONLY] Image URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n\n`;
+        }
+      }
     }
 
     contextStr += "\n------------------------------------------\n";
@@ -128,6 +155,7 @@ async function getWebContext(query: string, wantsImage: boolean): Promise<{ text
 
   } catch (e) {
     console.error("[Umbil] Search failed (Limit likely reached):", e);
+    // Return specific error flag to trigger the "Upsell" message
     return { text: "", error: "LIMIT_REACHED" };
   }
 }
@@ -160,33 +188,35 @@ export async function POST(req: NextRequest) {
     let imageInstruction = "";
 
     if (searchError === "LIMIT_REACHED") {
-        // --- LIMIT HIT TRIGGER ---
+        // --- UPSELL TRIGGER ---
         imageInstruction = `
-        IMPORTANT: The external search tool failed because the monthly free limit has been reached.
-        You MUST apologize to the user and say exactly:
-        "I cannot retrieve live images or new guidelines right now as the monthly free search limit has been reached. (This usually resets on the 1st of the month). 
+        IMPORTANT: The search tool failed because the monthly free limit was reached.
+        You MUST apologize to the user and say:
+        "I cannot retrieve live images or new guidelines right now as the monthly free search limit has been reached. 
+        (This usually resets on the 1st of the month). 
+        
         **Umbil Pro** offers unlimited visual searches and deep-dives. 
         For now, I will answer based on my internal medical knowledge."
-        Then, answer the user's question as best you can without external tools.
         `;
-    } else if (wantsImage && context.includes("RELEVANT IMAGES FROM TRUSTED SOURCES")) {
-        // --- SUCCESS TRIGGER (Rich Link Strategy) ---
+    } else if (wantsImage && context.includes("[SAFE_TO_EMBED]")) {
+        // --- SUCCESS TRIGGER (Embed Allowed) ---
         imageInstruction = `
-        IMAGES FOUND: The context contains image links from trusted sources.
-        Do NOT try to embed them with ![]. Many medical sites block embedding.
-        Instead, provide a descriptive text and then a clearly labeled, clickable link in this format:
-        
-        [📷 View Image of {Description} on {Source Name}](URL)
-        
-        Example: [📷 View clinical photograph of rash on DermNet NZ](https://...)
-        Make sure the link is prominent.
+        IMAGES FOUND: The context contains validated image URLs marked as [SAFE_TO_EMBED].
+        1. Display the image using Markdown: ![Description](URL)
+        2. Immediately below it, cite the source.
+        `;
+    } else if (wantsImage && context.includes("[LINK_ONLY]")) {
+        // --- FALLBACK TRIGGER (Link Only) ---
+        imageInstruction = `
+        IMAGES FOUND: The context contains images marked as [LINK_ONLY].
+        Do NOT embed these using ![] as they will break.
+        Instead, provide a clickable link: [📷 View Image of {Description}](URL).
         `;
     } else if (wantsImage) {
-        // --- INTENT BUT NO IMAGE FOUND ---
+        // --- NO IMAGE FOUND ---
         imageInstruction = `
-        The user asked for an image, but no relevant image was found on trusted sources (NICE, DermNet, CDC, etc.).
-        State clearly: "I could not locate a verifiable, open-access image from trusted clinical sources for this specific request."
-        Then provide a detailed text description instead.
+        The user asked for an image, but no verifiable image was found in the trusted search context.
+        Apologize briefly ("I couldn't find a verifiable open-access image for this specific condition right now") and provide a detailed text description instead.
         `;
     }
 
