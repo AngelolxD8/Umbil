@@ -8,7 +8,7 @@ import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
 import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 
-// Node.js runtime is required for Tavily
+// Node.js runtime required for network checks
 // export const runtime = 'edge'; 
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
@@ -18,7 +18,6 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 const MODEL_SLUG = "openai/gpt-oss-120b";
-// Using a lightweight model for the intent check to save costs/time
 const INTENT_MODEL_SLUG = "meta-llama/Llama-3-8b-chat-hf"; 
 
 const CACHE_TABLE = "api_cache";
@@ -70,31 +69,42 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
 async function detectImageIntent(query: string): Promise<boolean> {
   const q = query.toLowerCase();
   
-  // 1. Cheap Regex Check first
-  // Includes medical visual terms to catch intent without AI cost
+  // Regex includes specific medical visual terms
   const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me|appearance|rash|lesion|visible|ecg|x-ray|scan)/i;
   
   const hasKeyword = imageKeywords.test(q);
   console.log(`[Umbil] Image Intent Check: "${q}" -> Regex Match: ${hasKeyword}`);
 
-  if (hasKeyword) return true; // Trust the regex to save AI calls
+  if (hasKeyword) return true; 
 
   return false;
 }
 
-// --- Web Context with Image Support ---
-async function getWebContext(query: string, wantsImage: boolean): Promise<string> {
-  if (!tvly) {
-    console.log("[Umbil] Tavily API Key missing.");
-    return "";
+// --- NEW: Helper to validate if an image is accessible ---
+async function isValidImage(url: string): Promise<boolean> {
+  try {
+    const controller = new AbortController();
+    const id = setTimeout(() => controller.abort(), 1500); // 1.5s timeout strictly
+
+    const res = await fetch(url, { 
+      method: 'HEAD', 
+      signal: controller.signal,
+      headers: { 'User-Agent': 'UmbilBot/1.0' } // Polite UA
+    });
+    
+    clearTimeout(id);
+    return res.ok; // True if status is 200-299
+  } catch (e) {
+    return false;
   }
+}
+
+// --- Web Context with Smart Validation & Limit Handling ---
+async function getWebContext(query: string, wantsImage: boolean): Promise<{ text: string, error?: string }> {
+  if (!tvly) return { text: "" };
   
   try {
-    console.log(`[Umbil] Searching Tavily... Wants Image: ${wantsImage}`);
-
-    // COST STRATEGY: 
-    // We stick to "basic" (1 credit) to keep it cheap. 
-    // Even "basic" often finds images for common conditions like "scarlet fever".
+    // Tavily Search
     const searchResult = await tvly.search(`${query} site:nice.org.uk OR site:bnf.nice.org.uk OR site:cks.nice.org.uk OR site:dermnetnz.org OR site:pcds.org.uk`, {
       searchDepth: "basic", 
       includeImages: wantsImage,
@@ -102,30 +112,40 @@ async function getWebContext(query: string, wantsImage: boolean): Promise<string
     });
     
     let contextStr = "\n\n--- REAL-TIME CONTEXT FROM UK GUIDELINES ---\n";
-    
-    // Add Text Snippets
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
 
-    // Add Images if requested and found
+    // --- SMART IMAGE HANDLING ---
     if (wantsImage && searchResult.images && searchResult.images.length > 0) {
-      console.log(`[Umbil] Images Found: ${searchResult.images.length}`);
-      contextStr += "\n\n--- RELEVANT MEDICAL IMAGES FOUND ---\n";
+      console.log(`[Umbil] Found ${searchResult.images.length} candidate images. Validating...`);
       
-      // Limit to 2 images
-      searchResult.images.slice(0, 2).forEach((img: any) => {
-         // We explicitly provide the URL so the LLM can create a link
-         contextStr += `Image URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n\n`;
-      });
-    } else if (wantsImage) {
-      console.log("[Umbil] User wanted images, but Tavily returned 0.");
+      let validImageFound = false;
+      let validCount = 0;
+
+      // Check the first few images
+      for (const img of searchResult.images.slice(0, 3)) { // Check top 3 max
+        if (validCount >= 1) break; // Stop after finding 1 good one to save time
+
+        const isGood = await isValidImage(img.url);
+        if (isGood) {
+           contextStr += `\n\n--- VALIDATED MEDICAL IMAGE ---\nImage URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n`;
+           validImageFound = true;
+           validCount++;
+        }
+      }
+
+      if (!validImageFound) {
+         console.log("[Umbil] All images failed validation (hotlink protection).");
+         // Fallback: Provide links but don't promise embedded images
+      }
     }
 
     contextStr += "\n------------------------------------------\n";
-    return contextStr;
+    return { text: contextStr };
 
   } catch (e) {
-    console.error("[Umbil] Search failed:", e);
-    return "";
+    console.error("[Umbil] Search failed (Limit likely reached):", e);
+    // Return specific error flag to trigger the "Upsell" message
+    return { text: "", error: "LIMIT_REACHED" };
   }
 }
 
@@ -147,23 +167,40 @@ export async function POST(req: NextRequest) {
     // 1. Detect Intent
     const wantsImage = await detectImageIntent(userContent);
 
-    // 2. Get Context
-    const context = await getWebContext(userContent, wantsImage);
+    // 2. Get Context (returns object now)
+    const { text: context, error: searchError } = await getWebContext(userContent, wantsImage);
 
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
     
-    // 3. System Prompt
-    // CRITICAL FIX: The prompt now instructs the AI to add a "View Source" link.
-    // This ensures that even if the image preview breaks (hotlinking protection), the user can click the link.
+    // 3. Dynamic System Prompt
     let imageInstruction = "";
-    if (wantsImage && context.includes("RELEVANT MEDICAL IMAGES FOUND")) {
+
+    if (searchError === "LIMIT_REACHED") {
+        // --- UPSELL TRIGGER ---
         imageInstruction = `
-        IMAGES FOUND: The context contains image URLs.
-        1. Display the image using Markdown: ![Description](URL)
-        2. IMMEDIATELY below the image, add a clickable link: [🔍 View Original Image Source](URL)
+        IMPORTANT: The search tool failed because the monthly free limit was reached.
+        You MUST apologize to the user and say:
+        "I cannot retrieve live images or new guidelines right now as the monthly free search limit has been reached. 
+        (This usually resets on the 1st of the month). 
         
-        Note: You MUST provide the clickable source link as some medical sites block image embedding.
+        **Umbil Pro** offers unlimited visual searches and deep-dives. 
+        For now, I will answer based on my internal medical knowledge."
+        `;
+    } else if (wantsImage && context.includes("VALIDATED MEDICAL IMAGE")) {
+        // --- SUCCESS TRIGGER ---
+        imageInstruction = `
+        IMAGES FOUND: The context contains a VALIDATED image URL.
+        1. Display it using Markdown: ![Medical Illustration](URL)
+        2. **CRITICAL**: Immediately below the image, add a clickable link saying: 
+           "[🔍 View Original Source on External Site](URL)"
+        3. Explain what the image shows.
+        `;
+    } else if (wantsImage) {
+        // --- INTENT BUT NO IMAGE FOUND ---
+        imageInstruction = `
+        The user asked for an image, but no valid/accessible image was found in the search context.
+        Apologize briefly ("I couldn't find a verifiable open-access image for this specific condition right now") and provide a detailed text description instead.
         `;
     }
 
@@ -201,7 +238,6 @@ export async function POST(req: NextRequest) {
       ],
       temperature: 0.2, 
       topP: 0.8,
-      // REMOVED maxTokens to fix the TypeScript error you saw
       async onFinish({ text, usage }) {
         const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
 
@@ -210,7 +246,8 @@ export async function POST(req: NextRequest) {
             total_tokens: usage.totalTokens, 
             style: answerStyle || 'standard',
             device_id: deviceId,
-            includes_images: wantsImage
+            includes_images: wantsImage,
+            limit_hit: !!searchError // Track this in analytics!
         });
 
         if (answer.length > 50) {
