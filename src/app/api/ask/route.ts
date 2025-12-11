@@ -79,24 +79,36 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
 // --- Intent Detection ---
 async function detectImageIntent(query: string): Promise<boolean> {
   const q = query.toLowerCase();
-  // Regex includes specific medical visual terms
   const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me|appearance|rash|lesion|visible|ecg|x-ray|scan)/i;
   
   const hasKeyword = imageKeywords.test(q);
   console.log(`[Umbil] Image Intent Check: "${q}" -> Regex Match: ${hasKeyword}`);
 
   if (hasKeyword) return true; 
-
   return false;
 }
 
-// --- NEW: Helper to validate if an image is accessible (prevents broken icons) ---
+// --- Image Validation & Filtering ---
+function isGenericImage(url: string): boolean {
+  const lower = url.toLowerCase();
+  // Filter out logos, icons, banners, and generic assets often returned by search
+  return lower.includes("logo") || 
+         lower.includes("icon") || 
+         lower.includes("banner") || 
+         lower.includes("placeholder") ||
+         lower.includes("button") ||
+         lower.includes("footer");
+}
+
 async function validateImage(url: string): Promise<boolean> {
+  // 1. Static Check: Filter out junk immediately
+  if (isGenericImage(url)) return false;
+
+  // 2. Network Check: Can we actually load it?
   try {
     const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), 1500); // 1.5s timeout strictly
+    const id = setTimeout(() => controller.abort(), 2000); // 2s timeout
 
-    // We use a fake User-Agent to look like a browser, reducing chances of 403 blocks
     const res = await fetch(url, { 
       method: 'HEAD', 
       signal: controller.signal,
@@ -104,20 +116,24 @@ async function validateImage(url: string): Promise<boolean> {
     });
     
     clearTimeout(id);
-    return res.ok; // True if status is 200-299
+    return res.ok; 
   } catch (e) {
     return false;
   }
 }
 
-// --- Web Context with Smart Validation & Limit Handling ---
+// --- Web Context Construction ---
 async function getWebContext(query: string, wantsImage: boolean): Promise<{ text: string, error?: string }> {
   if (!tvly) return { text: "" };
   
   try {
+    // RELEVANCE BOOST: Append "clinical photograph" to the query if user wants images.
+    // This stops it from finding random stock photos or office pics.
+    const imageQueryModifier = wantsImage ? " clinical photograph" : "";
+    
     // Tavily Search (Trusted Sources Only)
-    // Using "basic" depth to keep costs low (1 credit)
-    const searchResult = await tvly.search(`${query} ${TRUSTED_SOURCES}`, {
+    // "Basic" depth (1 credit)
+    const searchResult = await tvly.search(`${query}${imageQueryModifier} ${TRUSTED_SOURCES}`, {
       searchDepth: "basic", 
       includeImages: wantsImage,
       maxResults: 3,
@@ -126,26 +142,27 @@ async function getWebContext(query: string, wantsImage: boolean): Promise<{ text
     let contextStr = "\n\n--- REAL-TIME CONTEXT FROM TRUSTED GUIDELINES ---\n";
     contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
 
-    // --- SMART IMAGE HANDLING ---
+    // --- SMART IMAGE PROCESSING ---
     if (wantsImage && searchResult.images && searchResult.images.length > 0) {
-      console.log(`[Umbil] Found ${searchResult.images.length} candidate images. Validating...`);
+      console.log(`[Umbil] Found ${searchResult.images.length} candidate images.`);
       contextStr += "\n\n--- MEDICAL IMAGES FOUND ---\n";
       
       let validCount = 0;
 
-      // Check the first few images
-      for (const img of searchResult.images.slice(0, 3)) { 
-        if (validCount >= 1) break; // Stop after finding 1 good one to save speed
+      // Check up to 5 candidates to find 2 good ones
+      for (const img of searchResult.images.slice(0, 5)) { 
+        if (validCount >= 2) break;
 
         const isValid = await validateImage(img.url);
         
         if (isValid) {
-           // Tag it as safe to embed
+           // [SAFE_TO_EMBED]: We checked it, it loads.
            contextStr += `[SAFE_TO_EMBED] Image URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n\n`;
            validCount++;
-        } else {
-           // Tag it as link only (prevent broken icon)
+        } else if (!isGenericImage(img.url)) {
+           // [LINK_ONLY]: It might be hotlink protected, but it's not a logo. Force a link.
            contextStr += `[LINK_ONLY] Image URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n\n`;
+           validCount++;
         }
       }
     }
@@ -155,7 +172,6 @@ async function getWebContext(query: string, wantsImage: boolean): Promise<{ text
 
   } catch (e) {
     console.error("[Umbil] Search failed (Limit likely reached):", e);
-    // Return specific error flag to trigger the "Upsell" message
     return { text: "", error: "LIMIT_REACHED" };
   }
 }
@@ -178,7 +194,7 @@ export async function POST(req: NextRequest) {
     // 1. Detect Intent
     const wantsImage = await detectImageIntent(userContent);
 
-    // 2. Get Context (returns object now)
+    // 2. Get Context
     const { text: context, error: searchError } = await getWebContext(userContent, wantsImage);
 
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
@@ -188,35 +204,26 @@ export async function POST(req: NextRequest) {
     let imageInstruction = "";
 
     if (searchError === "LIMIT_REACHED") {
-        // --- UPSELL TRIGGER ---
         imageInstruction = `
-        IMPORTANT: The search tool failed because the monthly free limit was reached.
-        You MUST apologize to the user and say:
-        "I cannot retrieve live images or new guidelines right now as the monthly free search limit has been reached. 
-        (This usually resets on the 1st of the month). 
-        
-        **Umbil Pro** offers unlimited visual searches and deep-dives. 
-        For now, I will answer based on my internal medical knowledge."
-        `;
-    } else if (wantsImage && context.includes("[SAFE_TO_EMBED]")) {
-        // --- SUCCESS TRIGGER (Embed Allowed) ---
-        imageInstruction = `
-        IMAGES FOUND: The context contains validated image URLs marked as [SAFE_TO_EMBED].
-        1. Display the image using Markdown: ![Description](URL)
-        2. Immediately below it, cite the source.
-        `;
-    } else if (wantsImage && context.includes("[LINK_ONLY]")) {
-        // --- FALLBACK TRIGGER (Link Only) ---
-        imageInstruction = `
-        IMAGES FOUND: The context contains images marked as [LINK_ONLY].
-        Do NOT embed these using ![] as they will break.
-        Instead, provide a clickable link: [📷 View Image of {Description}](URL).
+        IMPORTANT: The external search failed (monthly limit reached).
+        Apologize: "I cannot retrieve live images right now as the free search limit has been reached. **Umbil Pro** offers unlimited visual searches."
+        Then answer based on your internal knowledge.
         `;
     } else if (wantsImage) {
-        // --- NO IMAGE FOUND ---
+        // --- HYBRID DISPLAY INSTRUCTION ---
         imageInstruction = `
-        The user asked for an image, but no verifiable image was found in the trusted search context.
-        Apologize briefly ("I couldn't find a verifiable open-access image for this specific condition right now") and provide a detailed text description instead.
+        IMAGES FOUND IN CONTEXT:
+        
+        1. If marked [SAFE_TO_EMBED]:
+           - Display it: ![Description](URL)
+           - **AND** add a clickable source link below it: [📷 View Original Source](URL)
+        
+        2. If marked [LINK_ONLY]:
+           - Do NOT embed (it will break).
+           - ONLY display a clickable link: [📷 View Clinical Image on External Site](URL)
+        
+        3. If no images found:
+           - State: "I couldn't locate a verifiable image from trusted sources (NICE/DermNet) for this specific query."
         `;
     }
 
