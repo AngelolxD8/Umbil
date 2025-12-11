@@ -39,12 +39,16 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
 
 // --- HELPER TO REMOVE <br> TAGS ---
-// This is the structural fix to ensure <br> tags from AI are converted to newlines before rendering
+// Updated to be more aggressive with encoded entities and variations
 function cleanMarkdown(text: string): string {
   if (!text) return "";
   return text
-    .replace(/<br\s*\/?>/gi, "\n") // Replace <br>, <br/>, <br /> with newline
-    .replace(/\\n/g, "\n");         // Ensure escaped newlines are real newlines
+    // Replace standard HTML break tags (case insensitive)
+    .replace(/<br\s*\/?>/gi, "\n")
+    // Replace encoded HTML break tags often returned by LLMs
+    .replace(/&lt;br\s*\/?&gt;/gi, "\n")
+    // Replace literal newline characters that were escaped
+    .replace(/\\n/g, "\n");
 }
 
 // --- Sub-components ---

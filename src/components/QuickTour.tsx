@@ -3,7 +3,6 @@
 
 import { useState, useLayoutEffect, useCallback, useRef } from "react";
 
-// Define the steps of our tour
 const tourSteps = [
   { 
     id: "step-0", 
@@ -81,16 +80,22 @@ export default function QuickTour({
   const tourBoxRef = useRef<HTMLDivElement>(null);
 
   const updatePosition = useCallback(() => {
+    // Only run in client
+    if (typeof window === "undefined") return;
+
     setWindowWidth(window.innerWidth);
     setWindowHeight(window.innerHeight);
+    
     const step = tourSteps[currentStep];
     if (!step?.highlightId) {
       setHighlightRect(null);
       return;
     }
+    
     const element = document.getElementById(step.highlightId);
     if (element) {
       const rect = element.getBoundingClientRect();
+      // Ensure we have valid dimensions
       if (rect.width > 0 || rect.height > 0) {
         setHighlightRect(rect);
       }
@@ -100,14 +105,17 @@ export default function QuickTour({
   useLayoutEffect(() => {
     if (!isOpen) return;
     updatePosition();
-    // Small delay to allow UI to settle (e.g. modals opening)
-    const timer = setTimeout(updatePosition, 100);
+    
+    // Using multiple delays to catch layout shifts (e.g. mobile keyboard closing)
+    const t1 = setTimeout(updatePosition, 100);
+    const t2 = setTimeout(updatePosition, 500);
     
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
     
     return () => {
-      clearTimeout(timer);
+      clearTimeout(t1);
+      clearTimeout(t2);
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
@@ -137,80 +145,96 @@ export default function QuickTour({
 
   const step = tourSteps[currentStep];
   const isMobile = windowWidth < 768; 
-  const boxWidth = 320; // Max width of tour box
+  const boxWidth = 320; 
   const margin = 16; // Safe margin from screen edges
 
+  // --- POSITIONING LOGIC ---
   const boxStyle: React.CSSProperties = {
-    position: 'fixed', // Changed to fixed for better stability
+    position: 'fixed', 
     zIndex: 1002,
-    // Ensures box never overflows screen width
     maxWidth: `calc(100vw - ${margin * 2}px)`, 
+    maxHeight: '80vh', // Prevent vertical cutoff by allowing scroll
+    overflowY: 'auto', // Enable scroll inside the box if content is tall
   };
 
-  // --- POSITIONING LOGIC ---
   if (highlightRect) {
     if (isMobile) {
-        // MOBILE: Center horizontally, position mainly at bottom unless covered
+        // --- MOBILE STRATEGY ---
+        // Center Horizontally
         boxStyle.left = '50%';
         boxStyle.transform = 'translateX(-50%)';
         boxStyle.width = '90%'; 
         
-        // Special case for centered modals
+        // Modal Step: Center Screen
         if (step.highlightId === 'tour-highlight-modal') {
             boxStyle.top = '50%';
             boxStyle.transform = 'translate(-50%, -50%)';
         } 
-        // If element is low on screen, put box above it
-        else if (highlightRect.top > windowHeight / 2) {
-            boxStyle.bottom = `${windowHeight - highlightRect.top + 20}px`;
-            boxStyle.top = 'auto';
-        } else {
-            // Otherwise put box below it
-            boxStyle.top = `${highlightRect.bottom + 20}px`;
-            boxStyle.bottom = 'auto';
+        // Vertical Logic: Use available space
+        else {
+            const spaceAbove = highlightRect.top;
+            const spaceBelow = windowHeight - highlightRect.bottom;
+            
+            // If element is in bottom half (or covered by keyboard), force placement ABOVE
+            // We use a threshold (e.g., if > 60% down the screen)
+            if (highlightRect.top > windowHeight * 0.5) {
+                boxStyle.bottom = `${windowHeight - highlightRect.top + 20}px`;
+                boxStyle.top = 'auto';
+            } else {
+                // Otherwise place BELOW
+                boxStyle.top = `${highlightRect.bottom + 20}px`;
+                boxStyle.bottom = 'auto';
+            }
         }
     } else {
-        // DESKTOP: Follow element closely, but clamp to screen edges
+        // --- DESKTOP STRATEGY ---
         
-        // Calculate ideal left position (aligned with element left)
-        let safeLeft = highlightRect.left;
+        // 1. Horizontal Positioning (Clamping)
+        // Try to align left edges first
+        let leftPos = highlightRect.left;
         
-        // 1. Right Edge Check: If box goes off right screen, shift left
-        if (safeLeft + boxWidth > windowWidth - margin) {
-            safeLeft = windowWidth - boxWidth - margin;
-        }
-        // 2. Left Edge Check: If shift puts it off left screen, clamp to margin
-        if (safeLeft < margin) {
-            safeLeft = margin;
+        // If sidebar (step 7), explicitly put it to the right of the sidebar
+        if (step.id === 'step-7') {
+             leftPos = highlightRect.right + 20;
         }
 
-        boxStyle.left = `${safeLeft}px`;
+        // Clamp: Ensure it doesn't go off right edge
+        if (leftPos + boxWidth > windowWidth - margin) {
+            leftPos = windowWidth - boxWidth - margin;
+        }
+        // Clamp: Ensure it doesn't go off left edge
+        if (leftPos < margin) {
+            leftPos = margin;
+        }
+        
+        boxStyle.left = `${leftPos}px`;
 
-        // Vertical Positioning
+        // 2. Vertical Positioning
         if (step.highlightId === 'tour-highlight-modal') {
-           // Center strictly for modal steps
            boxStyle.top = '50%';
            boxStyle.left = '50%';
            boxStyle.transform = 'translate(-50%, -50%)';
         } 
-        else if (step.id === 'step-7') { // Analytics step (Sidebar)
-           // Force position to the right of the sidebar button if possible
+        else if (step.id === 'step-7') { // Analytics/Sidebar
            boxStyle.top = `${highlightRect.top + 10}px`;
-           boxStyle.left = `${highlightRect.right + 20}px`;
-        } 
-        // Standard Top/Bottom decision
-        else if (highlightRect.top > windowHeight * 0.6) { 
-          // If element is in bottom 40% of screen, place ABOVE
-          boxStyle.bottom = `${windowHeight - highlightRect.top + 16}px`;
-          boxStyle.top = 'auto';
-        } else { 
-          // Otherwise place BELOW
-          boxStyle.top = `${highlightRect.bottom + 16}px`;
-          boxStyle.bottom = 'auto';
+        }
+        else {
+            // Check space below vs above
+            const spaceBelow = windowHeight - highlightRect.bottom;
+            const boxHeightEstimate = 200; // rough estimate of card height
+
+            // If not enough space below, or if element is very low, flip up
+            if (spaceBelow < boxHeightEstimate && highlightRect.top > boxHeightEstimate) {
+                boxStyle.bottom = `${windowHeight - highlightRect.top + 16}px`;
+                boxStyle.top = 'auto';
+            } else {
+                boxStyle.top = `${highlightRect.bottom + 16}px`;
+                boxStyle.bottom = 'auto';
+            }
         }
     }
   } else {
-    // Fallback if no element found (center screen)
+    // Fallback: Center screen
     boxStyle.top = '50%';
     boxStyle.left = '50%';
     boxStyle.transform = 'translate(-50%, -50%)';
@@ -227,7 +251,7 @@ export default function QuickTour({
               left: `${highlightRect.left - 4}px`,
               width: `${highlightRect.width + 8}px`,
               height: `${highlightRect.height + 8}px`,
-              position: 'absolute' // Highlight box stays absolute to document
+              position: 'fixed' // Must match fixed content box
             }}
           ></div>
         )}
