@@ -3,12 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { supabaseService } from "@/lib/supabaseService";
 import { createHash } from "crypto";
-import { streamText } from "ai"; 
+import { streamText, generateText } from "ai"; 
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
-import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts"; // IMPORT PROMPTS
+import { SYSTEM_PROMPTS, STYLE_MODIFIERS } from "@/lib/prompts";
 
-// Remove 'export const runtime = edge' to support Tavily (Node.js)
+// Node.js runtime is required for Tavily
 // export const runtime = 'edge'; 
 
 type ClientMessage = { role: "user" | "assistant"; content: string };
@@ -18,6 +18,8 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 const MODEL_SLUG = "openai/gpt-oss-120b";
+// Using a lightweight model for the intent check to save costs/time
+const INTENT_MODEL_SLUG = "meta-llama/Llama-3-8b-chat-hf"; 
 
 const CACHE_TABLE = "api_cache";
 const ANALYTICS_TABLE = "app_analytics";
@@ -31,11 +33,20 @@ function sha256(str: string): string {
 }
 
 function sanitizeAndNormalizeQuery(q: string): string {
-  return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient").replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date").replace(/\b\d{6,10}\b/g, "an identifier").replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient").toLowerCase().replace(/\s+/g, " ").trim();
+  return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
+          .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date")
+          .replace(/\b\d{6,10}\b/g, "an identifier")
+          .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient")
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
 }
 
 function sanitizeQuery(q: string): string {
-  return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient").replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date").replace(/\b\d{6,10}\b/g, "an identifier").replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
+  return q.replace(/\b(john|jane|smith|mr\.|ms\.|mrs\.)\s+\w+/gi, "patient")
+          .replace(/\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/g, "a specific date")
+          .replace(/\b\d{6,10}\b/g, "an identifier")
+          .replace(/\b(\d{1,3})\s+year\s+old\s+(male|female|woman|man|patient)\b/gi, "$1-year-old patient");
 }
 
 const getStyleModifier = (style: AnswerStyle | null): string => {
@@ -55,18 +66,58 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
   try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
 }
 
-async function getWebContext(query: string): Promise<string> {
-  if (!tvly) return "";
+// --- Intent Detection ---
+async function detectImageIntent(query: string): Promise<boolean> {
+  // 1. Cheap/Free Regex Check first
+  const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me)/i;
+  if (!imageKeywords.test(query)) return false;
+
+  // 2. If keywords found, confirm with AI
   try {
-    const searchContext = await tvly.search(`${query} site:nice.org.uk OR site:bnf.nice.org.uk OR site:cks.nice.org.uk`, {
-      searchDepth: "advanced", 
+    const { text } = await generateText({
+      model: together(INTENT_MODEL_SLUG),
+      prompt: `User Query: "${query}"
+      Does the user explicitly want to see a visual image, diagram, or photo? 
+      Answer strictly YES or NO.`,
+      // Removed maxTokens to fix TS error. The prompt ensures brevity.
+    });
+    return text.trim().toUpperCase().includes("YES");
+  } catch (e) {
+    // If AI check fails, fallback to regex result (which was true)
+    return true; 
+  }
+}
+
+// --- Web Context with Image Support ---
+async function getWebContext(query: string, wantsImage: boolean): Promise<string> {
+  if (!tvly) return "";
+  
+  try {
+    const searchResult = await tvly.search(`${query} site:nice.org.uk OR site:bnf.nice.org.uk OR site:cks.nice.org.uk OR site:dermnetnz.org`, {
+      searchDepth: "basic", 
+      includeImages: wantsImage,
       maxResults: 3,
     });
     
-    const snippets = searchContext.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
-    return `\n\n--- REAL-TIME CONTEXT FROM UK GUIDELINES ---\n${snippets}\n------------------------------------------\n`;
+    let contextStr = "\n\n--- REAL-TIME CONTEXT FROM UK GUIDELINES ---\n";
+    
+    // Add Text Snippets
+    contextStr += searchResult.results.map((r) => `Source: ${r.url}\nContent: ${r.content}`).join("\n\n");
+
+    // Add Images if requested and found
+    if (wantsImage && searchResult.images && searchResult.images.length > 0) {
+      contextStr += "\n\n--- RELEVANT MEDICAL IMAGES FOUND (Use markdown ![Alt](url) to display) ---\n";
+      // We limit to 2 images to keep prompt small
+      searchResult.images.slice(0, 2).forEach((img: any) => {
+         contextStr += `Image URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n\n`;
+      });
+    }
+
+    contextStr += "\n------------------------------------------\n";
+    return contextStr;
+
   } catch (e) {
-    console.error("Search grounding failed", e);
+    console.error("Search grounding failed:", e);
     return "";
   }
 }
@@ -83,15 +134,29 @@ export async function POST(req: NextRequest) {
     if (!messages?.length) return NextResponse.json({ error: "Missing messages" }, { status: 400 });
 
     const latestUserMessage = messages[messages.length - 1];
-    const normalizedQuery = sanitizeAndNormalizeQuery(latestUserMessage.content);
+    const userContent = latestUserMessage.content;
+    const normalizedQuery = sanitizeAndNormalizeQuery(userContent);
     
-    const context = await getWebContext(latestUserMessage.content);
+    // 1. Detect Intent
+    const wantsImage = await detectImageIntent(userContent);
+
+    // 2. Get Context
+    const context = await getWebContext(userContent, wantsImage);
 
     const gradeNote = profile?.grade ? ` User grade: ${profile.grade}.` : "";
     const styleModifier = getStyleModifier(answerStyle);
     
-    // Use the imported constant here
-    const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${context}`.trim();
+    // 3. System Prompt
+    let imageInstruction = "";
+    if (wantsImage && context.includes("RELEVANT MEDICAL IMAGES FOUND")) {
+        imageInstruction = `
+        IMAGES FOUND: The context contains image URLs. 
+        If they are relevant to the user's question, display them using Markdown syntax: ![Description](URL).
+        Do NOT hallucinate image URLs. Only use the ones provided in the context.
+        `;
+    }
+
+    const systemPrompt = `${SYSTEM_PROMPTS.ASK_BASE}\n${styleModifier}\n${gradeNote}\n${imageInstruction}\n${context}`.trim();
 
     const cacheKeyContent = JSON.stringify({ model: MODEL_SLUG, query: normalizedQuery, style: answerStyle || 'standard' });
     const cacheKey = sha256(cacheKeyContent);
@@ -125,7 +190,7 @@ export async function POST(req: NextRequest) {
       ],
       temperature: 0.2, 
       topP: 0.8,
-      maxOutputTokens: 4096, 
+      // Removed maxTokens to fix TS error.
       async onFinish({ text, usage }) {
         const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
 
@@ -133,7 +198,8 @@ export async function POST(req: NextRequest) {
             cache: "miss", 
             total_tokens: usage.totalTokens, 
             style: answerStyle || 'standard',
-            device_id: deviceId 
+            device_id: deviceId,
+            includes_images: wantsImage
         });
 
         if (answer.length > 50) {
@@ -143,8 +209,8 @@ export async function POST(req: NextRequest) {
         if (userId && latestUserMessage.role === 'user' && saveToHistory) {
             await supabaseService.from(HISTORY_TABLE).insert({ 
                 user_id: userId, 
-                conversation_id: conversationId,
-                question: latestUserMessage.content,
+                conversation_id: conversationId, 
+                question: latestUserMessage.content, 
                 answer: answer 
             });
         }
