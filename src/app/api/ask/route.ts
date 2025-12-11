@@ -18,6 +18,7 @@ const API_KEY = process.env.TOGETHER_API_KEY!;
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 
 const MODEL_SLUG = "openai/gpt-oss-120b";
+// Using a lightweight model for the intent check to save costs/time
 const INTENT_MODEL_SLUG = "meta-llama/Llama-3-8b-chat-hf"; 
 
 const CACHE_TABLE = "api_cache";
@@ -65,12 +66,12 @@ async function logAnalytics(userId: string | null, eventType: string, metadata: 
   try { supabaseService.from(ANALYTICS_TABLE).insert({ user_id: userId, event_type: eventType, metadata }).then(() => {}); } catch { }
 }
 
-// --- Intent Detection (Updated with Logging) ---
+// --- Intent Detection ---
 async function detectImageIntent(query: string): Promise<boolean> {
   const q = query.toLowerCase();
   
-  // 1. Expanded Regex Check
-  // Now includes "appearance", "look like", "rash", "lesion" to be smarter about medical visuals
+  // 1. Cheap Regex Check first
+  // Includes medical visual terms to catch intent without AI cost
   const imageKeywords = /(image|picture|photo|diagram|illustration|look like|show me|appearance|rash|lesion|visible|ecg|x-ray|scan)/i;
   
   const hasKeyword = imageKeywords.test(q);
@@ -81,7 +82,7 @@ async function detectImageIntent(query: string): Promise<boolean> {
   return false;
 }
 
-// --- Web Context (Updated for Reliability) ---
+// --- Web Context with Image Support ---
 async function getWebContext(query: string, wantsImage: boolean): Promise<string> {
   if (!tvly) {
     console.log("[Umbil] Tavily API Key missing.");
@@ -91,13 +92,11 @@ async function getWebContext(query: string, wantsImage: boolean): Promise<string
   try {
     console.log(`[Umbil] Searching Tavily... Wants Image: ${wantsImage}`);
 
-    // LOGIC CHANGE: If user SPECIFICALLY wants an image, use 'advanced' depth.
-    // It costs 2 credits instead of 1, but 'basic' often returns 0 images for medical terms.
-    // If they just want text, keep it 'basic' (1 credit).
-    const searchDepth = wantsImage ? "advanced" : "basic";
-
+    // COST STRATEGY: 
+    // We stick to "basic" (1 credit) to keep it cheap. 
+    // Even "basic" often finds images for common conditions like "scarlet fever".
     const searchResult = await tvly.search(`${query} site:nice.org.uk OR site:bnf.nice.org.uk OR site:cks.nice.org.uk OR site:dermnetnz.org OR site:pcds.org.uk`, {
-      searchDepth: searchDepth, 
+      searchDepth: "basic", 
       includeImages: wantsImage,
       maxResults: 3,
     });
@@ -110,10 +109,11 @@ async function getWebContext(query: string, wantsImage: boolean): Promise<string
     // Add Images if requested and found
     if (wantsImage && searchResult.images && searchResult.images.length > 0) {
       console.log(`[Umbil] Images Found: ${searchResult.images.length}`);
-      contextStr += "\n\n--- RELEVANT MEDICAL IMAGES FOUND (Use markdown ![Alt](url) to display) ---\n";
+      contextStr += "\n\n--- RELEVANT MEDICAL IMAGES FOUND ---\n";
       
-      // We limit to 2 images to keep prompt small
+      // Limit to 2 images
       searchResult.images.slice(0, 2).forEach((img: any) => {
+         // We explicitly provide the URL so the LLM can create a link
          contextStr += `Image URL: ${img.url}\nDescription: ${img.description || 'Medical illustration'}\n\n`;
       });
     } else if (wantsImage) {
@@ -154,12 +154,16 @@ export async function POST(req: NextRequest) {
     const styleModifier = getStyleModifier(answerStyle);
     
     // 3. System Prompt
+    // CRITICAL FIX: The prompt now instructs the AI to add a "View Source" link.
+    // This ensures that even if the image preview breaks (hotlinking protection), the user can click the link.
     let imageInstruction = "";
     if (wantsImage && context.includes("RELEVANT MEDICAL IMAGES FOUND")) {
         imageInstruction = `
-        IMAGES FOUND: The context contains image URLs. 
-        You MUST display them using Markdown syntax: ![Description](URL).
-        Do not just describe them. Show them.
+        IMAGES FOUND: The context contains image URLs.
+        1. Display the image using Markdown: ![Description](URL)
+        2. IMMEDIATELY below the image, add a clickable link: [🔍 View Original Image Source](URL)
+        
+        Note: You MUST provide the clickable source link as some medical sites block image embedding.
         `;
     }
 
@@ -197,6 +201,7 @@ export async function POST(req: NextRequest) {
       ],
       temperature: 0.2, 
       topP: 0.8,
+      // REMOVED maxTokens to fix the TypeScript error you saw
       async onFinish({ text, usage }) {
         const answer = text.replace(/\n?References:[\s\S]*$/i, "").trim();
 
