@@ -39,15 +39,11 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
 
 // --- HELPER TO REMOVE <br> TAGS ---
-// Updated to be more aggressive with encoded entities and variations
 function cleanMarkdown(text: string): string {
   if (!text) return "";
   return text
-    // Replace standard HTML break tags (case insensitive)
     .replace(/<br\s*\/?>/gi, "\n")
-    // Replace encoded HTML break tags often returned by LLMs
     .replace(/&lt;br\s*\/?&gt;/gi, "\n")
-    // Replace literal newline characters that were escaped
     .replace(/\\n/g, "\n");
 }
 
@@ -70,6 +66,38 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
     </div>
   );
 }
+
+// --- NEW CPD NUDGE COMPONENT ---
+const CpdNudge = ({ onLog }: { onLog: () => void }) => (
+  <div className="cpd-nudge-container" style={{
+    marginTop: '16px',
+    padding: '16px',
+    backgroundColor: 'var(--umbil-bg-subtle, #f9fafb)',
+    border: '1px solid var(--umbil-border, #e5e7eb)',
+    borderRadius: '8px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    animation: 'fadeIn 0.5s ease-in-out'
+  }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+      <div style={{ fontSize: '1.5rem' }}>🧠</div>
+      <div>
+        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.95rem', fontWeight: 600 }}>Capture this for your appraisal?</h4>
+        <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--umbil-muted)', lineHeight: '1.4' }}>
+          You’ve covered a lot of ground! If this answer was useful, logging it now takes just seconds and builds your evidence base.
+        </p>
+      </div>
+    </div>
+    <button 
+      onClick={onLog} 
+      className="btn btn--sm btn--outline"
+      style={{ alignSelf: 'flex-start', marginLeft: '44px' }}
+    >
+      Log to CPD
+    </button>
+  </div>
+);
 
 // --- TOOLS DROPDOWN ---
 const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSelect }) => {
@@ -455,7 +483,42 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   };
 
   const convoToShow = isTourOpen && tourStep >= 3 ? DUMMY_TOUR_CONVERSATION : conversation;
-  const handleCopyMessage = (content: string) => { navigator.clipboard.writeText(content).then(() => setToastMessage("Copied to clipboard!")).catch((err) => { console.error(err); setToastMessage("❌ Failed to copy text."); }); };
+
+  // --- SMART COPY FIX ---
+  // Copies rich text (HTML) for docs/email and clean plain text (no markdown) for others
+  const handleSmartCopy = (index: number) => {
+    const contentId = `msg-content-${index}`;
+    const element = document.getElementById(contentId);
+    
+    if (!element) {
+      setToastMessage("❌ Failed to find content to copy.");
+      return;
+    }
+
+    try {
+      const htmlContent = element.innerHTML;
+      const plainTextContent = element.innerText; // InnerText gets the rendered text (clean), not raw markdown
+
+      const blobHtml = new Blob([htmlContent], { type: "text/html" });
+      const blobText = new Blob([plainTextContent], { type: "text/plain" });
+      
+      const data = [new ClipboardItem({
+          "text/html": blobHtml,
+          "text/plain": blobText,
+      })];
+      
+      navigator.clipboard.write(data).then(() => {
+        setToastMessage("✨ Copied to clipboard!");
+      });
+    } catch (err) {
+      console.error("Smart copy failed, falling back:", err);
+      // Fallback for older browsers
+      navigator.clipboard.writeText(element.innerText).then(() => {
+          setToastMessage("Copied text!");
+      });
+    }
+  };
+
   const handleShare = async () => {
     const textContent = convoToShow.map((entry) => { const prefix = entry.type === "user" ? "You" : "Umbil"; return `${prefix}:\n${entry.content}\n\n--------------------\n`; }).join("\n");
     if (navigator.share) { try { await navigator.share({ title: "Umbil Conversation", text: textContent }); } catch (err) { console.log(err); } } 
@@ -528,27 +591,37 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const isLastMessage = index === convoToShow.length - 1;
     const className = `message-bubble ${isUmbil ? "umbil-message" : "user-message"}`;
     const highlightId = isTourOpen && isUmbil ? "tour-highlight-message" : undefined;
+    
+    // --- NUDGE LOGIC ---
+    // Count how many user messages appeared before this point to determine if it's the 10th/20th etc.
+    const userMsgCount = convoToShow.slice(0, index + 1).filter(m => m.type === 'user').length;
+    // Show nudge if it's an Umbil message AND corresponds to a multiple of 10 user questions (10, 20, 30...)
+    // Note: We check if the *previous* message was user (implied by chat flow) and if that user message was the 10th.
+    // If the conversation flow is perfectly strict (User -> Umbil -> User -> Umbil), this works.
+    const showNudge = isUmbil && userMsgCount > 0 && userMsgCount % 10 === 0 && !loading;
+
     return (
       <div key={index} id={highlightId} className={className}>
-        {/* --- APPLY THE CLEANER HERE --- */}
-        {isUmbil ? ( 
-            <div className="markdown-content-wrapper">
-                <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]} 
-                    components={{ table: ({ ...props }) => <div className="table-scroll-wrapper"><table {...props} /></div> }}
-                >
-                    {cleanMarkdown(entry.content)}
-                </ReactMarkdown>
-            </div> 
-        ) : ( 
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanMarkdown(entry.content)}</ReactMarkdown> 
-        )}
-        {/* -------------------------------- */}
+        {/* --- WRAPPER FOR SMART COPY --- */}
+        <div id={`msg-content-${index}`}>
+            {isUmbil ? ( 
+                <div className="markdown-content-wrapper">
+                    <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]} 
+                        components={{ table: ({ ...props }) => <div className="table-scroll-wrapper"><table {...props} /></div> }}
+                    >
+                        {cleanMarkdown(entry.content)}
+                    </ReactMarkdown>
+                </div> 
+            ) : ( 
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{cleanMarkdown(entry.content)}</ReactMarkdown> 
+            )}
+        </div>
         
         {isUmbil && (
           <div className="umbil-message-actions">
             <button className="action-button" onClick={handleShare} title="Share conversation"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg> Share</button>
-            <button className="action-button" onClick={() => handleCopyMessage(entry.content)} title="Copy this message"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy</button>
+            <button className="action-button" onClick={() => handleSmartCopy(index)} title="Copy this message"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy</button>
             {isLastMessage && !loading && entry.question && ( <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic"><svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive</button> )}
             {isLastMessage && !loading && ( <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate</button> )}
             <button id={isTourOpen ? "tour-highlight-cpd-button" : undefined} className="action-button" onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} title="Add reflection to your CPD log"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Log learning (CPD)</button>
@@ -557,6 +630,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             </button>
           </div>
         )}
+
+        {/* --- RENDER NUDGE IF APPLICABLE --- */}
+        {showNudge && <CpdNudge onLog={() => handleOpenAddCpdModal(entry)} />}
+
       </div>
     );
   };
