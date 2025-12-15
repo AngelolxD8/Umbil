@@ -63,6 +63,21 @@ Start with a concise summary.
       4. Follow-up Required (What does the GP actually need to do?)
       
       Ignore daily "patient stable" updates. Focus on the plan and changes.
+    `,
+    PATIENT_FRIENDLY: `
+      You are an empathetic medical translator.
+      Your task is to rewrite complex medical text (like a discharge summary or doctor's note) into simple, clear English that a patient can understand.
+      
+      RULES:
+      1. Use 5th-grade reading level.
+      2. Remove medical jargon or explain it simply (e.g., change "hypertension" to "high blood pressure").
+      3. Keep the tone reassuring but honest.
+      4. Structure the response clearly.
+      
+      Structure:
+      - "What is happening?": A simple summary of their condition.
+      - "Key Points": Bullet points of the most important info.
+      - "What to do next": Clear instructions on meds or follow-up.
     `
   }
 };

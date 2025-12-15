@@ -7,7 +7,6 @@ import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
 import { supabase } from "@/lib/supabase";
 
-// Added 'patient_friendly' to ToolId
 export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
 
 interface ToolConfig {
@@ -32,7 +31,6 @@ const Icons = {
   Shield: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
   Sbar: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
   Discharge: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
-  // New "Patient Friendly" Icon (Heart/Chat)
   Heart: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
   
   History: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
@@ -92,35 +90,31 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   
-  // New State Features
   const [isEditing, setIsEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // When switching tools inside the modal, we update activeTool
   const [activeToolId, setActiveToolId] = useState<ToolId>(initialTool);
   const activeTool = TOOLS_CONFIG.find(t => t.id === activeToolId) || TOOLS_CONFIG[0];
 
-  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setInput("");
       setOutput("");
       setIsEditing(false);
       setShowHistory(false);
-      setActiveToolId(initialTool); // Sync with prop when opening
+      setActiveToolId(initialTool);
     }
   }, [isOpen, initialTool]);
 
-  // Fetch History from Supabase
   const fetchHistory = async () => {
     setLoadingHistory(true);
     const { data, error } = await supabase
       .from('tool_history')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(5); // Get last 5 items
+      .limit(5);
 
     if (!error && data) {
       setHistory(data as HistoryItem[]);
@@ -128,7 +122,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     setLoadingHistory(false);
   };
 
-  // Toggle History View
   const toggleHistory = () => {
     if (!showHistory) {
       fetchHistory();
@@ -152,20 +145,21 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         body: JSON.stringify({ toolType: activeTool.id, input }),
       });
 
-      if (!res.ok || !res.body) throw new Error("Failed");
+      if (!res.ok) throw new Error("Failed");
 
-      const reader = res.body.getReader();
+      const reader = res.body?.getReader();
       const decoder = new TextDecoder();
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        fullText += chunk;
-        setOutput((prev) => prev + chunk);
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const chunk = decoder.decode(value, { stream: true });
+          fullText += chunk;
+          setOutput((prev) => prev + chunk);
+        }
       }
       
-      // Save to Supabase (Cross-Platform)
       await supabase.from('tool_history').insert([
         { 
           tool_id: activeTool.id,
@@ -189,8 +183,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   };
 
   const restoreHistoryItem = (item: HistoryItem) => {
-    // If the history item is from a different tool, switch to it?
-    // For now, let's just load the text.
     setInput(item.input);
     setOutput(item.output);
     setShowHistory(false);
@@ -201,16 +193,13 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
 
   return (
     <div className="modal-overlay">
-      <Toast 
-        message={toastMessage} 
-        onClose={() => setToastMessage(null)} 
-      />
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
 
       <div className="modal-content tools-modal-content">
         
-        {/* Header */}
+        {/* Header - No tabs, just the Dropdown and Actions */}
         <div className="tools-header">
-          {/* Dropdown to switch tools INSIDE the modal */}
+          {/* Tool Selector Dropdown */}
           <div className="relative group" style={{ cursor: 'pointer' }}>
              <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
                 <div style={{ color: 'var(--umbil-brand-teal)' }}>{activeTool.icon}</div>
@@ -223,7 +212,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                 </div>
              </div>
              
-             {/* Simple Hover Dropdown to switch tools */}
+             {/* Dropdown Menu */}
              <div className="absolute top-full left-0 bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 rounded-lg py-2 min-w-[240px] hidden group-hover:block z-50">
                 {TOOLS_CONFIG.map(t => (
                   <button 
@@ -256,7 +245,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         </div>
 
         <div className="tools-body">
-          {/* HISTORY VIEW */}
           {showHistory ? (
              <div className="tools-main" style={{ padding: '24px' }}>
                 <h4 className="form-label">Recent Generations</h4>
@@ -298,9 +286,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                 )}
              </div>
           ) : (
-            /* MAIN TOOL VIEW */
             <div className="tools-main">
-              
               {/* Input Section */}
               <div className="input-section">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -348,7 +334,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <label className="form-label" style={{marginBottom:0}}>Result</label>
                   
-                  {/* Result Actions */}
                   {output && !loading && (
                     <div className="flex gap-3">
                       <button 
@@ -379,7 +364,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                   }}
                 >
                   {loading ? (
-                    // Skeleton Loading State
                     <div style={{ padding: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div className="skeleton-loader" style={{ height: '20px', width: '80%' }}></div>
                       <div className="skeleton-loader" style={{ height: '20px', width: '95%' }}></div>
@@ -388,7 +372,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                     </div>
                   ) : output ? (
                     isEditing ? (
-                      // Edit Mode: Textarea
                       <textarea 
                         value={output}
                         onChange={(e) => setOutput(e.target.value)}
@@ -406,24 +389,17 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                         }}
                       />
                     ) : (
-                      // Display Mode: Formatted
-                      activeTool.id === 'referral' || activeTool.id === 'patient_friendly' ? (
-                        <div style={{ 
-                          whiteSpace: 'pre-wrap', 
-                          fontFamily: 'inherit',
-                          lineHeight: '1.6',
-                          color: 'var(--umbil-text)'
-                        }}>
-                          {output}
-                        </div>
-                      ) : (
-                        <div className="markdown-content-wrapper">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>
-                        </div>
-                      )
+                      <div style={{ 
+                        whiteSpace: 'pre-wrap', 
+                        fontFamily: 'inherit',
+                        lineHeight: '1.6',
+                        color: 'var(--umbil-text)'
+                      }}>
+                         {/* Render Markdown only for tools that output it, otherwise plain text */}
+                         {['referral', 'patient_friendly'].includes(activeTool.id) ? output : <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>}
+                      </div>
                     )
                   ) : (
-                    // Empty State
                     <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--umbil-muted)', opacity: 0.5, flexDirection: 'column', gap: '8px' }}>
                       <span style={{ fontSize: '0.9rem' }}>Output will appear here</span>
                     </div>
