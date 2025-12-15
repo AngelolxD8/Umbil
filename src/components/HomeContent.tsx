@@ -34,9 +34,9 @@ const loadingMessages = ["Umbil is thinking...", "Consulting the guidelines...",
 
 const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
   { type: "user", content: "What are the red flags for a headache?", question: "What are the red flags for a headache?" },
-  { type: "umbil", content: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional", question: "What are the red flags for a headache?" }
+  { type: "umbil", content: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional", question: "What are the red flags for a headache?" }
 ];
-const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**lder age (new onset >50 years)\n* **P**attern change or positional" };
+const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional" };
 
 // --- HELPER TO REMOVE <br> TAGS ---
 function cleanMarkdown(text: string): string {
@@ -299,6 +299,9 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
 
+  // NEW: Track the last time a CPD entry was logged to reset the nudge logic
+  const [lastLoggedCount, setLastLoggedCount] = useState(0);
+
   const { isRecording, toggleRecording } = useSpeechRecognition({
     onTranscript: (text) => setQ((prev) => (prev ? prev + " " + text : text)),
     onError: (msg) => setToastMessage(msg),
@@ -326,6 +329,8 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       setConversation([]);
       setQ("");
       setConversationId(null);
+      // Reset the nudge counter on new chat
+      setLastLoggedCount(0);
       if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
       router.replace("/dashboard", { scroll: false });
       return;
@@ -485,7 +490,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const convoToShow = isTourOpen && tourStep >= 3 ? DUMMY_TOUR_CONVERSATION : conversation;
 
   // --- SMART COPY FIX ---
-  // Copies rich text (HTML) for docs/email and clean plain text (no markdown) for others
   const handleSmartCopy = (index: number) => {
     const contentId = `msg-content-${index}`;
     const element = document.getElementById(contentId);
@@ -497,7 +501,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
 
     try {
       const htmlContent = element.innerHTML;
-      const plainTextContent = element.innerText; // InnerText gets the rendered text (clean), not raw markdown
+      const plainTextContent = element.innerText; 
 
       const blobHtml = new Blob([htmlContent], { type: "text/html" });
       const blobText = new Blob([plainTextContent], { type: "text/plain" });
@@ -512,7 +516,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       });
     } catch (err) {
       console.error("Smart copy failed, falling back:", err);
-      // Fallback for older browsers
       navigator.clipboard.writeText(element.innerText).then(() => {
           setToastMessage("Copied text!");
       });
@@ -544,6 +547,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     setCurrentCpdEntry({ question: entry.question || "", answer: entry.content });
     setIsModalOpen(true);
   };
+
   const handleSaveCpd = async (reflection: string, tags: string[]) => {
     if (isTourOpen) { handleTourStepChange(6); return; }
     if (!currentCpdEntry) return;
@@ -551,8 +555,25 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const nextStreak = currentStreak + (isFirstLogToday ? 1 : 0);
     const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { timestamp: new Date().toISOString(), question: currentCpdEntry.question, answer: currentCpdEntry.answer, reflection, tags };
     const { error } = await addCPD(cpdEntry);
-    if (error) { console.error("Failed to save CPD entry:", error); setToastMessage("❌ Failed to save CPD entry."); } 
-    else { if (isFirstLogToday) { setStreakToDisplay(nextStreak); setIsStreakPopupOpen(true); } else { setToastMessage("✅ CPD entry saved remotely!"); } refetchStreaks(); }
+    
+    if (error) { 
+        console.error("Failed to save CPD entry:", error); 
+        setToastMessage("❌ Failed to save CPD entry."); 
+    } else { 
+        if (isFirstLogToday) { 
+            setStreakToDisplay(nextStreak); 
+            setIsStreakPopupOpen(true); 
+        } else { 
+            setToastMessage("✅ CPD entry saved remotely!"); 
+        } 
+        refetchStreaks(); 
+        
+        // --- IMPROVED LOGIC: Reset Nudge Counter ---
+        // If the user logs, we update the counter so the nudge resets.
+        // It will now wait for another 10 questions starting from HERE.
+        const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
+        setLastLoggedCount(currentTotalUserQuestions);
+    }
     setIsModalOpen(false); setCurrentCpdEntry(null);
   };
 
@@ -592,13 +613,18 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const className = `message-bubble ${isUmbil ? "umbil-message" : "user-message"}`;
     const highlightId = isTourOpen && isUmbil ? "tour-highlight-message" : undefined;
     
-    // --- NUDGE LOGIC ---
-    // Count how many user messages appeared before this point to determine if it's the 10th/20th etc.
+    // --- UPDATED NUDGE LOGIC ---
+    // Count how many user messages appeared before this point
     const userMsgCount = convoToShow.slice(0, index + 1).filter(m => m.type === 'user').length;
-    // Show nudge if it's an Umbil message AND corresponds to a multiple of 10 user questions (10, 20, 30...)
-    // Note: We check if the *previous* message was user (implied by chat flow) and if that user message was the 10th.
-    // If the conversation flow is perfectly strict (User -> Umbil -> User -> Umbil), this works.
-    const showNudge = isUmbil && userMsgCount > 0 && userMsgCount % 10 === 0 && !loading;
+    
+    // Calculate questions asked SINCE the last time they logged
+    const questionsSinceLastLog = userMsgCount - lastLoggedCount;
+
+    // Show nudge if:
+    // 1. It is an Umbil message
+    // 2. We have asked at least one new question since the last log
+    // 3. We hit a multiple of 10 SINCE the last log (e.g., 10th, 20th new question)
+    const showNudge = isUmbil && questionsSinceLastLog > 0 && questionsSinceLastLog % 10 === 0 && !loading;
 
     return (
       <div key={index} id={highlightId} className={className}>

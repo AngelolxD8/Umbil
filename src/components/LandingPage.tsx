@@ -1,3 +1,4 @@
+// src/components/LandingPage.tsx
 "use client";
 
 import Link from "next/link";
@@ -29,7 +30,8 @@ export default function LandingPage() {
     blue: "#ecfeff",
     red: "#fff1f2", 
     green: "#f0fdf4",
-    orange: "#fff7ed"
+    orange: "#fff7ed",
+    purple: "#f5f3ff" // Added for the new tool
   };
 
   return (
@@ -152,6 +154,14 @@ export default function LandingPage() {
               <h3 style={{ fontSize: '1.25rem', marginBottom: '12px', fontWeight: 700, color: styles.sectionTitle.color }}>Referral & SBAR Writer</h3>
               <p style={{ color: styles.textMuted.color, lineHeight: 1.6 }}>
                 Turn rough shorthand notes into professional <strong>referral letters</strong> or structured <strong>SBAR handovers</strong> instantly. Includes safety netting generation for medico-legal protection.
+              </p>
+            </div>
+
+            <div style={{ ...styles.card, padding: '32px', borderRadius: '24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
+              <div style={{ width: '48px', height: '48px', background: featureIconBg.purple, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '20px', fontSize: '24px' }}>❤️</div>
+              <h3 style={{ fontSize: '1.25rem', marginBottom: '12px', fontWeight: 700, color: styles.sectionTitle.color }}>Patient Translator</h3>
+              <p style={{ color: styles.textMuted.color, lineHeight: 1.6 }}>
+                 Bridge the communication gap. Paste complex discharge notes or terms, and Umbil rewrites them into <strong>clear, 5th-grade level English</strong> for your patients.
               </p>
             </div>
 

@@ -5,10 +5,10 @@ import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
-import { supabase } from "@/lib/supabase"; // Import Supabase client
+import { supabase } from "@/lib/supabase";
 
-// Export the Type so HomeContent can use it
-export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
+// Added 'patient_friendly' to ToolId
+export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
 
 interface ToolConfig {
   id: ToolId;
@@ -18,7 +18,6 @@ interface ToolConfig {
   desc: string;
 }
 
-// Interface matches the Supabase table structure
 interface HistoryItem {
   id: string;
   tool_id: string;
@@ -33,6 +32,9 @@ const Icons = {
   Shield: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
   Sbar: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
   Discharge: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
+  // New "Patient Friendly" Icon (Heart/Chat)
+  Heart: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
+  
   History: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
   Edit: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   Trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
@@ -54,6 +56,13 @@ export const TOOLS_CONFIG: ToolConfig[] = [
     icon: Icons.Shield, 
     placeholder: "e.g., 3yo child, fever 38.5, drinking ok, no rash. Viral URTI.", 
     desc: "Generates medico-legal advice and specific red flags for the patient." 
+  },
+  { 
+    id: 'patient_friendly', 
+    label: 'Patient Translator', 
+    icon: Icons.Heart, 
+    placeholder: "Paste a complex discharge summary or medical note here to simplify it...", 
+    desc: "Rewrites complex medical text into simple, 5th-grade level English." 
   },
   { 
     id: 'sbar', 
@@ -89,7 +98,9 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
-  const activeTool = TOOLS_CONFIG.find(t => t.id === initialTool) || TOOLS_CONFIG[0];
+  // When switching tools inside the modal, we update activeTool
+  const [activeToolId, setActiveToolId] = useState<ToolId>(initialTool);
+  const activeTool = TOOLS_CONFIG.find(t => t.id === activeToolId) || TOOLS_CONFIG[0];
 
   // Reset state when modal opens
   useEffect(() => {
@@ -98,6 +109,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
       setOutput("");
       setIsEditing(false);
       setShowHistory(false);
+      setActiveToolId(initialTool); // Sync with prop when opening
     }
   }, [isOpen, initialTool]);
 
@@ -154,7 +166,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
       }
       
       // Save to Supabase (Cross-Platform)
-      // We rely on RLS 'default auth.uid()' in SQL to handle user_id
       await supabase.from('tool_history').insert([
         { 
           tool_id: activeTool.id,
@@ -178,6 +189,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   };
 
   const restoreHistoryItem = (item: HistoryItem) => {
+    // If the history item is from a different tool, switch to it?
+    // For now, let's just load the text.
     setInput(item.input);
     setOutput(item.output);
     setShowHistory(false);
@@ -197,11 +210,31 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         
         {/* Header */}
         <div className="tools-header">
-          <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-             <div style={{ color: 'var(--umbil-brand-teal)' }}>{activeTool.icon}</div>
-             <div>
-               <h3 style={{ fontSize: '1.1rem', fontWeight: 600, lineHeight: 1.2 }}>{activeTool.label}</h3>
-               <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', fontWeight: 400 }}>{activeTool.desc}</p>
+          {/* Dropdown to switch tools INSIDE the modal */}
+          <div className="relative group" style={{ cursor: 'pointer' }}>
+             <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
+                <div style={{ color: 'var(--umbil-brand-teal)' }}>{activeTool.icon}</div>
+                <div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'6px'}}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, lineHeight: 1.2 }}>{activeTool.label}</h3>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{opacity:0.5}}><path d="M6 9l6 6 6-6"/></svg>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', fontWeight: 400 }}>{activeTool.desc}</p>
+                </div>
+             </div>
+             
+             {/* Simple Hover Dropdown to switch tools */}
+             <div className="absolute top-full left-0 bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 rounded-lg py-2 min-w-[240px] hidden group-hover:block z-50">
+                {TOOLS_CONFIG.map(t => (
+                  <button 
+                    key={t.id}
+                    onClick={() => setActiveToolId(t.id)}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
+                  >
+                    <span className="text-teal-500">{t.icon}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t.label}</span>
+                  </button>
+                ))}
              </div>
           </div>
           
@@ -374,7 +407,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                       />
                     ) : (
                       // Display Mode: Formatted
-                      activeTool.id === 'referral' ? (
+                      activeTool.id === 'referral' || activeTool.id === 'patient_friendly' ? (
                         <div style={{ 
                           whiteSpace: 'pre-wrap', 
                           fontFamily: 'inherit',
