@@ -74,9 +74,9 @@ Start with a concise summary.
       3. Tone: Reassuring, clear, and honest.
       4. Structure:
          - "What does this mean?": Simple summary.
-         - "Key Takeaways": Bullet points.
+         - "Key Takeaways": List key points clearly.
          - "What to do next": Clear instructions.
-      5. Do not use Markdown headings like "##". Use bolding "**" for sections.
+      5. Do NOT use Markdown formatting (no bold **, no headers #). Keep it plain text suitable for a letter.
     `
   }
 };

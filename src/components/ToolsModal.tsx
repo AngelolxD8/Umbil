@@ -8,7 +8,8 @@ import Toast from "./Toast";
 import { supabase } from "@/lib/supabase"; // Import Supabase client
 
 // Export the Type so HomeContent can use it
-export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
+// Updated to include 'patient_friendly'
+export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
 
 interface ToolConfig {
   id: ToolId;
@@ -33,6 +34,8 @@ const Icons = {
   Shield: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
   Sbar: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
   Discharge: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
+  // New Patient Icon (Heart)
+  Patient: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
   History: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
   Edit: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   Trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
@@ -47,6 +50,13 @@ export const TOOLS_CONFIG: ToolConfig[] = [
     icon: Icons.Referral, 
     placeholder: "e.g., 54F. 3 weeks hoarse voice. Smoker. Exam: Neck normal. Request ENT 2WW.", 
     desc: "Drafts a professional GP referral letter from shorthand notes." 
+  },
+  { 
+    id: 'patient_friendly', 
+    label: 'Patient Translator', 
+    icon: Icons.Patient, 
+    placeholder: "Paste discharge summary, diagnosis, or complex medical notes here...", 
+    desc: "Rewrites complex medical text into simple, patient-friendly language." 
   },
   { 
     id: 'safety_netting', 
@@ -374,7 +384,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
                       />
                     ) : (
                       // Display Mode: Formatted
-                      activeTool.id === 'referral' ? (
+                      // Treat 'patient_friendly' like 'referral' (plain text, no markdown)
+                      (activeTool.id === 'referral' || activeTool.id === 'patient_friendly') ? (
                         <div style={{ 
                           whiteSpace: 'pre-wrap', 
                           fontFamily: 'inherit',
