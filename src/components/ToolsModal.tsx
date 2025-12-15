@@ -1,10 +1,11 @@
 // src/components/ToolsModal.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
+import { supabase } from "@/lib/supabase"; // Import Supabase client
 
 // Export the Type so HomeContent can use it
 export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar';
@@ -17,13 +18,14 @@ interface ToolConfig {
   desc: string;
 }
 
+// Interface matches the Supabase table structure
 interface HistoryItem {
   id: string;
-  toolId: ToolId;
-  toolName: string;
+  tool_id: string;
+  tool_name: string;
   input: string;
   output: string;
-  timestamp: number;
+  created_at: string;
 }
 
 const Icons = {
@@ -31,7 +33,6 @@ const Icons = {
   Shield: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
   Sbar: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
   Discharge: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
-  // New Icons
   History: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
   Edit: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
   Trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
@@ -86,40 +87,41 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const [isEditing, setIsEditing] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
-  // Reset state when modal opens with a new tool
+  const activeTool = TOOLS_CONFIG.find(t => t.id === initialTool) || TOOLS_CONFIG[0];
+
+  // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
       setInput("");
       setOutput("");
       setIsEditing(false);
       setShowHistory(false);
-      // Load history
-      const saved = localStorage.getItem('umbil_tool_history');
-      if (saved) {
-        try {
-          setHistory(JSON.parse(saved));
-        } catch (e) { console.error('Error parsing history', e); }
-      }
     }
   }, [isOpen, initialTool]);
 
-  const activeTool = TOOLS_CONFIG.find(t => t.id === initialTool) || TOOLS_CONFIG[0];
+  // Fetch History from Supabase
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    const { data, error } = await supabase
+      .from('tool_history')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(5); // Get last 5 items
 
-  const saveToHistory = (text: string, result: string) => {
-    const newItem: HistoryItem = {
-      id: Date.now().toString(),
-      toolId: activeTool.id,
-      toolName: activeTool.label,
-      input: text,
-      output: result,
-      timestamp: Date.now()
-    };
-    
-    // Keep last 5 items
-    const updatedHistory = [newItem, ...history].slice(0, 5);
-    setHistory(updatedHistory);
-    localStorage.setItem('umbil_tool_history', JSON.stringify(updatedHistory));
+    if (!error && data) {
+      setHistory(data as HistoryItem[]);
+    }
+    setLoadingHistory(false);
+  };
+
+  // Toggle History View
+  const toggleHistory = () => {
+    if (!showHistory) {
+      fetchHistory();
+    }
+    setShowHistory(!showHistory);
   };
 
   const handleGenerate = async () => {
@@ -128,6 +130,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
     setOutput("");
     setIsEditing(false);
     setShowHistory(false);
+
+    let fullText = "";
 
     try {
       const res = await fetch("/api/tools", {
@@ -140,7 +144,6 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
-      let fullText = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -150,8 +153,16 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         setOutput((prev) => prev + chunk);
       }
       
-      // Save to history once complete
-      saveToHistory(input, fullText);
+      // Save to Supabase (Cross-Platform)
+      // We rely on RLS 'default auth.uid()' in SQL to handle user_id
+      await supabase.from('tool_history').insert([
+        { 
+          tool_id: activeTool.id,
+          tool_name: activeTool.label,
+          input: input,
+          output: fullText 
+        }
+      ]);
 
     } catch (e) {
       console.error(e);
@@ -196,7 +207,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
           
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => setShowHistory(!showHistory)}
+              onClick={toggleHistory}
               className="action-button"
               style={{ marginRight: '16px', color: showHistory ? 'var(--umbil-brand-teal)' : 'var(--umbil-muted)' }}
               title="Recent Generations"
@@ -216,35 +227,42 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
           {showHistory ? (
              <div className="tools-main" style={{ padding: '24px' }}>
                 <h4 className="form-label">Recent Generations</h4>
-                {history.length === 0 && <p style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>No recent history found.</p>}
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-                  {history.map((item) => (
-                    <div 
-                      key={item.id}
-                      onClick={() => restoreHistoryItem(item)}
-                      style={{ 
-                        padding: '16px', 
-                        border: '1px solid var(--umbil-divider)', 
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        backgroundColor: 'var(--umbil-surface)',
-                        transition: 'all 0.2s'
-                      }}
-                      className="hover:border-teal-400 hover:shadow-sm"
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--umbil-brand-teal)' }}>{item.toolName}</span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--umbil-muted)' }}>
-                          {new Date(item.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        </span>
+                {loadingHistory ? (
+                  <div className="flex flex-col gap-3 mt-4">
+                     <div className="skeleton-loader h-12 w-full"></div>
+                     <div className="skeleton-loader h-12 w-full"></div>
+                  </div>
+                ) : history.length === 0 ? (
+                  <p style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem', marginTop: '12px' }}>No recent history found.</p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
+                    {history.map((item) => (
+                      <div 
+                        key={item.id}
+                        onClick={() => restoreHistoryItem(item)}
+                        style={{ 
+                          padding: '16px', 
+                          border: '1px solid var(--umbil-divider)', 
+                          borderRadius: '8px',
+                          cursor: 'pointer',
+                          backgroundColor: 'var(--umbil-surface)',
+                          transition: 'all 0.2s'
+                        }}
+                        className="hover:border-teal-400 hover:shadow-sm"
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--umbil-brand-teal)' }}>{item.tool_name}</span>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--umbil-muted)' }}>
+                            {new Date(item.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: 'var(--umbil-text)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
+                          {item.output.slice(0, 60)}...
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--umbil-text)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                        {item.output.slice(0, 60)}...
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
              </div>
           ) : (
             /* MAIN TOOL VIEW */
