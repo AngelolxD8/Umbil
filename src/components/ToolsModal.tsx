@@ -52,18 +52,18 @@ export const TOOLS_CONFIG: ToolConfig[] = [
     desc: "Drafts a professional GP referral letter from shorthand notes." 
   },
   { 
-    id: 'patient_friendly', 
-    label: 'Patient Translator', 
-    icon: Icons.Patient, 
-    placeholder: "Paste discharge summary, diagnosis, or complex medical notes here...", 
-    desc: "Rewrites complex medical text into simple, patient-friendly language." 
-  },
-  { 
     id: 'safety_netting', 
     label: 'Safety Netting', 
     icon: Icons.Shield, 
     placeholder: "e.g., 3yo child, fever 38.5, drinking ok, no rash. Viral URTI.", 
     desc: "Generates medico-legal advice and specific red flags for the patient." 
+  },
+  { 
+    id: 'patient_friendly', 
+    label: 'Patient Translator', 
+    icon: Icons.Patient, 
+    placeholder: "Paste discharge summary, diagnosis, or complex medical notes here...", 
+    desc: "Rewrites complex medical text into simple, patient-friendly language." 
   },
   { 
     id: 'sbar', 
