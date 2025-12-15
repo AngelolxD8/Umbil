@@ -1246,3 +1246,15 @@ a {
   0%, 100% { transform: translateY(0) scale(1); }
   50% { transform: translateY(-5px) scale(1.05); }
 }
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.skeleton-loader {
+  animation: shimmer 2s infinite linear;
+  background: linear-gradient(to right, var(--umbil-bg) 4%, var(--umbil-hover-bg) 25%, var(--umbil-bg) 36%);
+  background-size: 1000px 100%;
+  border-radius: 8px;
+}
