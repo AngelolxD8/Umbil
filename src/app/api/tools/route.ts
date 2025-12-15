@@ -14,7 +14,6 @@ const together = createTogetherAI({ apiKey: API_KEY });
 const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 // --- TYPE DEFINITIONS ---
-// Updated to include 'patient_friendly' and remove 'translate_reflection'
 type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
 
 interface ToolConfig {
@@ -24,16 +23,10 @@ interface ToolConfig {
 }
 
 // --- PROMPTS & CONFIGURATION ---
-// We now reference SYSTEM_PROMPTS directly to keep things consistent
 const TOOLS: Record<ToolId, ToolConfig> = {
   referral: {
     useSearch: true, 
-    searchQueryGenerator: (input) => {
-      if (input.toLowerCase().includes("2ww") || input.toLowerCase().includes("cancer")) {
-        return `NICE NG12 suspected cancer referral criteria UK ${input}`;
-      }
-      return `NICE CKS referral guidelines UK ${input}`;
-    },
+    searchQueryGenerator: (input) => `NICE CKS referral guidelines UK ${input}`,
     systemPrompt: SYSTEM_PROMPTS.TOOLS.REFERRAL
   },
   safety_netting: {
@@ -51,7 +44,8 @@ const TOOLS: Record<ToolId, ToolConfig> = {
   },
   patient_friendly: {
     useSearch: false,
-    systemPrompt: SYSTEM_PROMPTS.TOOLS.PATIENT_FRIENDLY
+    // No search needed for translation
+    systemPrompt: SYSTEM_PROMPTS.TOOLS.PATIENT_FRIENDLY 
   }
 };
 
@@ -79,7 +73,7 @@ export async function POST(req: NextRequest) {
   try {
     const { toolType, input } = await req.json();
     
-    // Explicit cast
+    // Explicit cast to ToolId
     const config = TOOLS[toolType as ToolId];
     
     if (!input || !config) {

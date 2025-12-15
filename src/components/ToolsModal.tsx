@@ -1,4 +1,3 @@
-// src/components/ToolsModal.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -6,6 +5,19 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
 import { supabase } from "@/lib/supabase";
+
+// --- ICONS ---
+const Icons = {
+  Close: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>,
+  Copy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>,
+  Wand: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>,
+  // Tool Icons
+  Referral: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
+  Shield: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+  Heart: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
+  Sbar: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
+  Discharge: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
+};
 
 export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
 
@@ -17,64 +29,41 @@ interface ToolConfig {
   desc: string;
 }
 
-interface HistoryItem {
-  id: string;
-  tool_id: string;
-  tool_name: string;
-  input: string;
-  output: string;
-  created_at: string;
-}
-
-const Icons = {
-  Referral: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>,
-  Shield: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
-  Sbar: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>,
-  Discharge: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><path d="M10 13h4"/><path d="M12 11v4"/></svg>,
-  Heart: <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>,
-  
-  History: <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
-  Edit: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-  Trash: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>,
-  Check: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
-  Copy: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-};
-
 export const TOOLS_CONFIG: ToolConfig[] = [
+  { 
+    id: 'patient_friendly', 
+    label: 'Patient Translator', 
+    icon: Icons.Heart, 
+    placeholder: "Paste complex medical text here (e.g. 'Patient has idiopathic hypertension...'). The AI will rewrite it for a 5th-grade reading level.", 
+    desc: "Simplify jargon for patients" 
+  },
   { 
     id: 'referral', 
     label: 'Referral Writer', 
     icon: Icons.Referral, 
     placeholder: "e.g., 54F. 3 weeks hoarse voice. Smoker. Exam: Neck normal. Request ENT 2WW.", 
-    desc: "Drafts a professional GP referral letter from shorthand notes." 
+    desc: "Draft referral letters" 
   },
   { 
     id: 'safety_netting', 
     label: 'Safety Netting', 
     icon: Icons.Shield, 
     placeholder: "e.g., 3yo child, fever 38.5, drinking ok, no rash. Viral URTI.", 
-    desc: "Generates medico-legal advice and specific red flags for the patient." 
-  },
-  { 
-    id: 'patient_friendly', 
-    label: 'Patient Translator', 
-    icon: Icons.Heart, 
-    placeholder: "Paste a complex discharge summary or medical note here to simplify it...", 
-    desc: "Rewrites complex medical text into simple, 5th-grade level English." 
+    desc: "Generate safety advice" 
   },
   { 
     id: 'sbar', 
     label: 'SBAR Handover', 
     icon: Icons.Sbar, 
     placeholder: "e.g., 78M, Bay 4. BP 80/50, Sats 88%. Peri-arrest. Need Reg review.", 
-    desc: "Structured situation-background-assessment-recommendation for urgent calls." 
+    desc: "Urgent handover structure" 
   },
   { 
     id: 'discharge_summary', 
     label: 'Discharge Condenser', 
     icon: Icons.Discharge, 
     placeholder: "Paste the long list of daily ward rounds here...", 
-    desc: "Extracts diagnosis, med changes, and follow-up from messy notes." 
+    desc: "Summarize admission" 
   },
 ];
 
@@ -89,54 +78,22 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  
-  const [isEditing, setIsEditing] = useState(false);
-  const [showHistory, setShowHistory] = useState(false);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [loadingHistory, setLoadingHistory] = useState(false);
-
   const [activeToolId, setActiveToolId] = useState<ToolId>(initialTool);
-  const activeTool = TOOLS_CONFIG.find(t => t.id === activeToolId) || TOOLS_CONFIG[0];
 
   useEffect(() => {
     if (isOpen) {
       setInput("");
       setOutput("");
-      setIsEditing(false);
-      setShowHistory(false);
       setActiveToolId(initialTool);
     }
   }, [isOpen, initialTool]);
 
-  const fetchHistory = async () => {
-    setLoadingHistory(true);
-    const { data, error } = await supabase
-      .from('tool_history')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(5);
-
-    if (!error && data) {
-      setHistory(data as HistoryItem[]);
-    }
-    setLoadingHistory(false);
-  };
-
-  const toggleHistory = () => {
-    if (!showHistory) {
-      fetchHistory();
-    }
-    setShowHistory(!showHistory);
-  };
+  const activeTool = TOOLS_CONFIG.find(t => t.id === activeToolId) || TOOLS_CONFIG[0];
 
   const handleGenerate = async () => {
     if (!input.trim()) return;
     setLoading(true);
     setOutput("");
-    setIsEditing(false);
-    setShowHistory(false);
-
-    let fullText = "";
 
     try {
       const res = await fetch("/api/tools", {
@@ -149,6 +106,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
 
       const reader = res.body?.getReader();
       const decoder = new TextDecoder();
+      let fullText = "";
 
       if (reader) {
         while (true) {
@@ -159,15 +117,14 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
           setOutput((prev) => prev + chunk);
         }
       }
-      
-      await supabase.from('tool_history').insert([
-        { 
+
+      // Save to history (fire and forget)
+      supabase.from('tool_history').insert([{ 
           tool_id: activeTool.id,
           tool_name: activeTool.label,
           input: input,
           output: fullText 
-        }
-      ]);
+      }]).then();
 
     } catch (e) {
       console.error(e);
@@ -180,235 +137,125 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const handleCopy = () => {
     navigator.clipboard.writeText(output);
     setToastMessage("Copied to clipboard");
-  };
-
-  const restoreHistoryItem = (item: HistoryItem) => {
-    setInput(item.input);
-    setOutput(item.output);
-    setShowHistory(false);
-    setIsEditing(false);
+    setTimeout(() => setToastMessage(null), 2000);
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="modal-overlay">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
 
-      <div className="modal-content tools-modal-content">
+      <div className="bg-white dark:bg-zinc-900 w-full max-w-5xl h-[85vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden border border-zinc-200 dark:border-zinc-800">
         
-        {/* Header - No tabs, just the Dropdown and Actions */}
-        <div className="tools-header">
-          {/* Tool Selector Dropdown */}
-          <div className="relative group" style={{ cursor: 'pointer' }}>
-             <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
-                <div style={{ color: 'var(--umbil-brand-teal)' }}>{activeTool.icon}</div>
-                <div>
-                  <div style={{ display:'flex', alignItems:'center', gap:'6px'}}>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, lineHeight: 1.2 }}>{activeTool.label}</h3>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{opacity:0.5}}><path d="M6 9l6 6 6-6"/></svg>
-                  </div>
-                  <p style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', fontWeight: 400 }}>{activeTool.desc}</p>
-                </div>
-             </div>
-             
-             {/* Dropdown Menu */}
-             <div className="absolute top-full left-0 bg-white dark:bg-gray-800 shadow-xl border border-gray-100 dark:border-gray-700 rounded-lg py-2 min-w-[240px] hidden group-hover:block z-50">
-                {TOOLS_CONFIG.map(t => (
-                  <button 
-                    key={t.id}
-                    onClick={() => setActiveToolId(t.id)}
-                    className="w-full text-left px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-3 transition-colors"
-                  >
-                    <span className="text-teal-500">{t.icon}</span>
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">{t.label}</span>
-                  </button>
-                ))}
-             </div>
+        {/* --- HEADER (Clean - No Dropdown) --- */}
+        <div className="h-16 px-6 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between bg-white dark:bg-zinc-900 shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-teal-50 dark:bg-teal-900/20 text-teal-600 dark:text-teal-400 rounded-lg">
+              {activeTool.icon}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 leading-tight">
+                {activeTool.label}
+              </h2>
+              <p className="text-xs text-zinc-500">
+                {activeTool.desc}
+              </p>
+            </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={toggleHistory}
-              className="action-button"
-              style={{ marginRight: '16px', color: showHistory ? 'var(--umbil-brand-teal)' : 'var(--umbil-muted)' }}
-              title="Recent Generations"
-            >
-              {Icons.History}
-              <span style={{ fontSize: '0.9rem' }}>Recent</span>
-            </button>
-            
-            <button onClick={onClose} className="close-button" style={{ position: 'static' }}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-            </button>
-          </div>
+          <button 
+            onClick={onClose}
+            className="p-2 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition-all"
+          >
+            {Icons.Close}
+          </button>
         </div>
 
-        <div className="tools-body">
-          {showHistory ? (
-             <div className="tools-main" style={{ padding: '24px' }}>
-                <h4 className="form-label">Recent Generations</h4>
-                {loadingHistory ? (
-                  <div className="flex flex-col gap-3 mt-4">
-                     <div className="skeleton-loader h-12 w-full"></div>
-                     <div className="skeleton-loader h-12 w-full"></div>
-                  </div>
-                ) : history.length === 0 ? (
-                  <p style={{ color: 'var(--umbil-muted)', fontSize: '0.9rem', marginTop: '12px' }}>No recent history found.</p>
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '12px' }}>
-                    {history.map((item) => (
-                      <div 
-                        key={item.id}
-                        onClick={() => restoreHistoryItem(item)}
-                        style={{ 
-                          padding: '16px', 
-                          border: '1px solid var(--umbil-divider)', 
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          backgroundColor: 'var(--umbil-surface)',
-                          transition: 'all 0.2s'
-                        }}
-                        className="hover:border-teal-400 hover:shadow-sm"
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--umbil-brand-teal)' }}>{item.tool_name}</span>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--umbil-muted)' }}>
-                            {new Date(item.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--umbil-text)', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }}>
-                          {item.output.slice(0, 60)}...
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-             </div>
-          ) : (
-            <div className="tools-main">
-              {/* Input Section */}
-              <div className="input-section">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label className="form-label" style={{ marginBottom: 0 }}>Clinical Notes</label>
-                  {input && (
-                    <button 
-                      onClick={() => setInput("")} 
-                      className="action-button" 
-                      style={{ fontSize: '0.8rem', gap: '4px' }}
-                    >
-                      {Icons.Trash} Clear
-                    </button>
-                  )}
-                </div>
-                
-                <textarea
-                  className="form-control"
-                  style={{ 
-                      height: '140px', 
-                      resize: 'none', 
-                      fontSize: '0.95rem',
-                      backgroundColor: 'var(--umbil-bg)',
-                      border: '1px solid var(--umbil-divider)',
-                      fontFamily: 'inherit'
-                  }}
-                  placeholder={activeTool.placeholder}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                />
-                
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-                  <button 
-                    className="btn btn--primary" 
-                    onClick={handleGenerate} 
-                    disabled={loading || !input.trim()}
-                    style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 20px' }}
-                  >
-                    {loading ? 'Working...' : <>Generate <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2z"/></svg></>}
-                  </button>
-                </div>
-              </div>
-
-              {/* Output Section */}
-              <div className="output-section" style={{ borderTop: '1px solid var(--umbil-divider)', paddingTop: '20px', marginTop: '20px', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <label className="form-label" style={{marginBottom:0}}>Result</label>
-                  
-                  {output && !loading && (
-                    <div className="flex gap-3">
-                      <button 
-                        onClick={() => setIsEditing(!isEditing)} 
-                        className="action-button"
-                        style={{ color: isEditing ? 'var(--umbil-brand-teal)' : 'var(--umbil-muted)' }}
-                      >
-                         {isEditing ? Icons.Check : Icons.Edit} 
-                         {isEditing ? 'Done' : 'Refine'}
-                      </button>
-                      <button onClick={handleCopy} className="action-button">
-                        {Icons.Copy} Copy
-                      </button>
-                    </div>
-                  )}
-                </div>
-                
-                <div 
-                  className="form-control" 
-                  style={{ 
-                    flex: 1, 
-                    overflowY: 'auto', 
-                    backgroundColor: 'var(--umbil-surface)',
-                    border: 'none',
-                    padding: 0,
-                    minHeight: '200px',
-                    position: 'relative'
-                  }}
-                >
-                  {loading ? (
-                    <div style={{ padding: '4px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div className="skeleton-loader" style={{ height: '20px', width: '80%' }}></div>
-                      <div className="skeleton-loader" style={{ height: '20px', width: '95%' }}></div>
-                      <div className="skeleton-loader" style={{ height: '20px', width: '90%' }}></div>
-                      <div className="skeleton-loader" style={{ height: '20px', width: '60%', marginTop: '12px' }}></div>
-                    </div>
-                  ) : output ? (
-                    isEditing ? (
-                      <textarea 
-                        value={output}
-                        onChange={(e) => setOutput(e.target.value)}
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          border: '1px dashed var(--umbil-brand-teal)',
-                          borderRadius: '8px',
-                          padding: '12px',
-                          outline: 'none',
-                          fontSize: '0.95rem',
-                          fontFamily: 'inherit',
-                          backgroundColor: 'var(--umbil-bg)',
-                          resize: 'none'
-                        }}
-                      />
-                    ) : (
-                      <div style={{ 
-                        whiteSpace: 'pre-wrap', 
-                        fontFamily: 'inherit',
-                        lineHeight: '1.6',
-                        color: 'var(--umbil-text)'
-                      }}>
-                         {/* Render Markdown only for tools that output it, otherwise plain text */}
-                         {['referral', 'patient_friendly'].includes(activeTool.id) ? output : <ReactMarkdown remarkPlugins={[remarkGfm]}>{output}</ReactMarkdown>}
-                      </div>
-                    )
-                  ) : (
-                    <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--umbil-muted)', opacity: 0.5, flexDirection: 'column', gap: '8px' }}>
-                      <span style={{ fontSize: '0.9rem' }}>Output will appear here</span>
-                    </div>
-                  )}
-                </div>
-              </div>
-
+        {/* --- BODY --- */}
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+          
+          {/* INPUT SECTION */}
+          <div className="flex-1 flex flex-col p-6 border-b md:border-b-0 md:border-r border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-900/50">
+            <div className="flex justify-between items-center mb-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                Input
+              </label>
+              {input && (
+                <button onClick={() => setInput("")} className="text-xs text-zinc-400 hover:text-red-500 transition-colors">
+                  Clear
+                </button>
+              )}
             </div>
-          )}
+            
+            <textarea
+              className="flex-1 w-full p-4 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 resize-none transition-all placeholder:text-zinc-400 text-sm leading-relaxed outline-none"
+              placeholder={activeTool.placeholder}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+            />
+
+            <div className="mt-4 flex justify-end">
+              <button
+                onClick={handleGenerate}
+                disabled={loading || !input.trim()}
+                className="flex items-center gap-2 px-6 py-2.5 bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 rounded-lg font-semibold text-sm hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    {Icons.Wand}
+                    Generate
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+
+          {/* OUTPUT SECTION */}
+          <div className="flex-1 flex flex-col p-6 bg-white dark:bg-zinc-900">
+            <div className="flex justify-between items-center mb-3">
+              <label className="text-xs font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400">
+                AI Response
+              </label>
+              {output && !loading && (
+                <button 
+                  onClick={handleCopy}
+                  className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 hover:text-teal-600 transition-colors bg-zinc-50 px-2 py-1 rounded-md"
+                >
+                  {Icons.Copy} Copy
+                </button>
+              )}
+            </div>
+
+            <div className="flex-1 overflow-y-auto rounded-xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 shadow-sm">
+              {loading ? (
+                <div className="flex flex-col gap-3 animate-pulse">
+                  <div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-3/4"></div>
+                  <div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-1/2"></div>
+                  <div className="h-4 bg-zinc-100 dark:bg-zinc-800 rounded w-5/6"></div>
+                </div>
+              ) : output ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {output}
+                  </ReactMarkdown>
+                </div>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center text-zinc-400">
+                  <div className="p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-full mb-3 opacity-50">
+                    {activeTool.icon}
+                  </div>
+                  <p className="text-sm">Result will appear here</p>
+                </div>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
     </div>
