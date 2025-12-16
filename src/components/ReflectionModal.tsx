@@ -38,7 +38,7 @@ export default function ReflectionModal({
   const [reflection, setReflection] = useState("");
   const [tags, setTags] = useState(""); 
   
-  // New State for Mode
+  // Default to 'personalise' so they are encouraged to write their own notes first
   const [generationMode, setGenerationMode] = useState<'auto' | 'personalise'>('personalise');
 
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
@@ -54,7 +54,7 @@ export default function ReflectionModal({
       setError(null);
       setIsGeneratingReflection(false);
       setIsTranslating(false);
-      setGenerationMode('personalise'); // Default reset
+      setGenerationMode('personalise');
     }
   }, [isOpen]);
 
@@ -66,7 +66,6 @@ export default function ReflectionModal({
     setGeneratedTags(prev => prev.filter((t: string) => t !== tagToAdd));
   };
 
-  // --- TRANSLATE FUNCTION ---
   const handleTranslate = async () => {
     if (!reflection.trim()) return;
     setIsTranslating(true);
@@ -104,9 +103,9 @@ export default function ReflectionModal({
   const handleGenerateReflection = async () => {
     if (!cpdEntry) return;
     
-    // Safety check: If in personalise mode but box is empty, warn user
+    // Safety check for Personalise mode
     if (generationMode === 'personalise' && !reflection.trim()) {
-      setError("For 'Personalise' mode, please type some notes first. Or switch to 'Auto-Generate'.");
+      setError("Please type your rough notes first, then click Tidy Up.");
       return;
     }
 
@@ -114,9 +113,8 @@ export default function ReflectionModal({
     setError(null);
     setGeneratedTags([]);
 
-    // We only clear the box if we are in AUTO mode. 
-    // In PERSONALISE mode, we want to replace the notes with the polished version, 
-    // but we can start streaming immediately.
+    // Clear box only if Auto mode. 
+    // In Personalise mode, we'll overwrite it with the stream, which feels natural.
     if (generationMode === 'auto') {
         setReflection("");
     }
@@ -131,7 +129,7 @@ export default function ReflectionModal({
           question: cpdEntry.question,
           answer: cpdEntry.answer,
           userNotes: reflection, 
-          mode: generationMode, // Send the mode to API
+          mode: generationMode,
         }),
       });
 
@@ -140,7 +138,7 @@ export default function ReflectionModal({
         throw new Error(errData.error || "Failed to start reflection stream");
       }
 
-      // If personalise mode, clear now right before stream starts
+      // Clear for personalise mode right before stream starts
       if (generationMode === 'personalise') setReflection("");
 
       const reader = res.body.getReader();
@@ -197,7 +195,6 @@ export default function ReflectionModal({
           </button>
         </div>
         
-        {/* Streak Info */}
         <div className="streak-display-modal">
           <div>
             🔥 Current Learning Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
@@ -211,7 +208,7 @@ export default function ReflectionModal({
 
         {/* --- MODE SLIDER --- */}
         <div className="form-group">
-            <label className="form-label">Generation Mode</label>
+            <label className="form-label">Mode</label>
             <div style={{
                 display: 'flex', 
                 background: '#f1f5f9', 
@@ -258,8 +255,8 @@ export default function ReflectionModal({
             </div>
             <p style={{fontSize: '0.8rem', color: 'var(--umbil-muted)', marginTop: '4px'}}>
                 {generationMode === 'auto' 
-                  ? "AI will write a generic reflection based on the topic. Good for quick knowledge checks." 
-                  : "AI will polish your rough notes below. Good for recording specific cases."}
+                  ? "Creates a full structured reflection (Learning, Application, Next Steps) based on the topic." 
+                  : "Fixes grammar and flow of YOUR notes. Does NOT add extra headers or make things up."}
             </p>
         </div>
 
@@ -286,8 +283,8 @@ export default function ReflectionModal({
             // UPDATED PLACEHOLDER
             placeholder={
                 generationMode === 'auto' 
-                ? "Click 'Generate' to create a reflection..." 
-                : "Type your rough notes here in any language (e.g., 'Discussed paraneoplastic syndromes...'). \n\nThen click 'Generate' to polish, or 'Translate' if you just need English translation."
+                ? "Click 'Generate' to create a structured reflection..." 
+                : "Type your rough notes here in any language (e.g. 'Discussed paraneoplastic syndromes, need to check Ca125'). \n\nWe'll tidy the grammar but keep your exact meaning."
             }
             disabled={isGeneratingReflection || isTranslating}
           />
@@ -300,11 +297,11 @@ export default function ReflectionModal({
             disabled={isGeneratingReflection || !cpdEntry}
           >
             {isGeneratingReflection ? (
-              "Generating..."
+              "Working..."
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9Z"></path></svg>
-                {generationMode === 'auto' ? "Auto-Generate Reflection" : "Polish My Notes with AI"}
+                {generationMode === 'auto' ? "Auto-Generate Reflection" : "Tidy Up My Notes"}
               </>
             )}
           </button>

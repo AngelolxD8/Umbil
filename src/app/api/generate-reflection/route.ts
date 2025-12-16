@@ -25,7 +25,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    // 1. Get the new 'mode' parameter
     const { question, answer, userNotes, mode } = await req.json();
 
     if (!question || !answer) {
@@ -35,65 +34,74 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 2. Define Mode-Specific Instructions
-    // prevent "making stuff up" by forcing generic language in Auto mode
-    // and strict adherence in Personalise mode.
-    
-    let modeInstruction = "";
+    // --- 1. DEFINE PROMPTS BASED ON MODE ---
+    let systemInstruction = "";
+    let outputFormat = "";
 
     if (mode === 'personalise') {
-      modeInstruction = `
-      MODE: PERSONALISE (STRICT)
-      - The user has provided rough notes below.
-      - Your goal is to POLISH these notes into a professional reflection.
-      - **DO NOT** add any new facts, patients, or scenarios that are not in the notes.
-      - If the notes are brief, keep the reflection brief. Do not invent details to fill space.
+      // MODE: PERSONALISE (TIDY UP ONLY)
+      // We explicitly tell it NOT to use the headers.
+      systemInstruction = `
+      You are an expert Medical Editor. 
+      The user has written rough clinical notes below.
+      
+      YOUR TASK:
+      1. Tidy up the grammar, spelling, and flow.
+      2. Make it sound professional and concise.
+      3. **KEEP IT EXACT:** Do NOT add new facts, do NOT invent patients, and do NOT add sections like "Key Learning" or "Next Steps". Just give back the polished paragraphs.
       `;
+      
+      outputFormat = `
+      Output the polished text directly.
+      Then, on a new line, add '---TAGS---' followed by a JSON string array of 5-7 keywords.
+      `;
+
     } else {
-      // Auto Mode
-      modeInstruction = `
-      MODE: AUTO-GENERATE (GENERIC)
-      - The user has not provided specific notes. 
-      - Write a **generic** educational reflection based on the topic below.
-      - **DO NOT** invent a specific patient encounter or a specific date.
-      - Use phrases like "I refreshed my knowledge on...", "This was a helpful reminder...", or "I reviewed the guidelines for..."
-      - Focus on the *clinical theory* provided in the context.
+      // MODE: AUTO-GENERATE (FULL STRUCTURE)
+      // This keeps the original helpful structure for generic learning.
+      systemInstruction = `
+      You are Umbil, a UK clinical reflection assistant.
+      The user wants a GENERIC educational reflection based on the Q&A below.
+      
+      YOUR TASK:
+      1. Write a reflective entry (I refreshed my knowledge on...).
+      2. DO NOT invent a specific patient encounter.
+      3. Focus on the clinical theory.
+      `;
+
+      outputFormat = `
+      Structure your response into these 4 sections:
+      1. Key learning
+      2. Application
+      3. Next steps
+      4. GMC domains
+      
+      Then, on a new line, add '---TAGS---' followed by a JSON string array of 5-7 keywords.
       `;
     }
 
-    // 3. Construct the Final Prompt
+    // --- 2. CONSTRUCT FINAL PROMPT ---
     const finalPrompt = `
-You are Umbil, a UK clinical reflection assistant.
-Generate a GMC-compliant reflective entry.
-
-${modeInstruction}
+${systemInstruction}
 
 ---
-CONTEXT (Use for medical terminology/context):
+CONTEXT (Background Info):
 Question: ${question}
 Answer: ${answer}
 
-USER NOTES (Primary Source if in Personalise Mode):
+USER NOTES (Target Text):
 "${userNotes ? userNotes : "(No notes provided)"}"
 ---
 
-OUTPUT FORMAT:
-Respond ONLY with plain text. DO NOT use markdown.
-Include 4 short sections:
-1. Key learning
-2. Application
-3. Next steps
-4. GMC domains (Briefly link to a domain like 'Knowledge, Skills & Performance')
-
-After the reflection, add a separator '---TAGS---' on a new line, followed by a JSON string array of 5-7 relevant clinical keywords.
+${outputFormat}
+RESPOND ONLY WITH PLAIN TEXT (No Markdown).
 `;
 
-    // --- Streaming Call ---
+    // --- 3. STREAMING CALL ---
     const result = await streamText({
       model: together(MODEL_SLUG),
       messages: [{ role: "user", content: finalPrompt }],
-      // 4. Lower temperature to reduce hallucinations
-      temperature: 0.2, 
+      temperature: 0.2, // Keep strictly factual
       maxOutputTokens: 1024,
     });
 
