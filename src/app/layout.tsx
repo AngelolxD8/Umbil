@@ -43,8 +43,7 @@ export const metadata: Metadata = {
     description: "Automated CPD and Clinical Intelligence for UK Doctors.",
   },
   other: {
-    name: "google-site-verification",
-    content: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
+    google-site-verification: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
   }
 };
 
