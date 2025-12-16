@@ -11,6 +11,7 @@ export const metadata: Metadata = {
   title: "Umbil | Clinical Learning Tool & CPD Automation for UK Doctors",
   description: "The AI medical co-pilot for UK clinicians. Automate your CPD, generate GMC reflections instantly, and get evidence-based answers from NICE & CKS.",
   keywords: [
+    "Umbil AI",
     "clinical learning tool",
     "clinical learning platform UK",
     "medical education AI",
@@ -41,6 +42,10 @@ export const metadata: Metadata = {
     title: "Umbil - Your Medical Education Lifeline",
     description: "Automated CPD and Clinical Intelligence for UK Doctors.",
   },
+  other: {
+    name: "google-site-verification",
+    content: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
+  }
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
