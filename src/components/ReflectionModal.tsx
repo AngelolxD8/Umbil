@@ -38,8 +38,11 @@ export default function ReflectionModal({
   const [reflection, setReflection] = useState("");
   const [tags, setTags] = useState(""); 
   
+  // New State for Mode
+  const [generationMode, setGenerationMode] = useState<'auto' | 'personalise'>('personalise');
+
   const [isGeneratingReflection, setIsGeneratingReflection] = useState(false);
-  const [isTranslating, setIsTranslating] = useState(false); // NEW
+  const [isTranslating, setIsTranslating] = useState(false);
   const [generatedTags, setGeneratedTags] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +54,7 @@ export default function ReflectionModal({
       setError(null);
       setIsGeneratingReflection(false);
       setIsTranslating(false);
+      setGenerationMode('personalise'); // Default reset
     }
   }, [isOpen]);
 
@@ -62,11 +66,10 @@ export default function ReflectionModal({
     setGeneratedTags(prev => prev.filter((t: string) => t !== tagToAdd));
   };
 
-  // --- NEW TRANSLATE FUNCTION ---
+  // --- TRANSLATE FUNCTION ---
   const handleTranslate = async () => {
     if (!reflection.trim()) return;
     setIsTranslating(true);
-    // Keep a backup of original in case they want it
     const originalText = reflection; 
     let translatedText = "";
 
@@ -86,16 +89,13 @@ export default function ReflectionModal({
         const { done, value } = await reader.read();
         if (done) break;
         translatedText += decoder.decode(value, { stream: true });
-        // Stream directly into the box
         setReflection(translatedText); 
       }
-      
-      // Append original text at bottom for reference
       setReflection(prev => `${prev}\n\n--- Original Text ---\n${originalText}`);
 
     } catch {
       setError("Translation failed. Please try again.");
-      setReflection(originalText); // Revert on fail
+      setReflection(originalText); 
     } finally {
       setIsTranslating(false);
     }
@@ -103,10 +103,23 @@ export default function ReflectionModal({
 
   const handleGenerateReflection = async () => {
     if (!cpdEntry) return;
+    
+    // Safety check: If in personalise mode but box is empty, warn user
+    if (generationMode === 'personalise' && !reflection.trim()) {
+      setError("For 'Personalise' mode, please type some notes first. Or switch to 'Auto-Generate'.");
+      return;
+    }
+
     setIsGeneratingReflection(true);
     setError(null);
-    setReflection("");
     setGeneratedTags([]);
+
+    // We only clear the box if we are in AUTO mode. 
+    // In PERSONALISE mode, we want to replace the notes with the polished version, 
+    // but we can start streaming immediately.
+    if (generationMode === 'auto') {
+        setReflection("");
+    }
 
     let fullText = ""; 
 
@@ -117,6 +130,8 @@ export default function ReflectionModal({
         body: JSON.stringify({
           question: cpdEntry.question,
           answer: cpdEntry.answer,
+          userNotes: reflection, 
+          mode: generationMode, // Send the mode to API
         }),
       });
 
@@ -124,6 +139,9 @@ export default function ReflectionModal({
         const errData = await res.json();
         throw new Error(errData.error || "Failed to start reflection stream");
       }
+
+      // If personalise mode, clear now right before stream starts
+      if (generationMode === 'personalise') setReflection("");
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -179,6 +197,7 @@ export default function ReflectionModal({
           </button>
         </div>
         
+        {/* Streak Info */}
         <div className="streak-display-modal">
           <div>
             🔥 Current Learning Streak: {currentStreak} {currentStreak === 1 ? 'day' : 'days'}
@@ -188,12 +207,67 @@ export default function ReflectionModal({
           </p>
         </div>
 
-        {error && <p style={{ color: 'red', marginBottom: '1rem' }}>{error}</p>}
+        {error && <p style={{ color: 'red', marginBottom: '1rem', fontSize: '0.9rem' }}>{error}</p>}
+
+        {/* --- MODE SLIDER --- */}
+        <div className="form-group">
+            <label className="form-label">Generation Mode</label>
+            <div style={{
+                display: 'flex', 
+                background: '#f1f5f9', 
+                borderRadius: '8px', 
+                padding: '4px',
+                marginBottom: '10px'
+            }}>
+                <button
+                    onClick={() => setGenerationMode('auto')}
+                    style={{
+                        flex: 1,
+                        padding: '8px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        background: generationMode === 'auto' ? 'white' : 'transparent',
+                        color: generationMode === 'auto' ? '#0f172a' : '#64748b',
+                        boxShadow: generationMode === 'auto' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    ⚡ Auto-Generate
+                </button>
+                <button
+                    onClick={() => setGenerationMode('personalise')}
+                    style={{
+                        flex: 1,
+                        padding: '8px',
+                        borderRadius: '6px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        fontSize: '0.9rem',
+                        fontWeight: 600,
+                        background: generationMode === 'personalise' ? 'white' : 'transparent',
+                        color: generationMode === 'personalise' ? '#0f172a' : '#64748b',
+                        boxShadow: generationMode === 'personalise' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    ✏️ Personalise
+                </button>
+            </div>
+            <p style={{fontSize: '0.8rem', color: 'var(--umbil-muted)', marginTop: '4px'}}>
+                {generationMode === 'auto' 
+                  ? "AI will write a generic reflection based on the topic. Good for quick knowledge checks." 
+                  : "AI will polish your rough notes below. Good for recording specific cases."}
+            </p>
+        </div>
 
         <div className="form-group">
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: '6px'}}>
-             <label className="form-label" style={{marginBottom:0}}>Your Reflection</label>
-             {/* TRANSLATE BUTTON */}
+             <label className="form-label" style={{marginBottom:0}}>
+                {generationMode === 'auto' ? 'Reflection Preview' : 'Your Notes'}
+             </label>
              <button 
                 onClick={handleTranslate} 
                 className="action-button" 
@@ -209,7 +283,12 @@ export default function ReflectionModal({
             rows={8}
             value={reflection}
             onChange={(e) => setReflection(e.target.value)}
-            placeholder="Type in English or your native language. Click 'Generate' for AI help, or 'Translate' to convert to English."
+            // UPDATED PLACEHOLDER
+            placeholder={
+                generationMode === 'auto' 
+                ? "Click 'Generate' to create a reflection..." 
+                : "Type your rough notes here in any language (e.g., 'Discussed paraneoplastic syndromes...'). \n\nThen click 'Generate' to polish, or 'Translate' if you just need English translation."
+            }
             disabled={isGeneratingReflection || isTranslating}
           />
         </div>
@@ -225,7 +304,7 @@ export default function ReflectionModal({
             ) : (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9L12 18l1.9-5.8 5.8-1.9-5.8-1.9Z"></path></svg>
-                Generate Reflection & Tags
+                {generationMode === 'auto' ? "Auto-Generate Reflection" : "Polish My Notes with AI"}
               </>
             )}
           </button>
