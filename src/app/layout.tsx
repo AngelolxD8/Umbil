@@ -42,8 +42,8 @@ export const metadata: Metadata = {
     title: "Umbil - Your Medical Education Lifeline",
     description: "Automated CPD and Clinical Intelligence for UK Doctors.",
   },
-  other: {
-    google-site-verification: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
+  verification: {
+    google: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
   }
 };
 
