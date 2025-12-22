@@ -177,13 +177,14 @@ export async function POST(req: NextRequest) {
     // 3. Dynamic System Prompt
     let imageInstruction = "";
 
-    if (searchError === "LIMIT_REACHED") {
-        imageInstruction = `
-        IMPORTANT: The external search failed (monthly limit reached).
-        Apologize: "I cannot retrieve live guidelines right now as the free search limit has been reached. **Umbil Pro** offers unlimited searches."
-        Then answer based on your internal knowledge.
-        `;
-    } 
+    /* --- PARKED UMBIL PRO LIMIT MESSAGE --
+    // if (searchError === "LIMIT_REACHED") {
+    //     imageInstruction = `
+    //     IMPORTANT: The external search failed (monthly limit reached).
+    //     Apologize: "I cannot retrieve live guidelines right now as the free search limit has been reached. **Umbil Pro** offers unlimited searches."
+    //     Then answer based on your internal knowledge.
+    //     `;
+    // } 
     /* --- PARKED IMAGE INSTRUCTIONS ---
     else if (wantsImage) {
         // ... (Smart image display instructions preserved)
