@@ -320,7 +320,10 @@ function CPDInner() {
                 </div>
                 {e.reflection && (
                   <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--umbil-divider)', fontStyle: 'italic', color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
-                    <strong>Reflection:</strong> {e.reflection}
+                    <strong>Reflection:</strong>
+                    <div>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.reflection}</ReactMarkdown>
+                    </div>
                   </div>
                 )}
                 <div style={{ marginTop: 12 }}>
