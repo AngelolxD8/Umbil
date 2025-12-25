@@ -7,6 +7,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { renderToStaticMarkup } from "react-dom/server";
+import cpdStyles from './cpd.module.css'
 
 const PAGE_SIZE = 10;
 // FIX: Set default to 0.25 (15 mins) for micro-learning queries. 
@@ -299,19 +300,19 @@ function CPDInner() {
         </div>
 
         {/* Entries List */}
-        <div className="cpd-entries">
+        <div className={cpdStyles.cpdEntries}>
           {loading && <p>Loading entries...</p>}
           {!loading && paginatedList.map((e, idx) => (
-            <div key={e.id || idx} className="card" style={{ marginBottom: 24 }}>
-              <div className="card__body" style={{ padding: '20px' }}>
-                <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div key={e.id || idx} className={cpdStyles.cpdCard}>
+              <div className={cpdStyles.card__body}>
+                <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div>
                     <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>{new Date(e.timestamp).toLocaleString()}</div>
-                    <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem' }}>{e.question}</div>
+                    <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem', maxWidth: 600 }}>{e.question}</div>
                   </div>
                   {e.id && (
-                      <button onClick={() => handleDelete(e.id!)} disabled={deletingId === e.id} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--umbil-muted)', opacity: deletingId === e.id ? 0.5 : 1 }}>
-                        🗑️
+                      <button disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
+                        <span role="img" aria-label="trash">🗑️</span> Delete
                       </button>
                   )}
                 </div>

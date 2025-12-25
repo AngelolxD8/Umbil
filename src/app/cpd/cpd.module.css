@@ -1,0 +1,60 @@
+.cpdEntries p {
+  margin-bottom: 8pt;
+}
+
+.cpdEntries table {
+  border-collapse: collapse ;
+  width: 95%;
+  margin: 10px 0;
+  border-radius: 0.6rem;
+}
+
+.cpdEntries td,
+.cpdEntries th {
+  padding: 8px;
+  border: 1px solid black;
+  border-radius: 0.6rem;
+}
+
+.cpdCard {
+  background-color: #fff;
+  border-radius: 1rem;
+  padding: 30px 40px;
+  margin-bottom: 24px;
+}
+
+.cpdCard p,
+.cpdCard h2, 
+.cpdCard h3,
+.cpdCard h4,
+.cpdCard h5,
+.cpdCard hr {
+  margin-bottom: 15px;
+}
+
+.cpdCard li {
+  margin-bottom: 5px;
+}
+
+.cpdCard li:last-child {
+  margin-bottom: 10px;
+}
+
+.btnDelete {
+  background-color: #fff;
+  border: 1px solid #f64f4f;
+  border-radius: 0.5rem;
+  padding: 8px 16px;
+  cursor: pointer;
+  color: #f64f4f;
+  transition: all 0.3s ease;
+}
+
+.btnDelete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnDelete:hover {
+  background-color: #f9cccc;
+}
