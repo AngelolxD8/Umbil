@@ -292,7 +292,7 @@ function CPDInner() {
         </div>
 
         {/* Filters */}
-        <div className="filters" style={{ marginBottom: 32 }}>
+        <div className="filters" style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
           <input className="form-control" placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="form-control" value={tag} onChange={(e) => setTag(e.target.value)}>
             <option value="">All tags</option>

@@ -12,8 +12,13 @@
 .cpdEntries td,
 .cpdEntries th {
   padding: 8px;
-  border: 1px solid black;
+  border: 1px solid #2b2b2b;
   border-radius: 0.6rem;
+}
+
+:global(.dark) .cpdEntries td,
+:global(.dark) .cpdEntries th {
+  border: 1px solid #dddddd;
 }
 
 .cpdCard {
@@ -22,6 +27,11 @@
   padding: 30px 40px;
   margin-bottom: 24px;
   box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.08);
+}
+
+:global(.dark) .cpdCard {
+  background-color: #23272f;
+  box-shadow: rgba(0, 0, 0, 0.5);
 }
 
 .cpdCard p,
@@ -53,6 +63,10 @@
   align-items: center;
 }
 
+:global(.dark) .btnDelete {
+  background-color: #23272f;
+}
+
 .btnDelete:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -60,4 +74,8 @@
 
 .btnDelete:hover {
   background-color: #f9cccc;
+}
+
+:global(.dark) .btnDelete:hover {
+  background-color: #7c2a2a;
 }
