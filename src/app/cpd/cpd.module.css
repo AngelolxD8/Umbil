@@ -21,6 +21,7 @@
   border-radius: 1rem;
   padding: 30px 40px;
   margin-bottom: 24px;
+  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.08);
 }
 
 .cpdCard p,
@@ -44,10 +45,12 @@
   background-color: #fff;
   border: 1px solid #f64f4f;
   border-radius: 0.5rem;
-  padding: 8px 16px;
+  padding: 8px;
   cursor: pointer;
   color: #f64f4f;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
 }
 
 .btnDelete:disabled {

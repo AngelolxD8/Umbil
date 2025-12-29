@@ -7,6 +7,7 @@ import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { renderToStaticMarkup } from "react-dom/server";
+import { Trash } from "lucide-react"
 import cpdStyles from './cpd.module.css'
 
 const PAGE_SIZE = 10;
@@ -311,8 +312,8 @@ function CPDInner() {
                     <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem', maxWidth: 600 }}>{e.question}</div>
                   </div>
                   {e.id && (
-                      <button disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
-                        <span role="img" aria-label="trash">🗑️</span> Delete
+                      <button title="Delete CPD entry" disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
+                        <Trash size={16}/>
                       </button>
                   )}
                 </div>
