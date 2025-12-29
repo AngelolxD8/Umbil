@@ -1,0 +1,81 @@
+.cpdEntries p {
+  margin-bottom: 8pt;
+}
+
+.cpdEntries table {
+  border-collapse: collapse ;
+  width: 95%;
+  margin: 10px 0;
+  border-radius: 0.6rem;
+}
+
+.cpdEntries td,
+.cpdEntries th {
+  padding: 8px;
+  border: 1px solid #2b2b2b;
+  border-radius: 0.6rem;
+}
+
+:global(.dark) .cpdEntries td,
+:global(.dark) .cpdEntries th {
+  border: 1px solid #dddddd;
+}
+
+.cpdCard {
+  background-color: #fff;
+  border-radius: 1rem;
+  padding: 30px 40px;
+  margin-bottom: 24px;
+  box-shadow: 1px 1px 10px rgba(0, 0, 0, 0.08);
+}
+
+:global(.dark) .cpdCard {
+  background-color: #23272f;
+  box-shadow: rgba(0, 0, 0, 0.5);
+}
+
+.cpdCard p,
+.cpdCard h2, 
+.cpdCard h3,
+.cpdCard h4,
+.cpdCard h5,
+.cpdCard hr {
+  margin-bottom: 15px;
+}
+
+.cpdCard li {
+  margin-bottom: 5px;
+}
+
+.cpdCard li:last-child {
+  margin-bottom: 10px;
+}
+
+.btnDelete {
+  background-color: #fff;
+  border: 1px solid #f64f4f;
+  border-radius: 0.5rem;
+  padding: 8px;
+  cursor: pointer;
+  color: #f64f4f;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+}
+
+:global(.dark) .btnDelete {
+  background-color: #23272f;
+}
+
+.btnDelete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btnDelete:hover {
+  background-color: #f9cccc;
+}
+
+:global(.dark) .btnDelete:hover {
+  background-color: #7c2a2a;
+}
