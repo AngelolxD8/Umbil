@@ -38,7 +38,7 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional" };
 
-const GUEST_LIMIT = 7;
+const GUEST_LIMIT = 1;
 
 // --- HELPER TO REMOVE <br> TAGS ---
 function cleanMarkdown(text: string): string {
@@ -75,18 +75,18 @@ function GuestLimitModal({ isOpen, onClose, onSignUp }: { isOpen: boolean; onClo
     <div className="modal-overlay">
       <div className="modal-content" style={{ maxWidth: '450px', textAlign: 'center', padding: '40px' }}>
         <div style={{ fontSize: '48px', marginBottom: '20px' }}>🚀</div>
-        <h2 style={{ marginBottom: '16px', fontSize: '1.6rem', color: '#0f172a' }}>Ready to do more?</h2>
+        <h2 style={{ marginBottom: '16px', fontSize: '1.6rem', color: '#0f172a' }}>You&apos;re on a roll!</h2>
         <p style={{ color: '#64748b', marginBottom: '32px', lineHeight: '1.6', fontSize: '1.05rem' }}>
-          You&apos;ve reached the free limit for guest searches. 
+          You&apos;ve asked a few questions as a guest. 
           <br/>
-          Sign in now to unlock <strong>unlimited searches</strong>, <strong>CPD tracking</strong>, and <strong>smart tools</strong>.
+          To <strong>save your history</strong>, <strong>track CPD credits</strong>, and access <strong>pro features</strong>, create a free account today.
         </p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <button className="btn btn--primary" onClick={onSignUp} style={{ width: '100%', fontSize: '1.1rem', padding: '14px' }}>
-            Get Unlimited Access Free
+            Create Free Account
           </button>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 500 }}>
-            No thanks, I&apos;ll browse later
+            Continue as Guest
           </button>
         </div>
       </div>
@@ -502,16 +502,20 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
 
-    // --- NEW: GUEST LIMIT CHECK ---
+    // --- NEW: GUEST LIMIT CHECK (Soft Reminder) ---
     if (!email) {
-        const guestUsage = parseInt(localStorage.getItem('umbil_guest_usage') || '0');
-        if (guestUsage >= GUEST_LIMIT) {
+        const rawUsage = localStorage.getItem('umbil_guest_usage') || '0';
+        const currentUsage = parseInt(rawUsage);
+        const nextUsage = currentUsage + 1;
+        localStorage.setItem('umbil_guest_usage', nextUsage.toString());
+
+        // Check if we hit the limit or a multiple of it (7, 14, 21...)
+        // We do NOT return here, allowing the search to proceed (soft lock).
+        if (nextUsage > 0 && nextUsage % GUEST_LIMIT === 0) {
             setShowGuestLimitModal(true);
-            return;
         }
-        localStorage.setItem('umbil_guest_usage', (guestUsage + 1).toString());
     }
-    // -----------------------------
+    // ----------------------------------------------
 
     let currentCid = conversationId;
     if (!currentCid) { 
