@@ -89,7 +89,7 @@ export default function LandingPage() {
           </p>
 
           <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link href="/auth" style={{ 
+            <Link href="/dashboard" style={{ 
               backgroundColor: 'white', 
               color: '#0e7490', 
               padding: '16px 36px', 

@@ -38,6 +38,8 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional" };
 
+const GUEST_LIMIT = 7;
+
 // --- HELPER TO REMOVE <br> TAGS ---
 function cleanMarkdown(text: string): string {
   if (!text) return "";
@@ -61,6 +63,31 @@ function TourWelcomeModal({ onStart, onSkip }: { onStart: () => void; onSkip: ()
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <button className="btn btn--primary" onClick={onStart} style={{ width: '100%' }}>Take the Tour</button>
           <button className="btn btn--outline" onClick={onSkip} style={{ width: '100%' }}>Skip for Now</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function GuestLimitModal({ isOpen, onClose, onSignUp }: { isOpen: boolean; onClose: () => void; onSignUp: () => void }) {
+  if (!isOpen) return null;
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: '450px', textAlign: 'center', padding: '40px' }}>
+        <div style={{ fontSize: '48px', marginBottom: '20px' }}>🚀</div>
+        <h2 style={{ marginBottom: '16px', fontSize: '1.6rem', color: '#0f172a' }}>Ready to do more?</h2>
+        <p style={{ color: '#64748b', marginBottom: '32px', lineHeight: '1.6', fontSize: '1.05rem' }}>
+          You&apos;ve reached the free limit for guest searches. 
+          <br/>
+          Sign in now to unlock <strong>unlimited searches</strong>, <strong>CPD tracking</strong>, and <strong>smart tools</strong>.
+        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <button className="btn btn--primary" onClick={onSignUp} style={{ width: '100%', fontSize: '1.1rem', padding: '14px' }}>
+            Get Unlimited Access Free
+          </button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.95rem', fontWeight: 500 }}>
+            No thanks, I&apos;ll browse later
+          </button>
         </div>
       </div>
     </div>
@@ -293,6 +320,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false); // NEW STATE
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
 
@@ -473,6 +501,18 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
 
   const ask = async () => {
     if (!q.trim() || loading || isTourOpen) return;
+
+    // --- NEW: GUEST LIMIT CHECK ---
+    if (!email) {
+        const guestUsage = parseInt(localStorage.getItem('umbil_guest_usage') || '0');
+        if (guestUsage >= GUEST_LIMIT) {
+            setShowGuestLimitModal(true);
+            return;
+        }
+        localStorage.setItem('umbil_guest_usage', (guestUsage + 1).toString());
+    }
+    // -----------------------------
+
     let currentCid = conversationId;
     if (!currentCid) { 
         currentCid = uuidv4(); 
@@ -696,6 +736,9 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       </div>
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
       
+      {/* NEW: Guest Limit Modal */}
+      {showGuestLimitModal && <GuestLimitModal isOpen={showGuestLimitModal} onClose={() => setShowGuestLimitModal(false)} onSignUp={() => router.push('/auth')} />}
+
       {(isModalOpen || (isTourOpen && tourStep === 5)) && (
         <ReflectionModal isOpen={isModalOpen} onClose={isTourOpen ? () => {} : () => setIsModalOpen(false)} onSave={handleSaveCpd} currentStreak={streakLoading ? 0 : currentStreak} cpdEntry={isTourOpen ? DUMMY_CPD_ENTRY : currentCpdEntry} tourId={isTourOpen && tourStep === 5 ? "tour-highlight-modal" : undefined} />
       )}

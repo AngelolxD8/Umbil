@@ -1,3 +1,4 @@
+// src/components/MainWrapper.tsx
 "use client";
 
 import { useUserEmail } from "@/hooks/useUser";
@@ -12,12 +13,8 @@ export default function MainWrapper() {
 
   useEffect(() => {
     if (!loading) {
-      if (email) {
-        setIsAuthenticated(true);
-      } else {
-        // If user is trying to access dashboard but not logged in, send them to login
-        router.push("/auth");
-      }
+      // Logic Update: Allow access regardless of auth status to support Guest Mode
+      setIsAuthenticated(true);
     }
   }, [loading, email, router]);
 
@@ -44,7 +41,7 @@ export default function MainWrapper() {
     );
   }
 
-  // Once authenticated, render the App content
+  // Once authenticated (or guest mode allowed), render the App content
   // Note: HomeContent can handle the 'forceStartTour' prop via URL params logic inside it
   return <HomeContent />;
 }
