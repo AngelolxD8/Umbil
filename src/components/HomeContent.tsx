@@ -38,7 +38,7 @@ const DUMMY_TOUR_CONVERSATION: ConversationEntry[] = [
 ];
 const DUMMY_CPD_ENTRY = { question: "What are the red flags for a headache?", answer: "Key red flags for headache include:\n\n* **S**ystemic symptoms (fever, weight loss)\n* **N**eurological deficits\n* **O**nset (sudden, thunderclap)\n* **O**nset age (new onset >50 years)\n* **P**attern change or positional" };
 
-const GUEST_LIMIT = 1;
+const GUEST_LIMIT = 7;
 
 // --- HELPER TO REMOVE <br> TAGS ---
 function cleanMarkdown(text: string): string {
