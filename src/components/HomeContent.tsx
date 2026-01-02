@@ -592,12 +592,23 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     setIsModalOpen(true);
   };
 
-  const handleSaveCpd = async (reflection: string, tags: string[]) => {
+  // UPDATED: Now accepts duration from modal
+  const handleSaveCpd = async (reflection: string, tags: string[], duration: number) => {
     if (isTourOpen) { handleTourStepChange(6); return; }
     if (!currentCpdEntry) return;
     const isFirstLogToday = !hasLoggedToday;
     const nextStreak = currentStreak + (isFirstLogToday ? 1 : 0);
-    const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { timestamp: new Date().toISOString(), question: currentCpdEntry.question, answer: currentCpdEntry.answer, reflection, tags };
+    
+    // UPDATED: Passes duration to addCPD
+    const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { 
+        timestamp: new Date().toISOString(), 
+        question: currentCpdEntry.question, 
+        answer: currentCpdEntry.answer, 
+        reflection, 
+        tags,
+        duration // Saved here
+    };
+    
     const { error } = await addCPD(cpdEntry);
     
     if (error) { 
@@ -613,8 +624,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         refetchStreaks(); 
         
         // --- IMPROVED LOGIC: Reset Nudge Counter ---
-        // If the user logs, we update the counter so the nudge resets.
-        // It will now wait for another 10 questions starting from HERE.
         const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
         setLastLoggedCount(currentTotalUserQuestions);
     }

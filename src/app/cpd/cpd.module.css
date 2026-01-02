@@ -79,3 +79,34 @@
 :global(.dark) .btnDelete:hover {
   background-color: #7c2a2a;
 }
+
+/* NEW: Time Selector Styles */
+.timeSelectorWrapper {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #f0fdfa; /* Light Teal background */
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid #ccfbf1;
+}
+
+:global(.dark) .timeSelectorWrapper {
+  background-color: #134e4a;
+  border-color: #115e59;
+}
+
+.timeSelect {
+  border: none;
+  background: transparent;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0d9488; /* Teal text */
+  cursor: pointer;
+  outline: none;
+  padding-right: 4px;
+}
+
+:global(.dark) .timeSelect {
+  color: #5eead4;
+}

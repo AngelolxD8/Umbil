@@ -2,18 +2,15 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { CPDEntry, getAllLogs, deleteCPD } from "@/lib/store"; 
+import { CPDEntry, getAllLogs, deleteCPD, updateCPD } from "@/lib/store"; 
 import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { renderToStaticMarkup } from "react-dom/server";
-import { Trash } from "lucide-react"
 import cpdStyles from './cpd.module.css'
 
 const PAGE_SIZE = 10;
-// FIX: Set default to 0.25 (15 mins) for micro-learning queries. 
-// This is much more realistic for AI interactions and won't annoy appraisers.
-const DEFAULT_CREDITS = 0.25; 
+const DEFAULT_DURATION = 10; // 10 Minutes
 
 // --- 1. SUPER CLEANER (For CSV) ---
 function cleanForCSV(text: string): string {
@@ -49,13 +46,17 @@ function toCSV(rows: CPDEntry[]) {
     else if (tagString.includes("communication") || tagString.includes("teamwork")) domain = "Communication, Partnership & Teamwork";
     else if (tagString.includes("trust")) domain = "Maintaining Trust";
 
+    // Convert Minutes to Hours for CPD Credits
+    const mins = r.duration || DEFAULT_DURATION;
+    const credits = mins / 60;
+
     return [
       new Date(r.timestamp).toLocaleDateString(),
       `"${q.replace(/"/g, '""')}"`,
       `"${a.replace(/"/g, '""')}"`,
       `"${refl.replace(/"/g, '""')}"`,
       `"${domain}"`,
-      `"${DEFAULT_CREDITS}"`,
+      `"${credits.toFixed(2)}"`,
       `"${t.replace(/"/g, '""')}"`,
     ].join(",");
   });
@@ -129,7 +130,7 @@ function CPDInner() {
         return;
     }
 
-    // 1. Group Entries by Domain for the PDF (Appraisers love this)
+    // 1. Group Entries by Domain
     const groupedData: Record<string, CPDEntry[]> = {
         "Knowledge, Skills & Performance": [],
         "Safety & Quality": [],
@@ -153,25 +154,32 @@ function CPDInner() {
     Object.entries(groupedData).forEach(([domain, entries]) => {
         if (entries.length === 0) return;
         
-        const sectionCredits = entries.length * DEFAULT_CREDITS;
+        let sectionCredits = 0;
+        entries.forEach(e => {
+             const mins = e.duration || DEFAULT_DURATION;
+             sectionCredits += (mins / 60);
+        });
         totalCredits += sectionCredits;
 
         domainSectionsHtml += `
             <div class="domain-header">
                 <h2>${domain}</h2>
-                <div class="domain-meta">${entries.length} Activities • ${sectionCredits} Credits</div>
+                <div class="domain-meta">${entries.length} Activities • ${sectionCredits.toFixed(2)} Credits</div>
             </div>
         `;
 
         entries.forEach(e => {
             const answerHtml = renderToStaticMarkup(<ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer || ""}</ReactMarkdown>);
             const reflectionHtml = e.reflection ? renderToStaticMarkup(<ReactMarkdown remarkPlugins={[remarkGfm]}>{e.reflection}</ReactMarkdown>) : "";
+            
+            const mins = e.duration || DEFAULT_DURATION;
+            const entryCredits = mins / 60;
 
             domainSectionsHtml += `
                 <div class="entry">
                     <div class="entry-meta">
                         <span class="date">${new Date(e.timestamp).toLocaleDateString()}</span>
-                        <span class="credit-tag">${DEFAULT_CREDITS} Credit</span>
+                        <span class="credit-tag">${entryCredits.toFixed(2)} Credits (${mins}m)</span>
                     </div>
                     <div class="question">${e.question}</div>
                     <div class="answer markdown-body">${answerHtml}</div>
@@ -247,7 +255,7 @@ function CPDInner() {
                 <span class="stat-label">Total Activities</span>
              </div>
              <div class="stat-box">
-                <span class="stat-val">${totalCredits}</span>
+                <span class="stat-val">${totalCredits.toFixed(2)}</span>
                 <span class="stat-label">Total Credits (Hours)</span>
              </div>
           </div>
@@ -278,6 +286,18 @@ function CPDInner() {
     setDeletingId(null);
   };
 
+  const handleUpdateDuration = async (id: string, minutesStr: string) => {
+    const mins = parseInt(minutesStr);
+    
+    // Update local state
+    setAllEntries(prev => prev.map(item => 
+        item.id === id ? { ...item, duration: mins } : item
+    ));
+
+    // Persist to DB
+    await updateCPD(id, { duration: mins });
+  };
+
   return (
     <section className="main-content">
       <div className="container">
@@ -303,39 +323,70 @@ function CPDInner() {
         {/* Entries List */}
         <div className={cpdStyles.cpdEntries}>
           {loading && <p>Loading entries...</p>}
-          {!loading && paginatedList.map((e, idx) => (
-            <div key={e.id || idx} className={cpdStyles.cpdCard}>
-              <div className={cpdStyles.card__body}>
-                <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>{new Date(e.timestamp).toLocaleString()}</div>
-                    <div style={{ fontWeight: 600, marginTop: 8, fontSize: '1.1rem', maxWidth: 600 }}>{e.question}</div>
-                  </div>
-                  {e.id && (
-                      <button title="Delete CPD entry" disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
-                        <Trash size={16}/>
-                      </button>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.9rem' }}>
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
-                </div>
-                {e.reflection && (
-                  <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--umbil-divider)', fontStyle: 'italic', color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
-                    <strong>Reflection:</strong>
-                    <div>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.reflection}</ReactMarkdown>
+          {!loading && paginatedList.map((e, idx) => {
+             // Calculate current minutes for this entry (default 10 if null)
+             const currentMinutes = e.duration || DEFAULT_DURATION;
+             
+             return (
+              <div key={e.id || idx} className={cpdStyles.cpdCard}>
+                <div className={cpdStyles.card__body}>
+                  <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                         <div>
+                            <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>{new Date(e.timestamp).toLocaleString()}</div>
+                         </div>
+                         
+                         {/* TIME SELECTOR */}
+                         <div className={cpdStyles.timeSelectorWrapper}>
+                            {/* SVG Clock Replacement */}
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--umbil-teal)' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <select 
+                                className={cpdStyles.timeSelect}
+                                value={currentMinutes}
+                                onChange={(ev) => e.id && handleUpdateDuration(e.id, ev.target.value)}
+                            >
+                                <option value="5">5 min</option>
+                                <option value="10">10 min</option>
+                                <option value="15">15 min</option>
+                                <option value="30">30 min</option>
+                                <option value="45">45 min</option>
+                                <option value="60">1 hr</option>
+                                <option value="90">1.5 hrs</option>
+                                <option value="120">2 hrs</option>
+                            </select>
+                         </div>
                     </div>
+
+                    {e.id && (
+                        <button title="Delete CPD entry" disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
+                          {/* SVG Trash Replacement */}
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                        </button>
+                    )}
                   </div>
-                )}
-                <div style={{ marginTop: 12 }}>
-                  {(e.tags || []).map((t) => (
-                    <span key={t} style={{ marginRight: 8, padding: '4px 8px', borderRadius: 12, backgroundColor: 'var(--umbil-hover-bg)', fontSize: '0.8rem', color: 'var(--umbil-text)', fontWeight: 500 }}>{t}</span>
-                  ))}
+
+                  <div style={{ fontWeight: 600, marginBottom: 12, fontSize: '1.1rem', color: 'var(--umbil-text)' }}>{e.question}</div>
+                  
+                  <div style={{ fontSize: '0.9rem' }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer}</ReactMarkdown>
+                  </div>
+                  {e.reflection && (
+                    <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--umbil-divider)', fontStyle: 'italic', color: 'var(--umbil-muted)', fontSize: '0.9rem' }}>
+                      <strong>Reflection:</strong>
+                      <div>
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>{e.reflection}</ReactMarkdown>
+                      </div>
+                    </div>
+                  )}
+                  <div style={{ marginTop: 12 }}>
+                    {(e.tags || []).map((t) => (
+                      <span key={t} style={{ marginRight: 8, padding: '4px 8px', borderRadius: 12, backgroundColor: 'var(--umbil-hover-bg)', fontSize: '0.8rem', color: 'var(--umbil-text)', fontWeight: 500 }}>{t}</span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
         
         {/* Pagination Controls */}

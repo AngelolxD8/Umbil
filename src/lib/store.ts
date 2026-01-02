@@ -12,6 +12,7 @@ export type CPDEntry = {
   answer: string;
   reflection?: string;
   tags?: string[];
+  duration?: number; // Stored as INTEGER (minutes), e.g. 10, 15, 60
 };
 
 export type PDPGoal = {
@@ -58,7 +59,7 @@ export async function getAllLogs(): Promise<{ data: CPDEntry[]; error: Postgrest
 export async function getCPD(): Promise<CPDEntry[]> {
   const { data, error } = await supabase
     .from(CPD_TABLE)
-    .select("timestamp, tags") 
+    .select("timestamp, tags, duration") 
     .order("timestamp", { ascending: false }); 
 
   if (error) { console.error("Error fetching CPD:", error); return []; }
@@ -67,6 +68,17 @@ export async function getCPD(): Promise<CPDEntry[]> {
 
 export async function deleteCPD(id: string): Promise<{ error: PostgrestError | null }> {
   const { error } = await supabase.from(CPD_TABLE).delete().eq('id', id);
+  return { error };
+}
+
+// UPDATED: Function to update an existing entry (using duration)
+export async function updateCPD(id: string, updates: Partial<CPDEntry>): Promise<{ error: PostgrestError | null }> {
+  const { error } = await supabase
+    .from(CPD_TABLE)
+    .update(updates)
+    .eq('id', id);
+  
+  if (error) console.error("Error updating CPD:", error);
   return { error };
 }
 
@@ -83,6 +95,7 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
     answer: entry.answer,
     reflection: entry.reflection || null, 
     tags: entry.tags || [],
+    duration: entry.duration || 10, // Default to 10 minutes if not provided
     ...(userId && { user_id: userId })
   };
 
@@ -98,27 +111,18 @@ export async function addCPD(entry: Omit<CPDEntry, 'id' | 'user_id'>): Promise<{
   return { data: data as CPDEntry | null, error };
 }
 
-// --- History Functions (UPDATED FOR THREADS) ---
+// --- History Functions ---
 
-/**
- * Fetches the list of conversations (threads) for the sidebar.
- * Uses the RPC function 'get_user_conversations' for performance.
- */
 export async function getChatHistory(): Promise<ChatConversation[]> {
-  // 1. Try to use the optimized RPC function
   const { data, error } = await supabase.rpc('get_user_conversations');
-
   if (!error && data) {
     return data as ChatConversation[];
   }
-
-  // 2. Fallback: Client-side grouping if RPC fails
-  console.warn("RPC fetch failed, using client-side fallback:", error);
   
   const { data: rawData, error: rawError } = await supabase
     .from(HISTORY_TABLE)
     .select("conversation_id, question, created_at")
-    .order("created_at", { ascending: false }); // Get newest first
+    .order("created_at", { ascending: false });
 
   if (rawError) { console.error("Error fetching history:", rawError); return []; }
 
@@ -126,13 +130,10 @@ export async function getChatHistory(): Promise<ChatConversation[]> {
   const conversations: ChatConversation[] = [];
 
   rawData?.forEach((row) => {
-    // Only add if we haven't seen this conversation ID yet
     if (row.conversation_id && !seen.has(row.conversation_id)) {
       seen.add(row.conversation_id);
       conversations.push({
         conversation_id: row.conversation_id,
-        // Since we are sorting by newest first, rawData[0] is the LATEST question.
-        // Ideally we want the FIRST question, but for fallback, latest is acceptable.
         first_question: row.question, 
         last_active: row.created_at
       });
@@ -142,16 +143,12 @@ export async function getChatHistory(): Promise<ChatConversation[]> {
   return conversations;
 }
 
-/**
- * Fetches all messages for a specific conversation ID.
- * Used when you click a chat in the sidebar to load the whole thread.
- */
 export async function getConversationMessages(conversationId: string): Promise<ChatHistoryItem[]> {
   const { data, error } = await supabase
     .from(HISTORY_TABLE)
     .select("*") 
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true }); // Oldest first to reconstruct chat flow
+    .order("created_at", { ascending: true });
 
   if (error) {
     console.error("Error fetching conversation:", error);

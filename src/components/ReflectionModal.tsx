@@ -6,7 +6,8 @@ import { useState, useEffect } from "react";
 type ReflectionModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (reflection: string, tags: string[]) => void;
+  // UPDATED: Now accepts duration
+  onSave: (reflection: string, tags: string[], duration: number) => void;
   currentStreak: number;
   cpdEntry: {
     question: string;
@@ -37,6 +38,8 @@ export default function ReflectionModal({
 }: ReflectionModalProps) {
   const [reflection, setReflection] = useState("");
   const [tags, setTags] = useState(""); 
+  // NEW: State for duration (default 10 mins)
+  const [duration, setDuration] = useState(10);
   
   // Default to 'personalise' so they are encouraged to write their own notes first
   const [generationMode, setGenerationMode] = useState<'auto' | 'personalise'>('personalise');
@@ -55,6 +58,7 @@ export default function ReflectionModal({
       setIsGeneratingReflection(false);
       setIsTranslating(false);
       setGenerationMode('personalise');
+      setDuration(10); // Reset to 10 on open
     }
   }, [isOpen]);
 
@@ -180,7 +184,8 @@ export default function ReflectionModal({
 
   const handleSave = () => {
     const tagList = tags.split(",").map((t: string) => t.trim()).filter(Boolean);
-    onSave(reflection, tagList);
+    // PASS DURATION
+    onSave(reflection, tagList, duration);
   };
 
   if (!isOpen) return null;
@@ -280,7 +285,6 @@ export default function ReflectionModal({
             rows={8}
             value={reflection}
             onChange={(e) => setReflection(e.target.value)}
-            // UPDATED PLACEHOLDER
             placeholder={
                 generationMode === 'auto' 
                 ? "Click 'Generate' to create a structured reflection..." 
@@ -341,6 +345,28 @@ export default function ReflectionModal({
           )}
         </div>
         
+        {/* NEW: Learning Time Selector */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px', padding: '10px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{color:'#0d9488'}}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#334155' }}>Learning Time:</span>
+           </div>
+           <select 
+              value={duration} 
+              onChange={(e) => setDuration(parseInt(e.target.value))}
+              style={{ padding: '6px 12px', borderRadius: '6px', border: '1px solid #cbd5e1', fontSize: '0.9rem', outline: 'none', cursor: 'pointer', color: '#0f172a' }}
+           >
+              <option value="5">5 min</option>
+              <option value="10">10 min</option>
+              <option value="15">15 min</option>
+              <option value="30">30 min</option>
+              <option value="45">45 min</option>
+              <option value="60">1 hr</option>
+              <option value="90">1.5 hrs</option>
+              <option value="120">2 hrs</option>
+           </select>
+        </div>
+
         <div className="flex justify-end mt-4">
           <button onClick={handleSave} className="btn btn--primary">
             Save to My CPD
