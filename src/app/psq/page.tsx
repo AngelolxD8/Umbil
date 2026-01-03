@@ -1,10 +1,9 @@
-// src/app/psq/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { Plus, ArrowRight, BarChart3, Copy, Check, FileText, PieChart } from 'lucide-react';
+import { Plus, Copy, Check, FileText, PieChart, Trash2 } from 'lucide-react';
 import { useUserEmail } from "@/hooks/useUser";
 
 export default function PSQDashboard() {
@@ -44,6 +43,17 @@ export default function PSQDashboard() {
     if (data) setSurveys([data, ...surveys]);
   };
 
+  const deleteSurvey = async (id: string) => {
+    if (!window.confirm("Are you sure you want to delete this cycle? This will remove all associated patient responses permanently.")) return;
+    
+    const { error } = await supabase.from('psq_surveys').delete().eq('id', id);
+    if (!error) {
+      setSurveys(surveys.filter(s => s.id !== id));
+    } else {
+      alert("Failed to delete the cycle. Please try again.");
+    }
+  };
+
   const copyLink = (id: string) => {
     const url = `${window.location.origin}/s/${id}`;
     navigator.clipboard.writeText(url);
@@ -72,89 +82,69 @@ export default function PSQDashboard() {
       <div className="container" style={{ maxWidth: '1000px', paddingBottom: '60px' }}>
         
         {/* Header Section */}
-        <div className="mb-10 flex flex-col gap-6">
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+        <div style={{ marginBottom: '40px' }}>
+            <div className="dashboard-header">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight mb-2">Patient Feedback</h1>
-                    <p className="text-lg text-[var(--umbil-muted)]">Collect and analyze anonymous feedback for your revalidation.</p>
+                    <h1 style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '8px' }}>Patient Feedback</h1>
+                    <p style={{ fontSize: '1.05rem', color: 'var(--umbil-muted)' }}>Collect and analyze anonymous feedback for your revalidation.</p>
                 </div>
-                <div className="flex gap-3">
-                    <Link href="/psq/analytics" className="btn btn--outline flex items-center gap-2">
+                {/* Distinct Top Actions */}
+                <div className="header-actions">
+                    <Link href="/psq/analytics" className="btn btn--outline analytics-btn">
                         <PieChart size={20} /> Analytics
                     </Link>
-                    <button 
-                        onClick={createSurvey} 
-                        className="btn btn--primary flex items-center gap-2 shadow-lg shadow-teal-500/20" 
-                    >
+                    <button onClick={createSurvey} className="btn btn--primary new-cycle-btn">
                         <Plus size={20} /> New Cycle
                     </button>
                 </div>
             </div>
         </div>
 
-        {/* Content Section */}
+        {/* List Section */}
         {loading ? (
-           <div className="space-y-4">
-             {[1, 2].map(i => (
-               <div key={i} className="card h-24 animate-pulse bg-gray-50"></div>
-             ))}
+           <div style={{ display: 'grid', gap: '16px' }}>
+             {[1, 2].map(i => <div key={i} className="card" style={{ height: '100px', background: 'var(--umbil-hover-bg)' }}></div>)}
            </div>
         ) : surveys.length === 0 ? (
-          <div className="card py-20 px-6 text-center flex flex-col items-center">
-             <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-6">
-               <BarChart3 size={40} className="text-gray-400" />
-             </div>
-             <h3 className="text-xl font-semibold mb-2">No feedback cycles yet</h3>
-             <p className="text-gray-500 mb-8 max-w-md">
-                Start a new cycle to get a unique link you can share with your patients via SMS or QR code.
-             </p>
-             <button onClick={createSurvey} className="btn btn--outline">Start Your First Cycle</button>
+          <div className="card" style={{ padding: '80px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+             <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '8px' }}>No feedback cycles yet</h3>
+             <button onClick={createSurvey} className="btn btn--outline" style={{ marginTop: '24px' }}>Start Your First Cycle</button>
           </div>
         ) : (
-          <div className="grid gap-5">
+          <div style={{ display: 'grid', gap: '16px' }}>
             {surveys.map((survey) => {
               const responseCount = survey.psq_responses?.[0]?.count || 0;
               return (
-                <div key={survey.id} className="card hover:shadow-md transition-all duration-200">
-                  <div className="card__body p-6 flex flex-col md:flex-row justify-between items-center gap-6">
+                <div key={survey.id} className="card">
+                  <div className="card__body psq-card-body">
                     
-                    {/* Left: Info */}
-                    <div className="flex-1 w-full">
-                      <div className="flex items-center gap-4 mb-2">
-                        <div className="p-3 bg-[rgba(31,184,205,0.1)] rounded-xl text-[var(--umbil-brand-teal)]">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 300px' }}>
+                        <div style={{ padding: '12px', background: 'var(--umbil-bg)', borderRadius: '12px', color: 'var(--umbil-brand-teal)' }}>
                             <FileText size={24} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold m-0">{survey.title}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="text-sm text-gray-500">
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>{survey.title}</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                                <span style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', background: 'var(--umbil-hover-bg)', padding: '2px 8px', borderRadius: '6px' }}>
                                     {new Date(survey.created_at).toLocaleDateString()}
                                 </span>
-                                <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                <span className={`text-sm font-semibold ${responseCount > 0 ? 'text-gray-900' : 'text-gray-400'}`}>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--umbil-brand-teal)' }}>
                                     {responseCount} {responseCount === 1 ? 'Response' : 'Responses'}
                                 </span>
                             </div>
                         </div>
-                      </div>
                     </div>
 
-                    {/* Right: Actions */}
-                    <div className="flex items-center gap-3 w-full md:w-auto">
-                      <button 
-                        onClick={() => copyLink(survey.id)}
-                        className="btn btn--outline flex items-center justify-center gap-2 min-w-[130px] flex-1 md:flex-none"
-                      >
-                        {copiedId === survey.id ? <Check size={16} className="text-teal-600" /> : <Copy size={16}/>}
-                        {copiedId === survey.id ? 'Copied' : 'Copy Link'}
+                    <div className="card-actions">
+                      <button onClick={() => copyLink(survey.id)} className="btn btn--outline icon-btn" title="Copy Link">
+                        {copiedId === survey.id ? <Check size={16} /> : <Copy size={16}/>}
                       </button>
-                      
-                      <Link 
-                        href={`/psq/${survey.id}`}
-                        className="btn btn--primary flex items-center justify-center gap-2 flex-1 md:flex-none"
-                      >
-                        View Report <ArrowRight size={16} />
+                      <Link href={`/psq/${survey.id}`} className="btn btn--primary" style={{ padding: '8px 16px', fontSize: '0.9rem' }}>
+                        View Report
                       </Link>
+                      <button onClick={() => deleteSurvey(survey.id)} className="delete-btn" title="Delete Cycle">
+                        <Trash2 size={20} />
+                      </button>
                     </div>
 
                   </div>
@@ -164,6 +154,81 @@ export default function PSQDashboard() {
           </div>
         )}
       </div>
+
+      <style jsx>{`
+        .dashboard-header {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+        .analytics-btn, .new-cycle-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+        }
+        .analytics-btn {
+            border: 2px solid var(--umbil-divider);
+            font-weight: 700;
+        }
+        .new-cycle-btn {
+            background: var(--umbil-brand-teal);
+            box-shadow: 0 4px 12px rgba(31, 184, 205, 0.3);
+        }
+        .psq-card-body {
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .card-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .icon-btn {
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            padding: 8px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .delete-btn:hover {
+            opacity: 1;
+            background: #fef2f2;
+            border-radius: 8px;
+        }
+
+        @media (min-width: 768px) {
+            .dashboard-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: flex-start;
+            }
+            .header-actions {
+                width: auto;
+            }
+        }
+      `}</style>
     </section>
   );
 }

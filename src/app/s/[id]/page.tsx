@@ -1,112 +1,153 @@
-// src/app/s/[id]/page.tsx
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useParams } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
-import { PSQ_QUESTIONS, RATINGS } from '@/lib/psq-questions';
-import { CheckCircle2 } from 'lucide-react';
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { PSQ_QUESTIONS } from "@/lib/psq-questions";
+import { ArrowLeft, Download, Sparkles, Users, Activity } from "lucide-react";
+import dynamic from "next/dynamic";
+import { useUserEmail } from "@/hooks/useUser";
+import Link from "next/link";
+import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Tooltip } from 'recharts';
+import { addCPD } from "@/lib/store";
 
-export default function PublicSurvey() {
-  const params = useParams();
-  const id = params?.id as string;
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [feedback, setFeedback] = useState('');
-  const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
 
-  const handleSelect = (questionId: string, value: string) => {
-    setAnswers(prev => ({ ...prev, [questionId]: value }));
+export default function PSQReportPage() {
+  const { id } = useParams();
+  const { email, loading: authLoading } = useUserEmail();
+  
+  const [survey, setSurvey] = useState<any>(null);
+  const [responses, setResponses] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isReflectionOpen, setIsReflectionOpen] = useState(false);
+  const [reflectionContext, setReflectionContext] = useState<{question: string, answer: string} | null>(null);
+  const [averageScore, setAverageScore] = useState(0);
+  const [feedbackList, setFeedbackList] = useState<string[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
+
+  useEffect(() => { if (email) fetchData(); }, [email, id]);
+
+  const fetchData = async () => {
+    const { data: surveyData } = await supabase.from('psq_surveys').select('*').eq('id', id).single();
+    const { data: responseData } = await supabase.from('psq_responses').select('*').eq('survey_id', id);
+    setSurvey(surveyData);
+    if (responseData) {
+      setResponses(responseData);
+      processStats(responseData);
+    }
+    setLoading(false);
   };
 
-  const handleSubmit = async () => {
-    if (Object.keys(answers).length < PSQ_QUESTIONS.length) {
-      alert('Please answer all questions before submitting.');
-      return;
-    }
-    setLoading(true);
-    
-    const { error } = await supabase.from('psq_responses').insert({
-      survey_id: id,
-      answers: answers,
-      feedback_text: feedback,
+  const processStats = (data: any[]) => {
+    const feedbacks = data.map(r => r.feedback_text).filter(t => t && t.trim().length > 0);
+    setFeedbackList(feedbacks);
+    const ratingMap: Record<string, number> = { 'poor': 1, 'fair': 2, 'good': 3, 'very_good': 4, 'excellent': 5, 'outstanding': 6 };
+    let totalSum = 0;
+    let totalCount = 0;
+    const shortLabels = ["Empathy", "Listening", "Attention", "Holistic", "Understanding", "Compassion", "Positivity", "Clarity", "Empowerment", "Planning"];
+
+    const breakdown = PSQ_QUESTIONS.map((q, index) => {
+      let qSum = 0, qCount = 0;
+      data.forEach(r => {
+        const val = r.answers?.[q.id];
+        if (val && ratingMap[val]) { qSum += ratingMap[val]; qCount++; }
+      });
+      const avg = qCount > 0 ? (qSum / qCount) : 0;
+      totalSum += qSum; totalCount += qCount;
+      return { subject: shortLabels[index], A: parseFloat(avg.toFixed(2)), fullMark: 6 };
     });
 
-    setLoading(false);
-    if (!error) setSubmitted(true);
+    setChartData(breakdown);
+    setAverageScore(totalCount > 0 ? (totalSum / totalCount) : 0);
   };
 
-  if (submitted) {
-    return (
-      <div className="min-h-[100dvh] bg-[var(--umbil-bg)] flex items-center justify-center p-5">
-        <div className="card w-full max-w-[480px] p-10 text-center">
-          <div className="w-16 h-16 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 size={32} />
-          </div>
-          <h2 className="text-2xl font-bold mb-3">Thank You</h2>
-          <p className="text-[var(--umbil-muted)]">Your feedback has been submitted securely and anonymously.</p>
-        </div>
-      </div>
-    );
-  }
+  const handleOpenReflection = () => {
+    setReflectionContext({
+      question: `Reflection on PSQ Feedback: ${survey?.title}`,
+      answer: `Average Score: ${averageScore.toFixed(1)}/6.0 based on ${responses.length} responses.`
+    });
+    setIsReflectionOpen(true);
+  };
+
+  const handleSaveReflection = async (reflection: string, tags: string[], duration: number) => {
+    const { error } = await addCPD({
+        timestamp: new Date().toISOString(),
+        question: reflectionContext!.question,
+        answer: "Automated entry from PSQ Report.",
+        reflection,
+        tags: [...tags, 'Patient Feedback'],
+        duration
+    });
+    if (!error) { setIsReflectionOpen(false); alert("Reflection saved!"); }
+  };
+
+  if (authLoading || loading) return <div className="p-10 text-center">Loading...</div>;
 
   return (
-    <div className="min-h-[100dvh] bg-[var(--umbil-bg)] pb-20">
-      {/* Header */}
-      <div className="bg-[var(--umbil-surface)] border-b border-[var(--umbil-divider)] sticky top-0 z-10">
-        <div className="max-w-[600px] mx-auto px-6 py-5">
-          <p className="text-xs font-semibold text-[var(--umbil-brand-teal)] tracking-wider uppercase mb-1">Anonymous Survey</p>
-          <h1 className="text-xl font-bold m-0">Patient Satisfaction Questionnaire</h1>
-        </div>
-      </div>
-
-      <div className="max-w-[600px] mx-auto px-6 py-8 flex flex-col gap-12">
-        {PSQ_QUESTIONS.map((q, index) => (
-          <div key={q.id} id={q.id} className="scroll-mt-[100px]">
-            <p className="text-sm text-[var(--umbil-muted)] font-medium mb-2">Question {index + 1} of {PSQ_QUESTIONS.length}</p>
-            <h3 className="text-lg font-medium mb-6 leading-relaxed">{q.text}</h3>
-            
-            <div className="flex flex-col gap-2.5">
-              {RATINGS.map((rating) => {
-                const isSelected = answers[q.id] === rating.value;
-                return (
-                  <button
-                    key={rating.value}
-                    onClick={() => handleSelect(q.id, rating.value)}
-                    className={`w-full text-left p-4 rounded-[var(--umbil-radius-sm)] border transition-all duration-200 
-                      ${isSelected 
-                        ? 'border-[var(--umbil-brand-teal)] bg-[rgba(31,184,205,0.05)] text-[var(--umbil-brand-teal)] font-semibold shadow-[0_0_0_1px_var(--umbil-brand-teal)]' 
-                        : 'border-[var(--umbil-card-border)] bg-[var(--umbil-surface)] text-[var(--umbil-text)] hover:bg-[var(--umbil-hover-bg)]'
-                      }`}
-                  >
-                    {rating.label}
-                  </button>
-                );
-              })}
+    <section className="main-content">
+      <div className="container" style={{ maxWidth: '1000px', paddingBottom: '80px' }}>
+        
+        <div className="print:hidden mb-8">
+            <Link href="/psq" className="btn btn--outline" style={{ padding: '8px 12px', border: 'none', background: 'none', color: 'var(--umbil-muted)', marginBottom: '16px' }}>
+                <ArrowLeft size={18} /> Back
+            </Link>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>{survey.title}</h1>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                    <button onClick={() => window.print()} className="btn btn--outline"><Download size={18} /></button>
+                    <button onClick={handleOpenReflection} className="btn btn--primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Sparkles size={18} /> Reflect</button>
+                </div>
             </div>
-          </div>
-        ))}
-
-        <div className="pt-8 border-t border-[var(--umbil-divider)]">
-          <label className="block text-lg font-semibold mb-4">
-            Any other comments? <span className="text-[var(--umbil-muted)] font-normal text-sm">(Optional)</span>
-          </label>
-          <textarea
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            className="w-full p-4 text-base rounded-[var(--umbil-radius-sm)] border border-[var(--umbil-card-border)] bg-[var(--umbil-surface)] min-h-[120px] focus:outline-none focus:border-[var(--umbil-brand-teal)] focus:ring-1 focus:ring-[var(--umbil-brand-teal)] transition-all"
-            placeholder="Write your feedback here..."
-          />
         </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="btn btn--primary p-4 text-lg w-full shadow-[var(--umbil-shadow-lg)]"
-        >
-          {loading ? 'Submitting...' : 'Submit Feedback'}
-        </button>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+            {/* Stats Card: Left-aligned icon */}
+            <div className="card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ padding: '16px', background: 'rgba(31, 184, 205, 0.1)', borderRadius: '16px', color: 'var(--umbil-brand-teal)' }}><Users size={32} /></div>
+                <div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--umbil-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Responses</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 800 }}>{responses.length}</div>
+                </div>
+            </div>
+            <div className="card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
+                <div style={{ padding: '16px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '16px', color: '#22c55e' }}><Activity size={32} /></div>
+                <div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--umbil-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Average Score</div>
+                    <div style={{ fontSize: '2rem', fontWeight: 800 }}>{averageScore.toFixed(1)}<span style={{ fontSize: '1rem', color: 'var(--umbil-muted)' }}>/6.0</span></div>
+                </div>
+            </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+            <div className="card" style={{ padding: '24px' }}>
+                <h3 style={{ marginBottom: '20px' }}>Strengths Profile</h3>
+                <div style={{ height: '300px' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
+                            <PolarGrid stroke="var(--umbil-divider)" />
+                            <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--umbil-muted)', fontSize: 10 }} />
+                            <Radar name="Score" dataKey="A" stroke="var(--umbil-brand-teal)" fill="var(--umbil-brand-teal)" fillOpacity={0.4} />
+                            <Tooltip />
+                        </RadarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            <div className="card" style={{ padding: '24px' }}>
+                <h3 style={{ marginBottom: '20px' }}>Patient Comments</h3>
+                <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {feedbackList.length === 0 ? <p style={{ color: 'var(--umbil-muted)' }}>No comments yet.</p> : feedbackList.map((f, i) => (
+                        <div key={i} style={{ padding: '12px', background: 'var(--umbil-bg)', borderRadius: '10px', fontSize: '0.9rem', border: '1px solid var(--umbil-divider)' }}>"{f}"</div>
+                    ))}
+                </div>
+            </div>
+        </div>
+
+        {isReflectionOpen && (
+            <ReflectionModal isOpen={isReflectionOpen} onClose={() => setIsReflectionOpen(false)} onSave={handleSaveReflection} currentStreak={0} cpdEntry={reflectionContext} />
+        )}
       </div>
-    </div>
+    </section>
   );
 }

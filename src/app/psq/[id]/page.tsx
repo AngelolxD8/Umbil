@@ -1,278 +1,183 @@
-// src/app/psq/[id]/page.tsx
-"use client";
+// src/app/s/[id]/page.tsx
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { PSQ_QUESTIONS } from "@/lib/psq-questions";
-import { ArrowLeft, Download, Sparkles, AlertCircle } from "lucide-react";
-import dynamic from "next/dynamic";
-import { useUserEmail } from "@/hooks/useUser";
-import Link from "next/link";
-import { 
-  ResponsiveContainer, 
-  RadarChart, 
-  PolarGrid, 
-  PolarAngleAxis, 
-  PolarRadiusAxis, 
-  Radar, 
-  Tooltip 
-} from 'recharts';
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { PSQ_QUESTIONS } from '@/lib/psq-questions';
+import { CheckCircle2, ChevronRight, MessageSquare, ShieldCheck } from 'lucide-react';
 
-// Dynamic import for the ReflectionModal to keep page load light
-const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
-import { addCPD } from "@/lib/store";
+const RATINGS = [
+  { value: 'poor', label: 'Poor' },
+  { value: 'fair', label: 'Fair' },
+  { value: 'good', label: 'Good' },
+  { value: 'very_good', label: 'Very Good' },
+  { value: 'excellent', label: 'Excellent' },
+  { value: 'outstanding', label: 'Outstanding' },
+];
 
-export default function PSQReportPage() {
+export default function PublicSurvey() {
   const { id } = useParams();
-  const { email, loading: authLoading } = useUserEmail();
-  
-  const [survey, setSurvey] = useState<any>(null);
-  const [responses, setResponses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isReflectionOpen, setIsReflectionOpen] = useState(false);
-  const [reflectionContext, setReflectionContext] = useState<{question: string, answer: string} | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  // Stats State
-  const [averageScore, setAverageScore] = useState(0);
-  const [feedbackList, setFeedbackList] = useState<string[]>([]);
-  const [chartData, setChartData] = useState<any[]>([]);
+  useEffect(() => { setMounted(true); }, []);
 
-  useEffect(() => {
-    if (email) fetchData();
-  }, [email, id]);
+  const handleSelect = (questionId: string, value: string) => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5);
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
+  };
 
-  const fetchData = async () => {
-    try {
-      const { data: surveyData } = await supabase.from('psq_surveys').select('*').eq('id', id).single();
-      setSurvey(surveyData);
+  const calculateProgress = () => {
+    const total = PSQ_QUESTIONS.length;
+    const answered = Object.keys(answers).length;
+    return Math.round((answered / total) * 100);
+  };
 
-      const { data: responseData } = await supabase.from('psq_responses').select('*').eq('survey_id', id);
-      
-      if (responseData) {
-        setResponses(responseData);
-        processStats(responseData);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+  const handleSubmit = async () => {
+    if (Object.keys(answers).length < PSQ_QUESTIONS.length) {
+      alert('Please answer all questions to complete the survey.');
+      return;
     }
-  };
-
-  const processStats = (data: any[]) => {
-    if (data.length === 0) return;
-
-    const feedbacks = data.map(r => r.feedback_text).filter(t => t && t.trim().length > 0);
-    setFeedbackList(feedbacks);
-
-    const ratingMap: Record<string, number> = { 'poor': 1, 'fair': 2, 'good': 3, 'very_good': 4, 'excellent': 5, 'outstanding': 6 };
-    let totalSum = 0;
-    let totalCount = 0;
-
-    // Short labels for Radar Chart to keep it clean
-    const shortLabels = ["Empathy", "Listening", "Attention", "Holistic", "Understanding", "Compassion", "Positivity", "Clarity", "Empowerment", "Planning"];
-
-    const breakdown = PSQ_QUESTIONS.map((q, index) => {
-      let qSum = 0;
-      let qCount = 0;
-      
-      data.forEach(r => {
-        const val = r.answers?.[q.id];
-        if (val && ratingMap[val]) {
-          qSum += ratingMap[val];
-          qCount++;
-        }
-      });
-
-      const avg = qCount > 0 ? (qSum / qCount) : 0;
-      totalSum += qSum;
-      totalCount += qCount;
-
-      return { 
-        id: q.id,
-        fullText: q.text,
-        subject: shortLabels[index], // For Radar Chart
-        A: parseFloat(avg.toFixed(2)), // For Radar Chart
-        fullMark: 6
-      };
-    });
-
-    setChartData(breakdown);
-    setAverageScore(totalCount > 0 ? (totalSum / totalCount) : 0);
-  };
-
-  const handlePrint = () => window.print();
-
-  const handleOpenReflection = () => {
-    const contextString = `
-      Survey: ${survey?.title}
-      Avg Score: ${averageScore.toFixed(1)}/6.0
-      Feedback: ${feedbackList.slice(0, 3).join('; ')}
-    `;
-
-    setReflectionContext({
-      question: `Reflection on PSQ Feedback: ${survey?.title}`,
-      answer: contextString
-    });
-    setIsReflectionOpen(true);
-  };
-
-  const handleSaveReflection = async (reflection: string, tags: string[], duration: number) => {
-    if (!reflectionContext) return;
-    const { error } = await addCPD({
-        timestamp: new Date().toISOString(),
-        question: reflectionContext.question,
-        answer: "Automated entry from PSQ Report.",
-        reflection: reflection,
-        tags: [...tags, 'Patient Feedback', 'Revalidation'],
-        duration: duration
-    });
+    setLoading(true);
     
+    const { error } = await supabase.from('psq_responses').insert({
+      survey_id: id,
+      answers: answers,
+      feedback_text: feedback,
+    });
+
+    setLoading(false);
     if (!error) {
-        setIsReflectionOpen(false);
-        // Simple success alert or toast could go here
-        alert("Reflection saved successfully!");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setSubmitted(true);
     }
   };
 
-  if (authLoading || loading) return <div className="p-10 text-center text-gray-500">Loading report...</div>;
-  if (!survey) return <div className="p-10 text-center">Survey not found</div>;
+  if (!mounted) return null;
+
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white max-w-md w-full p-10 rounded-3xl shadow-xl text-center border border-gray-100">
+          <div className="w-20 h-20 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+            <CheckCircle2 size={40} />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">All Done</h2>
+          <p className="text-gray-500 text-lg leading-relaxed">Thank you for helping improve patient care. Your feedback is anonymous.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <section className="main-content">
-      <div className="container" style={{ maxWidth: '1000px', paddingBottom: '80px' }}>
-        
-        {/* Navigation & Header */}
-        <div className="print:hidden mb-8">
-            <Link href="/psq" className="inline-flex items-center gap-2 text-[var(--umbil-muted)] hover:text-[var(--umbil-brand-teal)] mb-4 font-medium transition-colors">
-                <ArrowLeft size={18} /> Back to Dashboard
-            </Link>
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                <div>
-                    <h1 className="text-3xl font-bold">{survey.title}</h1>
-                    <p className="text-[var(--umbil-muted)] mt-1">Generated on {new Date().toLocaleDateString()}</p>
-                </div>
-                <div className="flex gap-3">
-                    <button onClick={handlePrint} className="btn btn--outline flex items-center gap-2">
-                        <Download size={18} /> PDF
-                    </button>
-                    <button onClick={handleOpenReflection} className="btn btn--primary flex items-center gap-2">
-                        <Sparkles size={18} /> Reflect
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        {/* --- REPORT CONTENT --- */}
-        <div id="report-content" className="space-y-6">
-            
-            {/* 1. Overview Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-                <div className="card p-6 flex flex-col justify-center">
-                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Total Responses</div>
-                    <div className="text-4xl font-extrabold text-[var(--umbil-text)]">{responses.length}</div>
-                </div>
-                <div className="card p-6 flex flex-col justify-center">
-                    <div className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Average Score</div>
-                    <div className="flex items-baseline gap-2">
-                        <div className="text-4xl font-extrabold text-[var(--umbil-brand-teal)]">{averageScore.toFixed(1)}</div>
-                        <div className="text-lg text-gray-400 font-medium">/ 6.0</div>
-                    </div>
-                </div>
-            </div>
-
-            {responses.length === 0 ? (
-                <div className="card p-10 text-center">
-                    <AlertCircle size={32} className="mx-auto mb-4 text-gray-400" />
-                    <h3 className="text-lg font-semibold">No data yet</h3>
-                    <p className="text-gray-500">Waiting for patient responses.</p>
-                </div>
-            ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    
-                    {/* 2. Radar Chart Visualization */}
-                    <div className="card p-6">
-                        <h3 className="text-lg font-bold mb-4">Performance Profile</h3>
-                        <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
-                                    <PolarGrid stroke="#e5e7eb" />
-                                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#6b7280', fontSize: 11, fontWeight: 600 }} />
-                                    <PolarRadiusAxis angle={30} domain={[0, 6]} tick={false} axisLine={false} />
-                                    <Radar name="Score" dataKey="A" stroke="var(--umbil-brand-teal)" fill="var(--umbil-brand-teal)" fillOpacity={0.4} />
-                                    <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)' }} />
-                                </RadarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    {/* 3. Detailed Breakdown */}
-                    <div className="card p-6">
-                        <h3 className="text-lg font-bold mb-6">Question Breakdown</h3>
-                        <div className="space-y-5 overflow-y-auto max-h-[300px] pr-2 custom-scrollbar">
-                            {chartData.map((q, i) => (
-                                <div key={i}>
-                                    <div className="flex justify-between mb-2 text-sm font-medium">
-                                        <span className="text-gray-700 truncate pr-4">{i + 1}. {q.subject}</span>
-                                        <span className="font-bold text-gray-900">{q.A.toFixed(1)}</span>
-                                    </div>
-                                    <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                        <div 
-                                            className="h-full rounded-full transition-all duration-1000 ease-out"
-                                            style={{ 
-                                                width: `${(q.A / 6) * 100}%`, 
-                                                backgroundColor: q.A >= 5 ? '#22c55e' : q.A >= 4 ? 'var(--umbil-brand-teal)' : '#f59e0b'
-                                            }}
-                                        ></div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* 4. Written Feedback (Full Width) */}
-                    <div className="card p-6 lg:col-span-2">
-                        <h3 className="text-lg font-bold mb-6">Patient Comments</h3>
-                        {feedbackList.length === 0 ? (
-                            <p className="text-gray-400 italic">No written comments provided.</p>
-                        ) : (
-                            <div className="grid gap-4">
-                                {feedbackList.map((comment, i) => (
-                                    <div key={i} className="p-4 bg-[var(--umbil-bg)] rounded-xl border border-[var(--umbil-divider)] text-gray-700 leading-relaxed italic relative">
-                                        <span className="absolute top-2 left-2 text-4xl text-gray-200 font-serif leading-none">&ldquo;</span>
-                                        <span className="relative z-10 pl-4 block">{comment}</span>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </div>
-                </div>
-            )}
-        </div>
-
-        {/* --- REFLECTION MODAL --- */}
-        {isReflectionOpen && (
-            <ReflectionModal
-                isOpen={isReflectionOpen}
-                onClose={() => setIsReflectionOpen(false)}
-                onSave={handleSaveReflection}
-                currentStreak={0}
-                cpdEntry={reflectionContext}
+    <div className="min-h-screen bg-[#FAFAFA] pb-32 font-sans">
+      {/* Sticky Header with Progress */}
+      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-20 px-6 py-4 supports-[backdrop-filter]:bg-white/60">
+        <div className="max-w-xl mx-auto">
+          <div className="flex justify-between items-end mb-2">
+            <h1 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Confidential Survey</h1>
+            <span className="text-teal-600 font-bold text-sm">{calculateProgress()}% Complete</span>
+          </div>
+          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-teal-500 transition-all duration-500 ease-out rounded-full"
+              style={{ width: `${calculateProgress()}%` }}
             />
-        )}
+          </div>
+        </div>
       </div>
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e2e8f0; border-radius: 20px; }
-        @media print {
-            .print\\:hidden { display: none !important; }
-            body { background: white !important; }
-            .card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; }
-        }
-      `}</style>
-    </section>
+      <div className="max-w-xl mx-auto px-6 py-8 space-y-16">
+        {/* Intro Card */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex gap-4 items-start">
+           <div className="bg-blue-50 p-3 rounded-xl text-blue-600 shrink-0">
+             <ShieldCheck size={24} />
+           </div>
+           <div>
+             <h3 className="font-semibold text-gray-900">Your privacy matters</h3>
+             <p className="text-sm text-gray-500 mt-1 leading-relaxed">
+               This feedback is collected anonymously to help your doctor improve. Please be honest.
+             </p>
+           </div>
+        </div>
+
+        {PSQ_QUESTIONS.map((q, index) => (
+          <div key={q.id} className="scroll-mt-32 group" id={q.id}>
+            <div className="mb-6">
+              <span className="inline-block px-3 py-1 bg-gray-100 text-gray-500 rounded-lg text-xs font-bold uppercase tracking-wider mb-3">
+                Question {index + 1}
+              </span>
+              <h3 className="text-2xl font-bold text-gray-900 leading-tight">
+                {q.text}
+              </h3>
+            </div>
+            
+            <div className="grid gap-3">
+              {RATINGS.map((rating) => {
+                const isSelected = answers[q.id] === rating.value;
+                return (
+                  <button
+                    key={rating.value}
+                    onClick={() => handleSelect(q.id, rating.value)}
+                    className={`
+                      relative w-full text-left p-5 rounded-2xl border-2 transition-all duration-200 ease-out flex items-center justify-between group
+                      ${isSelected 
+                        ? 'border-teal-500 bg-teal-600 text-white shadow-lg shadow-teal-500/20 scale-[1.02] z-10' 
+                        : 'border-transparent bg-white text-gray-600 shadow-sm hover:bg-gray-50 hover:border-gray-200 hover:scale-[1.005]'
+                      }
+                    `}
+                  >
+                    <span className={`text-lg font-medium ${isSelected ? 'text-white' : 'text-gray-700'}`}>
+                      {rating.label}
+                    </span>
+                    
+                    {/* Circle Checkbox UI */}
+                    <div className={`
+                      w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
+                      ${isSelected ? 'border-white bg-white/20' : 'border-gray-200 group-hover:border-gray-300'}
+                    `}>
+                      {isSelected && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Text Feedback Section */}
+        <div className="pt-8 border-t border-gray-200">
+          <div className="flex items-center gap-3 mb-6">
+            <MessageSquare className="text-teal-600" />
+            <h3 className="text-xl font-bold text-gray-900">Any final thoughts?</h3>
+          </div>
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            className="w-full p-5 bg-white border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-teal-500 outline-none transition-all text-gray-700 text-lg placeholder:text-gray-300 min-h-[160px] shadow-sm resize-none"
+            placeholder="Feel free to type here... (Optional)"
+          />
+        </div>
+
+        {/* Submit Button */}
+        <div className="sticky bottom-6 z-10">
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="w-full bg-gray-900 hover:bg-black text-white font-bold text-lg py-5 rounded-2xl shadow-2xl shadow-gray-900/20 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+          >
+            {loading ? 'Submitting...' : (
+              <>
+                Submit Feedback <ChevronRight size={20} />
+              </>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
