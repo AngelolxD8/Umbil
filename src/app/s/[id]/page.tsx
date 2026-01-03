@@ -18,7 +18,7 @@ const RATINGS = [
 
 export default function PublicSurvey() {
   const params = useParams();
-  const id = params?.id as string; // Safe access to ID
+  const id = params?.id as string;
   
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState('');
@@ -29,11 +29,8 @@ export default function PublicSurvey() {
   useEffect(() => { setMounted(true); }, []);
 
   const handleSelect = (questionId: string, value: string) => {
-    // Subtle vibration on mobile for tactile feedback
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5);
     setAnswers(prev => ({ ...prev, [questionId]: value }));
-    
-    // Auto-scroll to next question logic could go here, but manual is often less jarring
   };
 
   const calculateProgress = () => {
@@ -60,7 +57,7 @@ export default function PublicSurvey() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       setSubmitted(true);
     } else {
-      alert("Something went wrong. Please try again.");
+        alert("Something went wrong. Please try again.");
     }
   };
 
@@ -85,7 +82,7 @@ export default function PublicSurvey() {
       
       {/* Sticky Header */}
       <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
-        <div className="max-w-2xl mx-auto px-6 py-4">
+        <div className="max-w-3xl mx-auto px-6 py-4">
           <div className="flex justify-between items-center mb-2">
             <div className="flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div>
@@ -102,7 +99,7 @@ export default function PublicSurvey() {
         </div>
       </div>
 
-      <div className="max-w-2xl mx-auto px-6 py-10 space-y-12 pb-32">
+      <div className="max-w-3xl mx-auto px-6 py-10 space-y-12 pb-32">
         
         {/* Intro */}
         <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex gap-5 items-start">
@@ -112,13 +109,13 @@ export default function PublicSurvey() {
            <div>
              <h3 className="font-bold text-lg text-gray-900">Your privacy matters</h3>
              <p className="text-gray-500 mt-1 leading-relaxed">
-               This feedback is collected anonymously. Please be honest in your responses.
+               This feedback is collected anonymously to help your doctor improve. Please be honest in your responses.
              </p>
            </div>
         </div>
 
         {PSQ_QUESTIONS.map((q, index) => (
-          <div key={q.id} className="scroll-mt-32" id={q.id}>
+          <div key={q.id} className="scroll-mt-32 text-center" id={q.id}>
             <div className="mb-6">
               <span className="inline-block px-3 py-1 bg-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase tracking-wider mb-3">
                 Question {index + 1}
@@ -154,7 +151,7 @@ export default function PublicSurvey() {
 
         {/* Text Feedback */}
         <div className="pt-8 border-t border-gray-200">
-          <div className="flex items-center gap-3 mb-6">
+          <div className="flex items-center gap-3 mb-6 justify-center">
             <div className="p-2 bg-teal-100 text-teal-700 rounded-lg"><MessageSquare size={20} /></div>
             <h3 className="text-xl font-bold text-gray-900">Any final comments?</h3>
           </div>
@@ -168,7 +165,7 @@ export default function PublicSurvey() {
 
         {/* Submit */}
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 md:relative md:bg-transparent md:border-none md:p-0">
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-3xl mx-auto">
                 <button
                     onClick={handleSubmit}
                     disabled={loading}

@@ -59,7 +59,7 @@ function AnalyticsContent() {
         setReportTitle(`${surveys[0].title} Report`);
     }
 
-    // 1. Process Trend Data
+    // Process Trend Data
     let totalScoreSum = 0;
     let totalResponseCount = 0;
     
@@ -86,7 +86,7 @@ function AnalyticsContent() {
 
     setTrendData(trends);
 
-    // 2. Process Question Performance
+    // Process Question Performance
     const qCounts: Record<string, { sum: number, count: number }> = {};
     const ratingMap: Record<string, number> = { 'poor': 1, 'fair': 2, 'good': 3, 'very_good': 4, 'excellent': 5, 'outstanding': 6 };
 
@@ -141,9 +141,8 @@ function AnalyticsContent() {
             </p>
         </div>
 
-        {/* Stats Grid - Cleaner Horizontal Layout */}
+        {/* Stats Grid - Fixed Layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-            {/* Responses Card */}
             <div className="card p-6 flex items-center justify-between">
                 <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Responses</h3>
@@ -157,7 +156,6 @@ function AnalyticsContent() {
                 </div>
             </div>
 
-            {/* Rating Card */}
             <div className="card p-6 flex items-center justify-between">
                 <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Overall Rating</h3>
@@ -171,9 +169,8 @@ function AnalyticsContent() {
                 </div>
             </div>
 
-            {/* Strength Card */}
             <div className="card p-6 flex items-center justify-between">
-                <div className="min-w-0"> {/* min-w-0 needed for truncate to work in flex */}
+                <div className="min-w-0 flex-1 mr-4">
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Top Strength</h3>
                     <p className="text-lg font-bold text-gray-900 truncate" title={stats.topArea}>
                         {stats.topArea}
@@ -187,8 +184,6 @@ function AnalyticsContent() {
 
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            
-            {/* Trend Chart */}
             <div className="card p-6">
                 <h3 className="text-lg font-bold mb-6">Performance Trend</h3>
                 <div className="h-64 w-full">
@@ -198,18 +193,8 @@ function AnalyticsContent() {
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} dy={10} />
                                 <YAxis domain={[0, 6]} axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} />
-                                <Tooltip 
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                    cursor={{ stroke: 'var(--umbil-brand-teal)', strokeWidth: 2 }}
-                                />
-                                <Line 
-                                    type="monotone" 
-                                    dataKey="score" 
-                                    stroke="var(--umbil-brand-teal)" 
-                                    strokeWidth={3}
-                                    dot={{ r: 4, fill: 'white', strokeWidth: 2 }}
-                                    activeDot={{ r: 6, fill: 'var(--umbil-brand-teal)' }} 
-                                />
+                                <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }} />
+                                <Line type="monotone" dataKey="score" stroke="var(--umbil-brand-teal)" strokeWidth={3} dot={{ r: 4, fill: 'white' }} activeDot={{ r: 6 }} />
                             </LineChart>
                         </ResponsiveContainer>
                     ) : (
@@ -218,7 +203,6 @@ function AnalyticsContent() {
                 </div>
             </div>
 
-            {/* Performance Bar Chart */}
             <div className="card p-6">
                 <h3 className="text-lg font-bold mb-6">Aggregate Strengths</h3>
                 <div className="h-64 w-full">
@@ -227,18 +211,8 @@ function AnalyticsContent() {
                             <BarChart data={questionPerformance} layout="vertical" margin={{ left: 20 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
                                 <XAxis type="number" domain={[0, 6]} hide />
-                                <YAxis 
-                                    type="category" 
-                                    dataKey="name" 
-                                    width={100} 
-                                    axisLine={false} 
-                                    tickLine={false}
-                                    tick={{fill: '#4B5563', fontSize: 11, fontWeight: 500}} 
-                                />
-                                <Tooltip 
-                                    cursor={{fill: 'transparent'}}
-                                    contentStyle={{ borderRadius: '8px' }}
-                                />
+                                <YAxis type="category" dataKey="name" width={100} axisLine={false} tickLine={false} tick={{fill: '#4B5563', fontSize: 11, fontWeight: 500}} />
+                                <Tooltip cursor={{fill: 'transparent'}} contentStyle={{ borderRadius: '8px' }} />
                                 <Bar dataKey="score" radius={[0, 4, 4, 0]} barSize={20}>
                                     {questionPerformance.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={index < 3 ? 'var(--umbil-brand-teal)' : '#CBD5E1'} />
@@ -252,7 +226,6 @@ function AnalyticsContent() {
                 </div>
             </div>
         </div>
-
       </div>
     </section>
   );
