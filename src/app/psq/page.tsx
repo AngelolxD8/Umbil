@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+// 👇 CHANGE THIS LINE
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Plus, ArrowRight, BarChart3, Download, Copy, Check } from 'lucide-react';
@@ -9,6 +10,8 @@ export default function PSQDashboard() {
   const [surveys, setSurveys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  // 👇 DELETE THIS LINE
+  // const supabase = createClientComponentClient(); 
 
   useEffect(() => {
     fetchSurveys();
