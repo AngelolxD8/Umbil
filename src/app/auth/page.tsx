@@ -17,11 +17,20 @@ export default function AuthPage() {
 
   // Redirect user if already signed in
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_IN") {
+    // Check if we have a session already on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.refresh();
+        router.replace("/");
+      }
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" || (event === "INITIAL_SESSION" && session)) {
         // Set flag for standard email/password login
         sessionStorage.setItem("justLoggedIn", "true");
-        router.push("/");
+        router.refresh(); // Important: Update server components/middleware with new cookie
+        router.replace("/");
       }
     });
     return () => sub?.subscription.unsubscribe();
@@ -45,6 +54,15 @@ export default function AuthPage() {
         password,
       });
       error = signInError;
+
+      if (!signInError) {
+        // SUCCESS: Explicitly handle redirect here to prevent "doing nothing"
+        sessionStorage.setItem("justLoggedIn", "true");
+        router.refresh();
+        router.push("/");
+        return; // Return early so we don't setSending(false) and enable buttons while redirecting
+      }
+
     } else if (mode === "signUp") {
       const { error: signUpError } = await supabase.auth.signUp({
         email,
@@ -54,7 +72,6 @@ export default function AuthPage() {
             grade: grade || null, 
           },
           // --- FIX: Redirect verification links to the callback page ---
-          // This ensures the session is handled and the 'justLoggedIn' flag is set
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       });
