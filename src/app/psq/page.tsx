@@ -1,21 +1,21 @@
+// src/app/psq/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
-// 👇 CHANGE THIS LINE
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { Plus, ArrowRight, BarChart3, Download, Copy, Check } from 'lucide-react';
+import { Plus, ArrowRight, BarChart3, Copy, Check } from 'lucide-react';
+import { useUserEmail } from "@/hooks/useUser";
 
 export default function PSQDashboard() {
   const [surveys, setSurveys] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  // 👇 DELETE THIS LINE
-  // const supabase = createClientComponentClient(); 
+  const { email, loading: userLoading } = useUserEmail();
 
   useEffect(() => {
-    fetchSurveys();
-  }, []);
+    if (email) fetchSurveys();
+  }, [email]);
 
   const fetchSurveys = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -51,71 +51,95 @@ export default function PSQDashboard() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  return (
-    <div className="max-w-5xl mx-auto p-6 space-y-8">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Patient Feedback</h1>
-          <p className="text-gray-500 mt-2">Manage your PSQ cycles for revalidation.</p>
-        </div>
-        <button
-          onClick={createSurvey}
-          className="bg-teal-600 hover:bg-teal-700 text-white px-5 py-2.5 rounded-xl font-medium flex items-center gap-2 transition-all shadow-sm hover:shadow-md"
-        >
-          <Plus size={20} />
-          Start New Cycle
-        </button>
-      </div>
-
-      {loading ? (
-        <div className="animate-pulse space-y-4">
-          {[1, 2].map(i => <div key={i} className="h-32 bg-gray-100 rounded-2xl" />)}
-        </div>
-      ) : surveys.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-3xl border border-dashed border-gray-300">
-          <BarChart3 className="mx-auto h-12 w-12 text-gray-300 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900">No surveys yet</h3>
-          <p className="text-gray-500">Start a new PSQ cycle to begin collecting feedback.</p>
-        </div>
-      ) : (
-        <div className="grid gap-4">
-          {surveys.map((survey) => (
-            <div key={survey.id} className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between items-center gap-4 transition-all hover:border-teal-100">
-              <div>
-                <div className="flex items-center gap-3">
-                  <h3 className="font-semibold text-lg text-gray-900">{survey.title}</h3>
-                  <span className={`text-xs px-2 py-1 rounded-full ${survey.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                    {survey.status.toUpperCase()}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-500 mt-1">
-                  Created {new Date(survey.created_at).toLocaleDateString()} • 
-                  <span className="font-medium text-teal-600 ml-1">
-                    {survey.psq_responses?.[0]?.count || 0} responses
-                  </span>
-                </p>
-              </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <button 
-                  onClick={() => copyLink(survey.id)}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded-xl text-sm font-medium transition-colors"
-                >
-                  {copiedId === survey.id ? <Check size={16} className="text-green-600"/> : <Copy size={16}/>}
-                  {copiedId === survey.id ? 'Copied' : 'Copy Link'}
-                </button>
-                
-                <Link 
-                  href={`/psq/${survey.id}`}
-                  className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-xl text-sm font-medium transition-colors"
-                >
-                  View Report <ArrowRight size={16} />
-                </Link>
-              </div>
+  if (userLoading) return null;
+  if (!email) {
+    return (
+      <section className="main-content">
+        <div className="container">
+          <div className="card">
+            <div className="card__body">
+              Please <Link href="/auth" className="text-[var(--umbil-brand-teal)] hover:underline">sign in</Link> to manage your Patient Questionnaires.
             </div>
-          ))}
+          </div>
         </div>
-      )}
-    </div>
+      </section>
+    );
+  }
+
+  return (
+    <section className="main-content">
+      <div className="container">
+        <div className="flex justify-between items-center mb-8">
+          <div>
+            <h2 className="mb-2 text-2xl font-bold">Patient Feedback</h2>
+            <p className="text-[var(--umbil-muted)]">Manage your PSQ cycles for revalidation.</p>
+          </div>
+          <button
+            onClick={createSurvey}
+            className="btn btn--primary flex items-center gap-2"
+          >
+            <Plus size={18} />
+            Start New Cycle
+          </button>
+        </div>
+
+        {loading ? (
+           <div className="card"><div className="card__body">Loading surveys...</div></div>
+        ) : surveys.length === 0 ? (
+          <div className="card py-16 px-5 text-center">
+             <div className="mb-4 text-[var(--umbil-divider)] flex justify-center">
+               <BarChart3 size={48} />
+             </div>
+             <h3 className="mb-2 text-lg font-medium">No surveys yet</h3>
+             <p className="text-[var(--umbil-muted)] mb-6">Start a new PSQ cycle to begin collecting feedback.</p>
+             <button onClick={createSurvey} className="btn btn--primary">Create First Cycle</button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {surveys.map((survey) => (
+              <div key={survey.id} className="card">
+                <div className="card__body flex flex-col md:flex-row justify-between items-center gap-4">
+                  <div className="w-full md:w-auto">
+                    <div className="flex items-center gap-3 mb-1">
+                      <h3 className="text-lg font-semibold">{survey.title}</h3>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-semibold uppercase ${
+                          survey.status === 'active' 
+                          ? 'bg-green-100 text-green-700' 
+                          : 'bg-gray-100 text-gray-600'
+                        }`}>
+                        {survey.status}
+                      </span>
+                    </div>
+                    <p className="text-sm text-[var(--umbil-muted)]">
+                      Created {new Date(survey.created_at).toLocaleDateString()} • 
+                      <span className="text-[var(--umbil-brand-teal)] font-semibold ml-1">
+                        {survey.psq_responses?.[0]?.count || 0} responses
+                      </span>
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <button 
+                      onClick={() => copyLink(survey.id)}
+                      className="btn btn--outline flex items-center justify-center gap-2 min-w-[120px] flex-1 md:flex-none"
+                    >
+                      {copiedId === survey.id ? <Check size={16} /> : <Copy size={16}/>}
+                      {copiedId === survey.id ? 'Copied' : 'Copy Link'}
+                    </button>
+                    
+                    <Link 
+                      href={`/psq/${survey.id}`}
+                      className="btn btn--primary flex items-center justify-center gap-2 flex-1 md:flex-none"
+                    >
+                      View Report <ArrowRight size={16} />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
   );
 }

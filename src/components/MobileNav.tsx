@@ -1,3 +1,4 @@
+
 // src/components/MobileNav.tsx
 "use client";
 
@@ -51,7 +52,6 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
     if (isOpen) loadData();
   }, [email, isOpen]);
 
-  // --- UPDATED HANDLERS FOR DASHBOARD ROUTING ---
   const handleNewChat = () => { 
     onClose(); 
     router.push(`/dashboard?new-chat=${Date.now()}`); 
@@ -66,7 +66,6 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
       onClose();
       router.push(`/dashboard?c=${id}`);
   };
-  // ---------------------------------------------
 
   const handleSignOut = async () => { 
     await supabase.auth.signOut(); 
@@ -83,6 +82,7 @@ export default function MobileNav({ isOpen, onClose, userEmail }: MobileNavProps
   const coreLinks = [
     { href: "/cpd", label: "My CPD" },
     { href: "/pdp", label: "My PDP" },
+    { href: "/psq", label: "My PSQ" },
     { href: "/profile", label: "My Profile" },
   ];
 

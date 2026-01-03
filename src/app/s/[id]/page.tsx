@@ -1,39 +1,27 @@
+// src/app/s/[id]/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams } from 'next/navigation';
-// 👇 CHANGE THIS LINE
-import { supabase } from '@/lib/supabase'; 
+import { supabase } from '@/lib/supabase';
 import { PSQ_QUESTIONS, RATINGS } from '@/lib/psq-questions';
-import { CheckCircle2, ChevronRight, MessageSquare, ShieldCheck } from 'lucide-react';
+import { CheckCircle2 } from 'lucide-react';
 
 export default function PublicSurvey() {
-  const { id } = useParams();
-  // 👇 DELETE THIS LINE
-  // const supabase = createClientComponentClient(); 
-
+  const params = useParams();
+  const id = params?.id as string;
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => { setMounted(true); }, []);
 
   const handleSelect = (questionId: string, value: string) => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5);
     setAnswers(prev => ({ ...prev, [questionId]: value }));
-  };
-
-  const calculateProgress = () => {
-    const total = PSQ_QUESTIONS.length;
-    const answered = Object.keys(answers).length;
-    return Math.round((answered / total) * 100);
   };
 
   const handleSubmit = async () => {
     if (Object.keys(answers).length < PSQ_QUESTIONS.length) {
-      alert('Please answer all questions to complete the survey.');
+      alert('Please answer all questions before submitting.');
       return;
     }
     setLoading(true);
@@ -45,94 +33,53 @@ export default function PublicSurvey() {
     });
 
     setLoading(false);
-    if (!error) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setSubmitted(true);
-    }
+    if (!error) setSubmitted(true);
   };
-
-  if (!mounted) return null;
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white max-w-md w-full p-10 rounded-3xl shadow-xl text-center border border-gray-100">
-          <div className="w-20 h-20 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-            <CheckCircle2 size={40} />
+      <div className="min-h-[100dvh] bg-[var(--umbil-bg)] flex items-center justify-center p-5">
+        <div className="card w-full max-w-[480px] p-10 text-center">
+          <div className="w-16 h-16 bg-green-100 text-green-700 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 size={32} />
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">All Done</h2>
-          <p className="text-gray-500 text-lg leading-relaxed">Thank you for helping improve patient care. Your feedback is anonymous.</p>
+          <h2 className="text-2xl font-bold mb-3">Thank You</h2>
+          <p className="text-[var(--umbil-muted)]">Your feedback has been submitted securely and anonymously.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] pb-32">
-      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-20 px-6 py-4 supports-[backdrop-filter]:bg-white/60">
-        <div className="max-w-xl mx-auto">
-          <div className="flex justify-between items-end mb-2">
-            <h1 className="text-sm font-bold text-gray-400 uppercase tracking-widest">Confidential Survey</h1>
-            <span className="text-teal-600 font-bold text-sm">{calculateProgress()}% Complete</span>
-          </div>
-          <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-teal-500 transition-all duration-500 ease-out rounded-full"
-              style={{ width: `${calculateProgress()}%` }}
-            />
-          </div>
+    <div className="min-h-[100dvh] bg-[var(--umbil-bg)] pb-20">
+      {/* Header */}
+      <div className="bg-[var(--umbil-surface)] border-b border-[var(--umbil-divider)] sticky top-0 z-10">
+        <div className="max-w-[600px] mx-auto px-6 py-5">
+          <p className="text-xs font-semibold text-[var(--umbil-brand-teal)] tracking-wider uppercase mb-1">Anonymous Survey</p>
+          <h1 className="text-xl font-bold m-0">Patient Satisfaction Questionnaire</h1>
         </div>
       </div>
 
-      <div className="max-w-xl mx-auto px-6 py-8 space-y-16">
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex gap-4 items-start">
-           <div className="bg-blue-50 p-3 rounded-xl text-blue-600 shrink-0">
-             <ShieldCheck size={24} />
-           </div>
-           <div>
-             <h3 className="font-semibold text-gray-900">Your privacy matters</h3>
-             <p className="text-sm text-gray-500 mt-1 leading-relaxed">
-               This feedback is collected anonymously to help your doctor improve. Please be honest.
-             </p>
-           </div>
-        </div>
-
+      <div className="max-w-[600px] mx-auto px-6 py-8 flex flex-col gap-12">
         {PSQ_QUESTIONS.map((q, index) => (
-          <div key={q.id} className="scroll-mt-32 group" id={q.id}>
-            <div className="mb-6">
-              <span className="inline-block px-3 py-1 bg-gray-100 text-gray-500 rounded-lg text-xs font-bold uppercase tracking-wider mb-3">
-                Question {index + 1}
-              </span>
-              <h3 className="text-2xl font-bold text-gray-900 leading-tight">
-                {q.text}
-              </h3>
-            </div>
+          <div key={q.id} id={q.id} className="scroll-mt-[100px]">
+            <p className="text-sm text-[var(--umbil-muted)] font-medium mb-2">Question {index + 1} of {PSQ_QUESTIONS.length}</p>
+            <h3 className="text-lg font-medium mb-6 leading-relaxed">{q.text}</h3>
             
-            <div className="grid gap-3">
+            <div className="flex flex-col gap-2.5">
               {RATINGS.map((rating) => {
                 const isSelected = answers[q.id] === rating.value;
                 return (
                   <button
                     key={rating.value}
                     onClick={() => handleSelect(q.id, rating.value)}
-                    className={`
-                      relative w-full text-left p-5 rounded-2xl border-2 transition-all duration-200 ease-out flex items-center justify-between group
+                    className={`w-full text-left p-4 rounded-[var(--umbil-radius-sm)] border transition-all duration-200 
                       ${isSelected 
-                        ? 'border-teal-500 bg-teal-600 text-white shadow-lg shadow-teal-500/20 scale-[1.02] z-10' 
-                        : 'border-transparent bg-white text-gray-600 shadow-sm hover:bg-gray-50 hover:border-gray-200 hover:scale-[1.005]'
-                      }
-                    `}
+                        ? 'border-[var(--umbil-brand-teal)] bg-[rgba(31,184,205,0.05)] text-[var(--umbil-brand-teal)] font-semibold shadow-[0_0_0_1px_var(--umbil-brand-teal)]' 
+                        : 'border-[var(--umbil-card-border)] bg-[var(--umbil-surface)] text-[var(--umbil-text)] hover:bg-[var(--umbil-hover-bg)]'
+                      }`}
                   >
-                    <span className={`text-lg font-medium ${isSelected ? 'text-white' : 'text-gray-700'}`}>
-                      {rating.label}
-                    </span>
-                    
-                    <div className={`
-                      w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all
-                      ${isSelected ? 'border-white bg-white/20' : 'border-gray-200 group-hover:border-gray-300'}
-                    `}>
-                      {isSelected && <div className="w-2.5 h-2.5 bg-white rounded-full" />}
-                    </div>
+                    {rating.label}
                   </button>
                 );
               })}
@@ -140,32 +87,25 @@ export default function PublicSurvey() {
           </div>
         ))}
 
-        <div className="pt-8 border-t border-gray-200">
-          <div className="flex items-center gap-3 mb-6">
-            <MessageSquare className="text-teal-600" />
-            <h3 className="text-xl font-bold text-gray-900">Any final thoughts?</h3>
-          </div>
+        <div className="pt-8 border-t border-[var(--umbil-divider)]">
+          <label className="block text-lg font-semibold mb-4">
+            Any other comments? <span className="text-[var(--umbil-muted)] font-normal text-sm">(Optional)</span>
+          </label>
           <textarea
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
-            className="w-full p-5 bg-white border-2 border-gray-100 rounded-2xl focus:ring-0 focus:border-teal-500 outline-none transition-all text-gray-700 text-lg placeholder:text-gray-300 min-h-[160px] shadow-sm resize-none"
-            placeholder="Feel free to type here... (Optional)"
+            className="w-full p-4 text-base rounded-[var(--umbil-radius-sm)] border border-[var(--umbil-card-border)] bg-[var(--umbil-surface)] min-h-[120px] focus:outline-none focus:border-[var(--umbil-brand-teal)] focus:ring-1 focus:ring-[var(--umbil-brand-teal)] transition-all"
+            placeholder="Write your feedback here..."
           />
         </div>
 
-        <div className="sticky bottom-6 z-10">
-          <button
-            onClick={handleSubmit}
-            disabled={loading}
-            className="w-full bg-gray-900 hover:bg-black text-white font-bold text-lg py-5 rounded-2xl shadow-2xl shadow-gray-900/20 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-          >
-            {loading ? 'Submitting...' : (
-              <>
-                Submit Feedback <ChevronRight size={20} />
-              </>
-            )}
-          </button>
-        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={loading}
+          className="btn btn--primary p-4 text-lg w-full shadow-[var(--umbil-shadow-lg)]"
+        >
+          {loading ? 'Submitting...' : 'Submit Feedback'}
+        </button>
       </div>
     </div>
   );
