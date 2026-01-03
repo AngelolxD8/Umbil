@@ -1,9 +1,10 @@
 // src/app/psq/analytics/page.tsx
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useUserEmail } from "@/hooks/useUser";
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, TrendingUp, Award, Activity } from 'lucide-react';
 import {
@@ -19,43 +20,58 @@ import {
   Cell
 } from 'recharts';
 
-export default function PSQAnalyticsPage() {
+function AnalyticsContent() {
   const { email, loading: authLoading } = useUserEmail();
+  const searchParams = useSearchParams();
+  const surveyId = searchParams.get('id'); // Get ID if we are viewing a specific report
+  
   const [loading, setLoading] = useState(true);
   const [trendData, setTrendData] = useState<any[]>([]);
   const [questionPerformance, setQuestionPerformance] = useState<any[]>([]);
   const [stats, setStats] = useState({ totalResponses: 0, averageScore: 0, topArea: 'N/A' });
+  const [reportTitle, setReportTitle] = useState('Feedback Analytics');
 
   useEffect(() => {
-    if (email) fetchGlobalStats();
-  }, [email]);
+    if (email) fetchStats();
+  }, [email, surveyId]);
 
-  const fetchGlobalStats = async () => {
+  const fetchStats = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Fetch all surveys and their responses
-    const { data: surveys } = await supabase
+    // Start building the query
+    let query = supabase
       .from('psq_surveys')
       .select('*, psq_responses(*)')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: true });
+      .eq('user_id', user.id);
+
+    // If a specific ID is provided in URL, filter by it
+    if (surveyId) {
+      query = query.eq('id', surveyId);
+    }
+
+    const { data: surveys } = await query.order('created_at', { ascending: true });
 
     if (!surveys || surveys.length === 0) {
       setLoading(false);
       return;
     }
 
+    // Update title if viewing single report
+    if (surveyId && surveys.length > 0) {
+        setReportTitle(`${surveys[0].title} Report`);
+    }
+
     // 1. Process Trend Data (Average Score per Cycle)
     let totalScoreSum = 0;
     let totalResponseCount = 0;
+    
     const trends = surveys.map(s => {
       const responses = s.psq_responses || [];
       if (responses.length === 0) return null;
 
       // Calculate avg for this survey
       const surveyTotal = responses.reduce((acc: number, r: any) => {
-        // Sum all answer values (assuming map: poor=1...outstanding=6)
         const ratingMap: Record<string, number> = { 'poor': 1, 'fair': 2, 'good': 3, 'very_good': 4, 'excellent': 5, 'outstanding': 6 };
         const rSum = Object.values(r.answers || {}).reduce((a: number, v: any) => a + (ratingMap[v as string] || 0), 0);
         return acc + (rSum / (Object.keys(r.answers || {}).length || 1));
@@ -67,7 +83,7 @@ export default function PSQAnalyticsPage() {
       totalResponseCount += responses.length;
 
       return {
-        name: s.title.replace('PSQ Cycle ', ''), // Shorten name
+        name: s.title.replace('PSQ Cycle ', ''),
         date: new Date(s.created_at).toLocaleDateString(),
         score: parseFloat(avg.toFixed(2))
       };
@@ -75,7 +91,7 @@ export default function PSQAnalyticsPage() {
 
     setTrendData(trends);
 
-    // 2. Process Question Performance (Aggregate across all surveys)
+    // 2. Process Question Performance
     const qCounts: Record<string, { sum: number, count: number }> = {};
     const ratingMap: Record<string, number> = { 'poor': 1, 'fair': 2, 'good': 3, 'very_good': 4, 'excellent': 5, 'outstanding': 6 };
 
@@ -92,7 +108,6 @@ export default function PSQAnalyticsPage() {
         });
     });
 
-    // Manual mapping of IDs to Short Labels (You might want to import PSQ_QUESTIONS to get real text)
     const qLabels: Record<string, string> = {
         'q1': 'Empathy', 'q2': 'Listening', 'q3': 'Attention', 'q4': 'Holistic', 'q5': 'Understanding',
         'q6': 'Compassion', 'q7': 'Positivity', 'q8': 'Clarity', 'q9': 'Empowerment', 'q10': 'Planning'
@@ -125,37 +140,55 @@ export default function PSQAnalyticsPage() {
             <Link href="/psq" className="inline-flex items-center gap-2 text-[var(--umbil-muted)] hover:text-[var(--umbil-brand-teal)] mb-4 font-medium transition-colors">
                 <ArrowLeft size={18} /> Back to Dashboard
             </Link>
-            <h1 className="text-3xl font-bold">Feedback Analytics</h1>
-            <p className="text-[var(--umbil-muted)] mt-1">Track your patient satisfaction trends over time.</p>
+            <h1 className="text-3xl font-bold">{reportTitle}</h1>
+            <p className="text-[var(--umbil-muted)] mt-1">
+                {surveyId ? 'Detailed analysis for this specific feedback cycle.' : 'Track your patient satisfaction trends over time.'}
+            </p>
         </div>
 
-        {/* Stats Grid */}
+        {/* Stats Grid - Tidied Up Layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-            <div className="card p-6 flex items-center gap-4">
-                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
-                    <Activity size={24} />
+            {/* Responses Card */}
+            <div className="card p-5 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total Responses</h3>
+                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
+                        <Activity size={20} />
+                    </div>
                 </div>
-                <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Total Responses</p>
-                    <p className="text-2xl font-extrabold text-gray-900">{stats.totalResponses}</p>
-                </div>
-            </div>
-            <div className="card p-6 flex items-center gap-4">
-                <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
-                    <TrendingUp size={24} />
-                </div>
-                <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Overall Rating</p>
-                    <p className="text-2xl font-extrabold text-gray-900">{stats.averageScore} <span className="text-sm font-medium text-gray-400">/ 6.0</span></p>
+                <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-extrabold text-gray-900">{stats.totalResponses}</p>
+                    <span className="text-sm text-gray-500">collected</span>
                 </div>
             </div>
-            <div className="card p-6 flex items-center gap-4">
-                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
-                    <Award size={24} />
+
+            {/* Rating Card */}
+            <div className="card p-5 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Overall Rating</h3>
+                    <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
+                        <TrendingUp size={20} />
+                    </div>
+                </div>
+                <div className="flex items-baseline gap-2">
+                    <p className="text-3xl font-extrabold text-gray-900">{stats.averageScore}</p>
+                    <span className="text-sm font-medium text-gray-400">/ 6.0</span>
+                </div>
+            </div>
+
+            {/* Strength Card */}
+            <div className="card p-5 relative overflow-hidden">
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Top Strength</h3>
+                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                        <Award size={20} />
+                    </div>
                 </div>
                 <div>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">Top Strength</p>
-                    <p className="text-lg font-bold text-gray-900 leading-tight">{stats.topArea}</p>
+                    <p className="text-xl font-bold text-gray-900 leading-tight truncate" title={stats.topArea}>
+                        {stats.topArea}
+                    </p>
+                    <span className="text-sm text-gray-500">Based on patient feedback</span>
                 </div>
             </div>
         </div>
@@ -163,7 +196,7 @@ export default function PSQAnalyticsPage() {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Trend Chart */}
+            {/* Trend Chart (Only show if global or multiple points) */}
             <div className="card p-6">
                 <h3 className="text-lg font-bold mb-6">Performance Trend</h3>
                 <div className="h-64 w-full">
@@ -230,5 +263,13 @@ export default function PSQAnalyticsPage() {
 
       </div>
     </section>
+  );
+}
+
+export default function PSQAnalyticsPage() {
+  return (
+    <Suspense fallback={<div className="p-10 text-center">Loading...</div>}>
+      <AnalyticsContent />
+    </Suspense>
   );
 }

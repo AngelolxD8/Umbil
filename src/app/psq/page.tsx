@@ -1,9 +1,10 @@
+// src/app/psq/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
-import { Plus, Copy, Check, FileText, PieChart, Trash2 } from 'lucide-react';
+import { Plus, Copy, Check, FileText, PieChart, Trash2, ExternalLink } from 'lucide-react';
 import { useUserEmail } from "@/hooks/useUser";
 
 export default function PSQDashboard() {
@@ -34,9 +35,19 @@ export default function PSQDashboard() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
+    // Prompt user for name (Default to current year)
+    const defaultName = `PSQ Cycle ${new Date().getFullYear()}`;
+    const title = window.prompt("Name your new feedback cycle:", defaultName);
+
+    // If user cancels, stop
+    if (title === null) return; 
+
+    // Use default if empty string provided
+    const finalTitle = title.trim() || defaultName;
+
     const { data } = await supabase
       .from('psq_surveys')
-      .insert({ user_id: user.id, title: `PSQ Cycle ${new Date().getFullYear()}` })
+      .insert({ user_id: user.id, title: finalTitle })
       .select()
       .single();
 
@@ -46,11 +57,28 @@ export default function PSQDashboard() {
   const deleteSurvey = async (id: string) => {
     if (!window.confirm("Are you sure you want to delete this cycle? This will remove all associated patient responses permanently.")) return;
     
+    // 1. Delete associated responses first (Constraint Fix)
+    // We attempt to delete responses linked to this survey. 
+    // Note: If you have set up ON DELETE CASCADE in Supabase, this step isn't strictly necessary,
+    // but this ensures it works regardless of DB settings.
+    const { error: responseError } = await supabase
+        .from('psq_responses')
+        .delete()
+        .eq('survey_id', id); // Assuming 'survey_id' is the foreign key
+
+    if (responseError) {
+        console.error("Error deleting responses:", responseError);
+        // We continue to try deleting the survey even if this 'fails' (e.g. if no responses existed)
+    }
+
+    // 2. Delete the survey itself
     const { error } = await supabase.from('psq_surveys').delete().eq('id', id);
+    
     if (!error) {
       setSurveys(surveys.filter(s => s.id !== id));
     } else {
-      alert("Failed to delete the cycle. Please try again.");
+      console.error(error);
+      alert("Failed to delete the cycle. Please check if it has responses or try again.");
     }
   };
 
@@ -136,12 +164,24 @@ export default function PSQDashboard() {
                     </div>
 
                     <div className="card-actions">
-                      <button onClick={() => copyLink(survey.id)} className="btn btn--outline icon-btn" title="Copy Link">
+                      {/* Renamed Copy Button */}
+                      <button 
+                        onClick={() => copyLink(survey.id)} 
+                        className="btn btn--outline" 
+                        title="Copy Link to Clipboard"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px' }}
+                      >
                         {copiedId === survey.id ? <Check size={16} /> : <Copy size={16}/>}
+                        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                            {copiedId === survey.id ? 'Copied' : 'Link to Survey'}
+                        </span>
                       </button>
-                      <Link href={`/psq/${survey.id}`} className="btn btn--primary" style={{ padding: '8px 16px', fontSize: '0.9rem' }}>
-                        View Report
+
+                      {/* View Report - Now links to Analytics with ID */}
+                      <Link href={`/psq/analytics?id=${survey.id}`} className="btn btn--primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.9rem' }}>
+                        View Report <ExternalLink size={14} />
                       </Link>
+
                       <button onClick={() => deleteSurvey(survey.id)} className="delete-btn" title="Delete Cycle">
                         <Trash2 size={20} />
                       </button>
@@ -194,12 +234,6 @@ export default function PSQDashboard() {
             display: flex;
             align-items: center;
             gap: 10px;
-        }
-        .icon-btn {
-            padding: 8px 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
         }
         .delete-btn {
             background: none;
