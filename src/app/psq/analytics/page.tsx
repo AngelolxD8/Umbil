@@ -23,7 +23,7 @@ import {
 function AnalyticsContent() {
   const { email, loading: authLoading } = useUserEmail();
   const searchParams = useSearchParams();
-  const surveyId = searchParams.get('id'); // Get ID if we are viewing a specific report
+  const surveyId = searchParams.get('id');
   
   const [loading, setLoading] = useState(true);
   const [trendData, setTrendData] = useState<any[]>([]);
@@ -39,13 +39,11 @@ function AnalyticsContent() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Start building the query
     let query = supabase
       .from('psq_surveys')
       .select('*, psq_responses(*)')
       .eq('user_id', user.id);
 
-    // If a specific ID is provided in URL, filter by it
     if (surveyId) {
       query = query.eq('id', surveyId);
     }
@@ -57,12 +55,11 @@ function AnalyticsContent() {
       return;
     }
 
-    // Update title if viewing single report
     if (surveyId && surveys.length > 0) {
         setReportTitle(`${surveys[0].title} Report`);
     }
 
-    // 1. Process Trend Data (Average Score per Cycle)
+    // 1. Process Trend Data
     let totalScoreSum = 0;
     let totalResponseCount = 0;
     
@@ -70,7 +67,6 @@ function AnalyticsContent() {
       const responses = s.psq_responses || [];
       if (responses.length === 0) return null;
 
-      // Calculate avg for this survey
       const surveyTotal = responses.reduce((acc: number, r: any) => {
         const ratingMap: Record<string, number> = { 'poor': 1, 'fair': 2, 'good': 3, 'very_good': 4, 'excellent': 5, 'outstanding': 6 };
         const rSum = Object.values(r.answers || {}).reduce((a: number, v: any) => a + (ratingMap[v as string] || 0), 0);
@@ -78,7 +74,6 @@ function AnalyticsContent() {
       }, 0);
 
       const avg = surveyTotal / responses.length;
-      
       totalScoreSum += surveyTotal;
       totalResponseCount += responses.length;
 
@@ -146,49 +141,46 @@ function AnalyticsContent() {
             </p>
         </div>
 
-        {/* Stats Grid - Tidied Up Layout */}
+        {/* Stats Grid - Cleaner Horizontal Layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
             {/* Responses Card */}
-            <div className="card p-5 relative overflow-hidden">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Total Responses</h3>
-                    <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                        <Activity size={20} />
+            <div className="card p-6 flex items-center justify-between">
+                <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Total Responses</h3>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-extrabold text-gray-900">{stats.totalResponses}</span>
+                        <span className="text-sm font-medium text-gray-500">collected</span>
                     </div>
                 </div>
-                <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-extrabold text-gray-900">{stats.totalResponses}</p>
-                    <span className="text-sm text-gray-500">collected</span>
+                <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                    <Activity size={24} />
                 </div>
             </div>
 
             {/* Rating Card */}
-            <div className="card p-5 relative overflow-hidden">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Overall Rating</h3>
-                    <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
-                        <TrendingUp size={20} />
+            <div className="card p-6 flex items-center justify-between">
+                <div>
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Overall Rating</h3>
+                    <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-extrabold text-gray-900">{stats.averageScore}</span>
+                        <span className="text-sm font-medium text-gray-400">/ 6.0</span>
                     </div>
                 </div>
-                <div className="flex items-baseline gap-2">
-                    <p className="text-3xl font-extrabold text-gray-900">{stats.averageScore}</p>
-                    <span className="text-sm font-medium text-gray-400">/ 6.0</span>
+                <div className="p-3 bg-teal-50 text-teal-600 rounded-xl">
+                    <TrendingUp size={24} />
                 </div>
             </div>
 
             {/* Strength Card */}
-            <div className="card p-5 relative overflow-hidden">
-                <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-sm font-bold text-gray-500 uppercase tracking-wider">Top Strength</h3>
-                    <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-                        <Award size={20} />
-                    </div>
-                </div>
-                <div>
-                    <p className="text-xl font-bold text-gray-900 leading-tight truncate" title={stats.topArea}>
+            <div className="card p-6 flex items-center justify-between">
+                <div className="min-w-0"> {/* min-w-0 needed for truncate to work in flex */}
+                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Top Strength</h3>
+                    <p className="text-lg font-bold text-gray-900 truncate" title={stats.topArea}>
                         {stats.topArea}
                     </p>
-                    <span className="text-sm text-gray-500">Based on patient feedback</span>
+                </div>
+                <div className="p-3 bg-amber-50 text-amber-600 rounded-xl shrink-0">
+                    <Award size={24} />
                 </div>
             </div>
         </div>
@@ -196,7 +188,7 @@ function AnalyticsContent() {
         {/* Charts */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
-            {/* Trend Chart (Only show if global or multiple points) */}
+            {/* Trend Chart */}
             <div className="card p-6">
                 <h3 className="text-lg font-bold mb-6">Performance Trend</h3>
                 <div className="h-64 w-full">

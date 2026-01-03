@@ -1,153 +1,186 @@
-"use client";
+// src/app/s/[id]/page.tsx
+'use client';
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import { PSQ_QUESTIONS } from "@/lib/psq-questions";
-import { ArrowLeft, Download, Sparkles, Users, Activity } from "lucide-react";
-import dynamic from "next/dynamic";
-import { useUserEmail } from "@/hooks/useUser";
-import Link from "next/link";
-import { ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar, Tooltip } from 'recharts';
-import { addCPD } from "@/lib/store";
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { supabase } from '@/lib/supabase';
+import { PSQ_QUESTIONS } from '@/lib/psq-questions';
+import { CheckCircle2, ChevronRight, MessageSquare, ShieldCheck } from 'lucide-react';
 
-const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
+const RATINGS = [
+  { value: 'poor', label: 'Poor' },
+  { value: 'fair', label: 'Fair' },
+  { value: 'good', label: 'Good' },
+  { value: 'very_good', label: 'Very Good' },
+  { value: 'excellent', label: 'Excellent' },
+  { value: 'outstanding', label: 'Outstanding' },
+];
 
-export default function PSQReportPage() {
-  const { id } = useParams();
-  const { email, loading: authLoading } = useUserEmail();
+export default function PublicSurvey() {
+  const params = useParams();
+  const id = params?.id as string; // Safe access to ID
   
-  const [survey, setSurvey] = useState<any>(null);
-  const [responses, setResponses] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isReflectionOpen, setIsReflectionOpen] = useState(false);
-  const [reflectionContext, setReflectionContext] = useState<{question: string, answer: string} | null>(null);
-  const [averageScore, setAverageScore] = useState(0);
-  const [feedbackList, setFeedbackList] = useState<string[]>([]);
-  const [chartData, setChartData] = useState<any[]>([]);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [feedback, setFeedback] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { if (email) fetchData(); }, [email, id]);
+  useEffect(() => { setMounted(true); }, []);
 
-  const fetchData = async () => {
-    const { data: surveyData } = await supabase.from('psq_surveys').select('*').eq('id', id).single();
-    const { data: responseData } = await supabase.from('psq_responses').select('*').eq('survey_id', id);
-    setSurvey(surveyData);
-    if (responseData) {
-      setResponses(responseData);
-      processStats(responseData);
+  const handleSelect = (questionId: string, value: string) => {
+    // Subtle vibration on mobile for tactile feedback
+    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5);
+    setAnswers(prev => ({ ...prev, [questionId]: value }));
+    
+    // Auto-scroll to next question logic could go here, but manual is often less jarring
+  };
+
+  const calculateProgress = () => {
+    const total = PSQ_QUESTIONS.length;
+    const answered = Object.keys(answers).length;
+    return Math.round((answered / total) * 100);
+  };
+
+  const handleSubmit = async () => {
+    if (Object.keys(answers).length < PSQ_QUESTIONS.length) {
+      alert('Please answer all questions to complete the survey.');
+      return;
     }
+    setLoading(true);
+    
+    const { error } = await supabase.from('psq_responses').insert({
+      survey_id: id,
+      answers: answers,
+      feedback_text: feedback,
+    });
+
     setLoading(false);
+    if (!error) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      setSubmitted(true);
+    } else {
+      alert("Something went wrong. Please try again.");
+    }
   };
 
-  const processStats = (data: any[]) => {
-    const feedbacks = data.map(r => r.feedback_text).filter(t => t && t.trim().length > 0);
-    setFeedbackList(feedbacks);
-    const ratingMap: Record<string, number> = { 'poor': 1, 'fair': 2, 'good': 3, 'very_good': 4, 'excellent': 5, 'outstanding': 6 };
-    let totalSum = 0;
-    let totalCount = 0;
-    const shortLabels = ["Empathy", "Listening", "Attention", "Holistic", "Understanding", "Compassion", "Positivity", "Clarity", "Empowerment", "Planning"];
+  if (!mounted) return null;
 
-    const breakdown = PSQ_QUESTIONS.map((q, index) => {
-      let qSum = 0, qCount = 0;
-      data.forEach(r => {
-        const val = r.answers?.[q.id];
-        if (val && ratingMap[val]) { qSum += ratingMap[val]; qCount++; }
-      });
-      const avg = qCount > 0 ? (qSum / qCount) : 0;
-      totalSum += qSum; totalCount += qCount;
-      return { subject: shortLabels[index], A: parseFloat(avg.toFixed(2)), fullMark: 6 };
-    });
-
-    setChartData(breakdown);
-    setAverageScore(totalCount > 0 ? (totalSum / totalCount) : 0);
-  };
-
-  const handleOpenReflection = () => {
-    setReflectionContext({
-      question: `Reflection on PSQ Feedback: ${survey?.title}`,
-      answer: `Average Score: ${averageScore.toFixed(1)}/6.0 based on ${responses.length} responses.`
-    });
-    setIsReflectionOpen(true);
-  };
-
-  const handleSaveReflection = async (reflection: string, tags: string[], duration: number) => {
-    const { error } = await addCPD({
-        timestamp: new Date().toISOString(),
-        question: reflectionContext!.question,
-        answer: "Automated entry from PSQ Report.",
-        reflection,
-        tags: [...tags, 'Patient Feedback'],
-        duration
-    });
-    if (!error) { setIsReflectionOpen(false); alert("Reflection saved!"); }
-  };
-
-  if (authLoading || loading) return <div className="p-10 text-center">Loading...</div>;
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+        <div className="bg-white max-w-md w-full p-10 rounded-3xl shadow-xl text-center border border-gray-100">
+          <div className="w-20 h-20 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
+            <CheckCircle2 size={40} />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">All Done!</h2>
+          <p className="text-gray-500 text-lg leading-relaxed">Thank you for your feedback. Your responses have been recorded anonymously.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <section className="main-content">
-      <div className="container" style={{ maxWidth: '1000px', paddingBottom: '80px' }}>
-        
-        <div className="print:hidden mb-8">
-            <Link href="/psq" className="btn btn--outline" style={{ padding: '8px 12px', border: 'none', background: 'none', color: 'var(--umbil-muted)', marginBottom: '16px' }}>
-                <ArrowLeft size={18} /> Back
-            </Link>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h1 style={{ fontSize: '2rem', fontWeight: 800 }}>{survey.title}</h1>
-                <div style={{ display: 'flex', gap: '10px' }}>
-                    <button onClick={() => window.print()} className="btn btn--outline"><Download size={18} /></button>
-                    <button onClick={handleOpenReflection} className="btn btn--primary" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Sparkles size={18} /> Reflect</button>
-                </div>
+    <div className="min-h-screen bg-[#FAFAFA] font-sans text-gray-900">
+      
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
+        <div className="max-w-2xl mx-auto px-6 py-4">
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div>
+                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Confidential Survey</span>
             </div>
+            <span className="text-teal-600 font-bold text-sm">{calculateProgress()}%</span>
+          </div>
+          <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-teal-500 transition-all duration-500 ease-out rounded-full"
+              style={{ width: `${calculateProgress()}%` }}
+            />
+          </div>
         </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
-            {/* Stats Card: Left-aligned icon */}
-            <div className="card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ padding: '16px', background: 'rgba(31, 184, 205, 0.1)', borderRadius: '16px', color: 'var(--umbil-brand-teal)' }}><Users size={32} /></div>
-                <div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--umbil-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Responses</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 800 }}>{responses.length}</div>
-                </div>
-            </div>
-            <div className="card" style={{ padding: '24px', display: 'flex', alignItems: 'center', gap: '20px' }}>
-                <div style={{ padding: '16px', background: 'rgba(34, 197, 94, 0.1)', borderRadius: '16px', color: '#22c55e' }}><Activity size={32} /></div>
-                <div>
-                    <div style={{ fontSize: '0.8rem', color: 'var(--umbil-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Average Score</div>
-                    <div style={{ fontSize: '2rem', fontWeight: 800 }}>{averageScore.toFixed(1)}<span style={{ fontSize: '1rem', color: 'var(--umbil-muted)' }}>/6.0</span></div>
-                </div>
-            </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-            <div className="card" style={{ padding: '24px' }}>
-                <h3 style={{ marginBottom: '20px' }}>Strengths Profile</h3>
-                <div style={{ height: '300px' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <RadarChart cx="50%" cy="50%" outerRadius="80%" data={chartData}>
-                            <PolarGrid stroke="var(--umbil-divider)" />
-                            <PolarAngleAxis dataKey="subject" tick={{ fill: 'var(--umbil-muted)', fontSize: 10 }} />
-                            <Radar name="Score" dataKey="A" stroke="var(--umbil-brand-teal)" fill="var(--umbil-brand-teal)" fillOpacity={0.4} />
-                            <Tooltip />
-                        </RadarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            <div className="card" style={{ padding: '24px' }}>
-                <h3 style={{ marginBottom: '20px' }}>Patient Comments</h3>
-                <div style={{ maxHeight: '300px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {feedbackList.length === 0 ? <p style={{ color: 'var(--umbil-muted)' }}>No comments yet.</p> : feedbackList.map((f, i) => (
-                        <div key={i} style={{ padding: '12px', background: 'var(--umbil-bg)', borderRadius: '10px', fontSize: '0.9rem', border: '1px solid var(--umbil-divider)' }}>"{f}"</div>
-                    ))}
-                </div>
-            </div>
-        </div>
-
-        {isReflectionOpen && (
-            <ReflectionModal isOpen={isReflectionOpen} onClose={() => setIsReflectionOpen(false)} onSave={handleSaveReflection} currentStreak={0} cpdEntry={reflectionContext} />
-        )}
       </div>
-    </section>
+
+      <div className="max-w-2xl mx-auto px-6 py-10 space-y-12 pb-32">
+        
+        {/* Intro */}
+        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex gap-5 items-start">
+           <div className="bg-blue-50 p-4 rounded-xl text-blue-600 shrink-0">
+             <ShieldCheck size={28} />
+           </div>
+           <div>
+             <h3 className="font-bold text-lg text-gray-900">Your privacy matters</h3>
+             <p className="text-gray-500 mt-1 leading-relaxed">
+               This feedback is collected anonymously. Please be honest in your responses.
+             </p>
+           </div>
+        </div>
+
+        {PSQ_QUESTIONS.map((q, index) => (
+          <div key={q.id} className="scroll-mt-32" id={q.id}>
+            <div className="mb-6">
+              <span className="inline-block px-3 py-1 bg-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase tracking-wider mb-3">
+                Question {index + 1}
+              </span>
+              <h3 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
+                {q.text}
+              </h3>
+            </div>
+            
+            {/* Big Buttons Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {RATINGS.map((rating) => {
+                const isSelected = answers[q.id] === rating.value;
+                return (
+                  <button
+                    key={rating.value}
+                    onClick={() => handleSelect(q.id, rating.value)}
+                    className={`
+                      relative p-4 rounded-xl border-2 transition-all duration-200 font-bold text-sm md:text-base flex flex-col items-center justify-center gap-2 h-24
+                      ${isSelected 
+                        ? 'border-teal-500 bg-teal-500 text-white shadow-lg shadow-teal-500/30 scale-105 z-10' 
+                        : 'border-transparent bg-white text-gray-600 shadow-sm hover:border-teal-200 hover:bg-teal-50'
+                      }
+                    `}
+                  >
+                    {rating.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {/* Text Feedback */}
+        <div className="pt-8 border-t border-gray-200">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="p-2 bg-teal-100 text-teal-700 rounded-lg"><MessageSquare size={20} /></div>
+            <h3 className="text-xl font-bold text-gray-900">Any final comments?</h3>
+          </div>
+          <textarea
+            value={feedback}
+            onChange={(e) => setFeedback(e.target.value)}
+            className="w-full p-5 bg-white border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all text-gray-700 text-lg min-h-[150px] shadow-sm"
+            placeholder="Type your thoughts here... (Optional)"
+          />
+        </div>
+
+        {/* Submit */}
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 md:relative md:bg-transparent md:border-none md:p-0">
+            <div className="max-w-2xl mx-auto">
+                <button
+                    onClick={handleSubmit}
+                    disabled={loading}
+                    className="w-full bg-gray-900 hover:bg-black text-white font-bold text-lg py-4 rounded-xl shadow-xl shadow-gray-900/10 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                >
+                    {loading ? 'Submitting...' : (
+                    <>Submit Feedback <ChevronRight size={20} /></>
+                    )}
+                </button>
+            </div>
+        </div>
+      </div>
+    </div>
   );
 }
