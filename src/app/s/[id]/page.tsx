@@ -4,9 +4,17 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { PSQ_QUESTIONS } from '@/lib/psq-questions';
-import { CheckCircle2, ChevronRight, ChevronLeft, AlertCircle, Sparkles, MessageSquare } from 'lucide-react';
+import { 
+  CheckCircle2, 
+  ChevronRight, 
+  ChevronLeft, 
+  AlertCircle, 
+  Sparkles, 
+  MessageSquare, 
+  Send 
+} from 'lucide-react';
 
-// Options with colors for "Heatmap" style feel (optional visual cue)
+// Modern "Card" options for answers
 const OPTIONS = [
   { value: 1, label: "Poor" },
   { value: 2, label: "Less than satisfactory" },
@@ -19,24 +27,25 @@ const OPTIONS = [
 
 export default function PublicSurveyPage() {
   const params = useParams();
-  const id = params?.id as string; // This is the SURVEY ID (UUID)
+  const id = params?.id as string; // Survey ID
 
-  // State
+  // --- State ---
   const [loading, setLoading] = useState(true);
   const [surveyValid, setSurveyValid] = useState(false);
   
-  const [started, setStarted] = useState(false);
+  // Flow Control: 'intro' -> 'questions' -> 'feedback' -> 'completed'
+  const [viewState, setViewState] = useState<'intro' | 'questions' | 'feedback' | 'completed'>('intro');
+  
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [feedbackText, setFeedbackText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [completed, setCompleted] = useState(false);
 
-  // 1. Verify Survey Exists on Load
+  // 1. Verify Survey Exists
   useEffect(() => {
     async function checkSurvey() {
       if (!id) return;
       
-      // We check if it exists, but we WON'T use the internal title (e.g. "Test")
       const { data, error } = await supabase
         .from('psq_surveys')
         .select('id') 
@@ -51,7 +60,6 @@ export default function PublicSurveyPage() {
       }
       setLoading(false);
     }
-
     checkSurvey();
   }, [id]);
 
@@ -60,22 +68,27 @@ export default function PublicSurveyPage() {
     const currentQId = PSQ_QUESTIONS[currentQIndex].id;
     setAnswers((prev) => ({ ...prev, [currentQId]: value }));
     
-    // Auto-advance
+    // Auto-advance logic
     setTimeout(() => {
       if (currentQIndex < PSQ_QUESTIONS.length - 1) {
         setCurrentQIndex(currentQIndex + 1);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // If it was the last question, go to Feedback step
+        setViewState('feedback');
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     }, 250);
   };
 
-  // 3. Submit to Supabase
+  // 3. Submit All Data to Supabase
   const submitFeedback = async () => {
     setSubmitting(true);
     
     const payload = {
       survey_id: id,
       answers: answers,
+      feedback_text: feedbackText, // Added back the text feedback
       created_at: new Date().toISOString(),
     };
 
@@ -88,7 +101,7 @@ export default function PublicSurveyPage() {
       alert('There was a problem submitting your feedback. Please try again.');
       setSubmitting(false);
     } else {
-      setCompleted(true);
+      setViewState('completed');
       window.scrollTo(0, 0);
     }
   };
@@ -120,7 +133,7 @@ export default function PublicSurveyPage() {
   }
 
   // --- Render: Completed ---
-  if (completed) {
+  if (viewState === 'completed') {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
         <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl border border-gray-100 p-12 text-center transform transition-all">
@@ -140,7 +153,7 @@ export default function PublicSurveyPage() {
   }
 
   // --- Render: Intro ---
-  if (!started) {
+  if (viewState === 'intro') {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
         <div className="max-w-3xl w-full bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
@@ -161,23 +174,72 @@ export default function PublicSurveyPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full mb-12">
-                <div className="bg-teal-50 p-6 rounded-2xl flex items-center gap-4 text-left">
+                <div className="bg-teal-50 p-6 rounded-2xl flex items-center gap-4 text-left border border-teal-100">
                     <div className="p-2 bg-white rounded-full text-teal-600 shadow-sm"><CheckCircle2 size={24} /></div>
                     <span className="font-medium text-teal-900">Completely Anonymous</span>
                 </div>
-                <div className="bg-teal-50 p-6 rounded-2xl flex items-center gap-4 text-left">
+                <div className="bg-teal-50 p-6 rounded-2xl flex items-center gap-4 text-left border border-teal-100">
                      <div className="p-2 bg-white rounded-full text-teal-600 shadow-sm"><CheckCircle2 size={24} /></div>
                     <span className="font-medium text-teal-900">Takes less than 2 mins</span>
                 </div>
             </div>
 
             <button 
-              onClick={() => setStarted(true)}
+              onClick={() => setViewState('questions')}
               className="w-full md:w-auto min-w-[300px] bg-teal-600 text-white font-bold py-5 px-10 rounded-2xl transition-all flex items-center justify-center gap-3 text-xl hover:bg-teal-700 hover:shadow-xl hover:-translate-y-1 transform duration-200"
             >
               Start Questionnaire <ChevronRight size={24} />
             </button>
           </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Render: Feedback Text Step ---
+  if (viewState === 'feedback') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4 md:p-8">
+        <div className="max-w-4xl w-full">
+            {/* Simple Progress Header */}
+            <div className="mb-8 flex items-center gap-3 text-sm font-bold text-gray-400 uppercase tracking-wider">
+                <span className="text-teal-600">Final Step</span>
+                <span className="h-px bg-gray-300 flex-1"></span>
+            </div>
+
+            <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden p-8 md:p-12">
+                <div className="text-center mb-10">
+                    <h2 className="text-3xl font-bold text-gray-900 mb-4">Any other comments?</h2>
+                    <p className="text-gray-500 text-lg">
+                        If you would like to add any other comments about your care, please write them below. 
+                        This is optional.
+                    </p>
+                </div>
+
+                <textarea
+                    className="w-full h-48 p-6 rounded-2xl border-2 border-gray-200 text-lg focus:border-teal-500 focus:ring-0 outline-none transition-colors resize-none mb-8 bg-gray-50 focus:bg-white"
+                    placeholder="Type your feedback here..."
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                />
+
+                <div className="flex justify-between items-center pt-4">
+                     <button
+                        onClick={() => setViewState('questions')} // Go back to last question
+                        className="text-gray-500 hover:text-gray-900 font-semibold px-6 py-3 rounded-xl hover:bg-gray-100 transition-colors flex items-center gap-2"
+                    >
+                        <ChevronLeft size={20} /> Back
+                    </button>
+
+                    <button
+                        onClick={submitFeedback}
+                        disabled={submitting}
+                        className="bg-teal-600 text-white font-bold py-4 px-10 rounded-2xl transition-all text-xl shadow-lg hover:bg-teal-700 hover:-translate-y-1 flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+                    >
+                        {submitting ? 'Sending...' : 'Complete Survey'} <Send size={20} />
+                    </button>
+                </div>
+            </div>
         </div>
       </div>
     );
@@ -191,8 +253,8 @@ export default function PublicSurveyPage() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
         
-      {/* Top Progress Bar - Fixed to top or just at top of flow */}
-      <div className="w-full h-2 bg-gray-200">
+      {/* Top Progress Bar */}
+      <div className="w-full h-2 bg-gray-200 sticky top-0 z-50">
         <div 
             className="h-full bg-teal-500 transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
@@ -208,32 +270,31 @@ export default function PublicSurveyPage() {
                  <span className="text-sm font-bold text-gray-400 uppercase tracking-wider block mb-1">
                     Question {currentQIndex + 1} of {PSQ_QUESTIONS.length}
                  </span>
-                 <span className="text-sm font-semibold text-teal-600 bg-teal-50 px-3 py-1 rounded-full">
-                    {question.domain}
-                 </span>
+                 {/* REMOVED DOMAIN DISPLAY AS REQUESTED */}
             </div>
-            {/* Circular Progress Badge */}
-            <div className="flex flex-col items-end">
-                <div className="w-14 h-14 rounded-full border-4 border-teal-100 flex items-center justify-center bg-white text-teal-700 font-bold text-sm shadow-sm">
-                    {Math.round(progress)}%
-                </div>
+            
+            {/* Progress Badge */}
+            <div className="w-12 h-12 rounded-full border-4 border-teal-100 flex items-center justify-center bg-white text-teal-700 font-bold text-xs shadow-sm">
+                {Math.round(progress)}%
             </div>
           </div>
 
           {/* Main Card */}
           <div className="bg-white rounded-[2rem] shadow-xl border border-gray-100 overflow-hidden relative">
             
-            <div className="p-8 md:p-12 lg:p-16 text-center">
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
-                {question.text}
-              </h2>
-              
-              <p className="text-gray-500 text-xl md:text-2xl mb-12 font-light max-w-3xl mx-auto leading-relaxed">
-                {question.description}
-              </p>
+            <div className="p-8 md:p-12 lg:p-16">
+              <div className="text-center mb-12">
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-6 leading-tight">
+                    {question.text}
+                </h2>
+                
+                <p className="text-gray-500 text-xl md:text-2xl font-light max-w-4xl mx-auto leading-relaxed">
+                    {question.description}
+                </p>
+              </div>
 
-              {/* ANSWER GRID - The "Automatic Boxes" */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 w-full">
+              {/* ANSWER GRID - Modern Tiles */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6 w-full max-w-5xl mx-auto">
                 {OPTIONS.map((opt) => {
                   const isSelected = currentAnswer === opt.value;
                   return (
@@ -243,10 +304,10 @@ export default function PublicSurveyPage() {
                       className={`
                         relative group flex items-center justify-between 
                         p-6 md:p-8 rounded-2xl border-2 transition-all duration-200 
-                        hover:shadow-lg hover:-translate-y-1
+                        hover:shadow-lg hover:-translate-y-1 hover:border-teal-300
                         ${isSelected 
                           ? 'bg-teal-50 border-teal-500 shadow-md ring-1 ring-teal-500 z-10' 
-                          : 'bg-white border-gray-100 hover:border-teal-300'
+                          : 'bg-white border-gray-100'
                         }
                       `}
                     >
@@ -273,39 +334,39 @@ export default function PublicSurveyPage() {
             {/* Footer Navigation Area */}
             <div className="bg-gray-50 p-6 md:p-10 border-t border-gray-100 flex justify-between items-center">
                 <button
-                onClick={() => setCurrentQIndex(Math.max(0, currentQIndex - 1))}
-                disabled={currentQIndex === 0}
-                className={`flex items-center gap-2 text-lg font-semibold px-6 py-3 rounded-xl transition-colors
-                    ${currentQIndex === 0 
-                    ? 'text-gray-300 cursor-not-allowed' 
-                    : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}
+                onClick={() => {
+                    if (currentQIndex > 0) {
+                        setCurrentQIndex(currentQIndex - 1);
+                    } else {
+                        // Optional: Go back to intro if on first question?
+                        setViewState('intro');
+                    }
+                }}
+                className="flex items-center gap-2 text-lg font-semibold px-6 py-3 rounded-xl transition-colors text-gray-500 hover:text-gray-900 hover:bg-gray-200"
                 >
                 <ChevronLeft size={24} /> Back
                 </button>
 
-                {currentQIndex === PSQ_QUESTIONS.length - 1 ? (
                 <button
-                    onClick={submitFeedback}
-                    disabled={submitting || currentAnswer === undefined}
-                    className={`flex items-center gap-3 text-white font-bold py-4 px-12 rounded-2xl transition-all text-xl shadow-lg hover:-translate-y-1
-                    ${(submitting || currentAnswer === undefined)
-                        ? 'opacity-50 cursor-not-allowed shadow-none transform-none bg-gray-400'
-                        : 'bg-green-600 hover:bg-green-700'}`}
-                >
-                    {submitting ? 'Sending...' : 'Complete Survey'}
-                </button>
-                ) : (
-                <button
-                    onClick={() => setCurrentQIndex(currentQIndex + 1)}
+                    onClick={() => {
+                        // Manual next button (triggers same logic as auto-advance but without delay)
+                        if (currentAnswer !== undefined) {
+                            if (currentQIndex < PSQ_QUESTIONS.length - 1) {
+                                setCurrentQIndex(currentQIndex + 1);
+                            } else {
+                                setViewState('feedback');
+                            }
+                            window.scrollTo(0,0);
+                        }
+                    }}
                     disabled={currentAnswer === undefined}
                     className={`flex items-center gap-2 font-bold px-10 py-4 rounded-2xl transition-all text-lg
                     ${currentAnswer === undefined
                         ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         : 'bg-teal-600 text-white hover:bg-teal-700 shadow-md hover:shadow-lg hover:-translate-y-0.5'}`}
                 >
-                    Next <ChevronRight size={24} />
+                    {currentQIndex === PSQ_QUESTIONS.length - 1 ? 'Next Step' : 'Next'} <ChevronRight size={24} />
                 </button>
-                )}
             </div>
 
           </div>
