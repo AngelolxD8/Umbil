@@ -65,23 +65,12 @@ export default function PSQDashboard() {
   const deleteSurvey = async (id: string) => {
     if (!window.confirm("Are you sure? This will delete the survey AND all patient responses collected.")) return;
     
-    // 1. Delete associated responses first (Fixes the Supabase FK Constraint error)
-    const { error: responseError } = await supabase
-        .from('psq_responses')
-        .delete()
-        .eq('survey_id', id);
-
-    if (responseError) {
-        console.error("Error deleting responses:", responseError);
-        // We continue anyway, in case there were no responses
-    }
-
-    // 2. Delete the survey itself
     const { error } = await supabase.from('psq_surveys').delete().eq('id', id);
     
     if (!error) {
       setSurveys(surveys.filter(s => s.id !== id));
     } else {
+      console.error('Delete error:', error);
       alert("Could not delete. Please try again.");
     }
   };
@@ -168,7 +157,6 @@ export default function PSQDashboard() {
                     </div>
 
                     <div className="card-actions">
-                      {/* Link Button */}
                       <button 
                         onClick={() => copyLink(survey.id)} 
                         className="btn btn--outline" 
@@ -181,12 +169,10 @@ export default function PSQDashboard() {
                         </span>
                       </button>
 
-                      {/* Report Button */}
                       <Link href={`/psq/analytics?id=${survey.id}`} className="btn btn--primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.9rem' }}>
                         View Report <ExternalLink size={14} />
                       </Link>
 
-                      {/* Delete Button */}
                       <button onClick={() => deleteSurvey(survey.id)} className="delete-btn" title="Delete Cycle">
                         <Trash2 size={20} />
                       </button>
@@ -200,31 +186,34 @@ export default function PSQDashboard() {
         )}
       </div>
 
-      {/* Center Aligned Modal */}
+      {/* Styled Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden animate-in fade-in zoom-in duration-200">
-                <div className="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-                    <h3 className="font-bold text-lg text-gray-900">Start New Cycle</h3>
-                    <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-colors">
+        <div className="modal-overlay">
+            <div className="modal-content card">
+                <div className="modal-header">
+                    <h3>Start New Cycle</h3>
+                    <button onClick={() => setIsModalOpen(false)} className="close-btn">
                         <X size={20} />
                     </button>
                 </div>
-                <form onSubmit={createSurvey} className="p-6">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Cycle Name</label>
-                    <input 
-                        type="text" 
-                        value={newSurveyTitle}
-                        onChange={(e) => setNewSurveyTitle(e.target.value)}
-                        className="w-full p-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[var(--umbil-brand-teal)] focus:border-transparent outline-none transition-all"
-                        placeholder="e.g. PSQ 2026"
-                        autoFocus
-                    />
-                    <div className="mt-8 flex gap-3">
-                        <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 font-semibold text-gray-600 hover:bg-gray-50 rounded-xl transition-colors">
+                
+                <form onSubmit={createSurvey}>
+                    <div className="modal-body">
+                        <label>Cycle Name</label>
+                        <input 
+                            type="text" 
+                            value={newSurveyTitle}
+                            onChange={(e) => setNewSurveyTitle(e.target.value)}
+                            placeholder="e.g. PSQ 2026"
+                            className="input-field"
+                            autoFocus
+                        />
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn--outline" style={{ flex: 1 }}>
                             Cancel
                         </button>
-                        <button type="submit" disabled={creating} className="flex-1 py-3 bg-[var(--umbil-brand-teal)] text-white font-semibold rounded-xl hover:opacity-90 transition-opacity shadow-lg shadow-teal-500/20">
+                        <button type="submit" disabled={creating} className="btn btn--primary" style={{ flex: 1 }}>
                             {creating ? 'Creating...' : 'Create Cycle'}
                         </button>
                     </div>
@@ -234,6 +223,7 @@ export default function PSQDashboard() {
       )}
 
       <style jsx>{`
+        /* Dashboard Styles */
         .dashboard-header {
             display: flex;
             flex-direction: column;
@@ -289,6 +279,101 @@ export default function PSQDashboard() {
         .delete-btn:hover {
             opacity: 1;
             background: #fef2f2;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .modal-content {
+            width: 100%;
+            max-width: 440px;
+            background: white;
+            padding: 0;
+            overflow: hidden;
+            animation: zoomIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid var(--umbil-divider);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--umbil-divider);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--umbil-bg);
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: var(--umbil-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .close-btn:hover {
+            background: rgba(0,0,0,0.05);
+            color: var(--umbil-text);
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-body label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--umbil-text);
+            margin-bottom: 8px;
+        }
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--umbil-divider);
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s;
+            background: var(--umbil-bg);
+        }
+        .input-field:focus {
+            border-color: var(--umbil-brand-teal);
+            box-shadow: 0 0 0 3px rgba(31, 184, 205, 0.15);
+            background: white;
+        }
+        .modal-footer {
+            padding: 20px 24px;
+            background: var(--umbil-bg);
+            border-top: 1px solid var(--umbil-divider);
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
         }
 
         @media (min-width: 768px) {

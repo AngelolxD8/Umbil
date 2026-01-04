@@ -1,182 +1,196 @@
 // src/app/s/[id]/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { useParams } from 'next/navigation';
 import { PSQ_QUESTIONS } from '@/lib/psq-questions';
-import { CheckCircle2, ChevronRight, MessageSquare, ShieldCheck } from 'lucide-react';
+import { CheckCircle2, AlertCircle } from 'lucide-react';
 
-const RATINGS = [
-  { value: 'poor', label: 'Poor' },
-  { value: 'fair', label: 'Fair' },
-  { value: 'good', label: 'Good' },
-  { value: 'very_good', label: 'Very Good' },
-  { value: 'excellent', label: 'Excellent' },
-  { value: 'outstanding', label: 'Outstanding' },
-];
-
-export default function PublicSurvey() {
+export default function PublicSurveyPage() {
   const params = useParams();
   const id = params?.id as string;
   
+  const [survey, setSurvey] = useState<any>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [feedback, setFeedback] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [focusedQ, setFocusedQ] = useState<string | null>(null);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (id) fetchSurvey();
+  }, [id]);
 
-  const handleSelect = (questionId: string, value: string) => {
-    if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(5);
-    setAnswers(prev => ({ ...prev, [questionId]: value }));
+  const fetchSurvey = async () => {
+    const { data, error } = await supabase
+      .from('psq_surveys')
+      .select('title, status, user_id')
+      .eq('id', id)
+      .single();
+
+    if (error || !data) {
+      setError('This survey could not be found or has been deleted.');
+    } else if (data.status === 'closed') {
+      setError('This survey is no longer accepting responses.');
+    } else {
+      setSurvey(data);
+    }
+    setLoading(false);
   };
 
-  const calculateProgress = () => {
-    const total = PSQ_QUESTIONS.length;
-    const answered = Object.keys(answers).length;
-    return Math.round((answered / total) * 100);
+  const handleSelect = (qId: string, value: string) => {
+    setAnswers(prev => ({ ...prev, [qId]: value }));
   };
 
-  const handleSubmit = async () => {
-    if (Object.keys(answers).length < PSQ_QUESTIONS.length) {
-      alert('Please answer all questions to complete the survey.');
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!survey) return;
+
+    // Basic Validation: Ensure at least the rating questions are answered
+    const required = PSQ_QUESTIONS.filter(q => q.type !== 'text').map(q => q.id);
+    const missing = required.filter(id => !answers[id]);
+
+    if (missing.length > 0) {
+      alert(`Please complete all questions before submitting. (${missing.length} left)`);
+      // Scroll to first missing
+      document.getElementById(missing[0])?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    setLoading(true);
-    
+
     const { error } = await supabase.from('psq_responses').insert({
       survey_id: id,
-      answers: answers,
-      feedback_text: feedback,
+      answers: answers
     });
 
-    setLoading(false);
-    if (!error) {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      setSubmitted(true);
+    if (error) {
+      alert('Failed to submit. Please try again.');
     } else {
-        alert("Something went wrong. Please try again.");
+      setSubmitted(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  if (!mounted) return null;
+  if (loading) return <div className="min-h-screen bg-[#F0EBF8] flex items-center justify-center">Loading...</div>;
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
-        <div className="bg-white max-w-md w-full p-10 rounded-3xl shadow-xl text-center border border-gray-100">
-          <div className="w-20 h-20 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm">
-            <CheckCircle2 size={40} />
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-3 tracking-tight">All Done!</h2>
-          <p className="text-gray-500 text-lg leading-relaxed">Thank you for your feedback. Your responses have been recorded anonymously.</p>
+      <div className="min-h-screen bg-[#F0EBF8] flex items-center justify-center p-4">
+        <div className="bg-white max-w-lg w-full rounded-xl shadow-sm border-t-8 border-[var(--umbil-brand-teal)] p-8 text-center animate-in fade-in zoom-in duration-300">
+           <div className="mx-auto w-16 h-16 bg-teal-50 text-[var(--umbil-brand-teal)] rounded-full flex items-center justify-center mb-6">
+              <CheckCircle2 size={32} />
+           </div>
+           <h1 className="text-2xl font-bold text-gray-900 mb-2">Thank You!</h1>
+           <p className="text-gray-600 mb-6">Your feedback has been recorded anonymously. It plays a vital role in helping this doctor improve their care.</p>
+           <div className="text-sm text-gray-400">Powered by Umbil</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-[#F0EBF8] flex items-center justify-center p-4">
+        <div className="bg-white max-w-md w-full rounded-xl shadow-sm p-8 text-center">
+            <AlertCircle size={40} className="mx-auto text-red-400 mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Survey Unavailable</h2>
+            <p className="text-gray-600">{error}</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] font-sans text-gray-900">
-      
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200 shadow-sm">
-        <div className="max-w-3xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center mb-2">
-            <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></div>
-                <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">Confidential Survey</span>
-            </div>
-            <span className="text-teal-600 font-bold text-sm">{calculateProgress()}%</span>
-          </div>
-          <div className="h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-            <div 
-              className="h-full bg-teal-500 transition-all duration-500 ease-out rounded-full"
-              style={{ width: `${calculateProgress()}%` }}
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className="max-w-3xl mx-auto px-6 py-10 space-y-12 pb-32">
+    <div className="min-h-screen bg-[#F0EBF8] py-8 px-4 font-sans">
+      <div className="max-w-[640px] mx-auto space-y-4">
         
-        {/* Intro */}
-        <div className="bg-white p-6 rounded-2xl border border-gray-100 shadow-sm flex gap-5 items-start">
-           <div className="bg-blue-50 p-4 rounded-xl text-blue-600 shrink-0">
-             <ShieldCheck size={28} />
-           </div>
-           <div>
-             <h3 className="font-bold text-lg text-gray-900">Your privacy matters</h3>
-             <p className="text-gray-500 mt-1 leading-relaxed">
-               This feedback is collected anonymously to help your doctor improve. Please be honest in your responses.
-             </p>
-           </div>
+        {/* Header Card */}
+        <div className="bg-white rounded-xl shadow-sm border-t-[10px] border-[var(--umbil-brand-teal)] overflow-hidden">
+            <div className="p-6 md:p-8">
+                <h1 className="text-3xl font-bold text-gray-900 mb-4">{survey.title || 'Patient Feedback'}</h1>
+                <p className="text-gray-600 leading-relaxed mb-4">
+                    Thank you for taking the time to give feedback. Your responses are <strong>anonymous</strong> and will help this doctor reflect on and improve their practice.
+                </p>
+                <div className="text-sm text-red-500 font-medium">* Required</div>
+            </div>
         </div>
 
-        {PSQ_QUESTIONS.map((q, index) => (
-          <div key={q.id} className="scroll-mt-32 text-center" id={q.id}>
-            <div className="mb-6">
-              <span className="inline-block px-3 py-1 bg-gray-200 text-gray-600 rounded-lg text-xs font-bold uppercase tracking-wider mb-3">
-                Question {index + 1}
-              </span>
-              <h3 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
-                {q.text}
-              </h3>
-            </div>
-            
-            {/* Big Buttons Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {RATINGS.map((rating) => {
-                const isSelected = answers[q.id] === rating.value;
-                return (
-                  <button
-                    key={rating.value}
-                    onClick={() => handleSelect(q.id, rating.value)}
-                    className={`
-                      relative p-4 rounded-xl border-2 transition-all duration-200 font-bold text-sm md:text-base flex flex-col items-center justify-center gap-2 h-24
-                      ${isSelected 
-                        ? 'border-teal-500 bg-teal-500 text-white shadow-lg shadow-teal-500/30 scale-105 z-10' 
-                        : 'border-transparent bg-white text-gray-600 shadow-sm hover:border-teal-200 hover:bg-teal-50'
-                      }
-                    `}
-                  >
-                    {rating.label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-
-        {/* Text Feedback */}
-        <div className="pt-8 border-t border-gray-200">
-          <div className="flex items-center gap-3 mb-6 justify-center">
-            <div className="p-2 bg-teal-100 text-teal-700 rounded-lg"><MessageSquare size={20} /></div>
-            <h3 className="text-xl font-bold text-gray-900">Any final comments?</h3>
-          </div>
-          <textarea
-            value={feedback}
-            onChange={(e) => setFeedback(e.target.value)}
-            className="w-full p-5 bg-white border-2 border-gray-100 rounded-2xl focus:ring-4 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all text-gray-700 text-lg min-h-[150px] shadow-sm"
-            placeholder="Type your thoughts here... (Optional)"
-          />
-        </div>
-
-        {/* Submit */}
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-white/90 backdrop-blur-md border-t border-gray-200 md:relative md:bg-transparent md:border-none md:p-0">
-            <div className="max-w-3xl mx-auto">
-                <button
-                    onClick={handleSubmit}
-                    disabled={loading}
-                    className="w-full bg-gray-900 hover:bg-black text-white font-bold text-lg py-4 rounded-xl shadow-xl shadow-gray-900/10 active:scale-[0.98] transition-all disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+        {/* Questions */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+            {PSQ_QUESTIONS.map((q) => (
+                <div 
+                    key={q.id} 
+                    id={q.id}
+                    onClick={() => setFocusedQ(q.id)}
+                    className={`bg-white rounded-xl shadow-sm p-6 md:p-8 transition-all duration-200 border-l-4 ${focusedQ === q.id ? 'border-[var(--umbil-brand-teal)] ring-1 ring-black/5' : 'border-transparent'}`}
                 >
-                    {loading ? 'Submitting...' : (
-                    <>Submit Feedback <ChevronRight size={20} /></>
+                    <div className="mb-4">
+                        <h3 className="text-base font-medium text-gray-900 leading-snug">
+                            {q.text} {q.type !== 'text' && <span className="text-red-500">*</span>}
+                        </h3>
+                    </div>
+
+                    {q.type === 'text' ? (
+                        <div className="relative">
+                            <textarea 
+                                rows={3}
+                                placeholder={q.placeholder}
+                                value={answers[q.id] || ''}
+                                onChange={(e) => handleSelect(q.id, e.target.value)}
+                                className="w-full p-0 border-b border-gray-200 focus:border-[var(--umbil-brand-teal)] focus:ring-0 text-gray-700 placeholder:text-gray-400 resize-none transition-colors bg-transparent py-2"
+                            />
+                            <div className="absolute bottom-0 left-0 w-full h-[1px] bg-gray-200"></div>
+                            <div className={`absolute bottom-0 left-0 h-[2px] bg-[var(--umbil-brand-teal)] transition-all duration-300 ${focusedQ === q.id ? 'w-full' : 'w-0'}`}></div>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {q.options?.map((opt) => (
+                                <label 
+                                    key={opt} 
+                                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all hover:bg-gray-50 group ${answers[q.id] === opt ? 'bg-teal-50/50 border-[var(--umbil-brand-teal)]' : 'border-transparent'}`}
+                                >
+                                    <div className={`relative w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors ${answers[q.id] === opt ? 'border-[var(--umbil-brand-teal)]' : 'border-gray-400 group-hover:border-gray-500'}`}>
+                                        {answers[q.id] === opt && <div className="w-2.5 h-2.5 bg-[var(--umbil-brand-teal)] rounded-full" />}
+                                    </div>
+                                    <input 
+                                        type="radio" 
+                                        name={q.id} 
+                                        value={opt}
+                                        checked={answers[q.id] === opt}
+                                        onChange={() => handleSelect(q.id, opt)}
+                                        className="hidden" 
+                                    />
+                                    <span className={`text-sm md:text-base ${answers[q.id] === opt ? 'text-gray-900 font-medium' : 'text-gray-700'}`}>
+                                        {opt}
+                                    </span>
+                                </label>
+                            ))}
+                        </div>
                     )}
+                </div>
+            ))}
+
+            <div className="flex justify-between items-center py-6">
+                <button 
+                    type="submit" 
+                    className="bg-[var(--umbil-brand-teal)] text-white px-8 py-3 rounded-lg font-semibold shadow-lg shadow-teal-500/20 hover:opacity-90 transition-all transform hover:-translate-y-0.5"
+                >
+                    Submit Feedback
+                </button>
+                
+                <button type="button" onClick={() => setAnswers({})} className="text-[var(--umbil-brand-teal)] text-sm font-semibold hover:bg-teal-50 px-4 py-2 rounded-lg transition-colors">
+                    Clear form
                 </button>
             </div>
+        </form>
+
+        <div className="text-center pb-8">
+            <p className="text-xs text-gray-400">Never submit passwords through Google Forms.</p>
+            <div className="mt-2 text-xs text-gray-400 font-medium">
+                Powered by <span className="text-gray-600">Umbil</span>
+            </div>
         </div>
+
       </div>
     </div>
   );

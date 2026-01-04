@@ -1,21 +1,109 @@
+// src/lib/psq-questions.ts
+
 export const PSQ_QUESTIONS = [
-  { id: 'q1', text: "Making you feel at ease (being friendly and warm towards you, treating you with respect; not cold or abrupt)" },
-  { id: 'q2', text: "Letting you tell your 'story' (giving you time to fully describe your illness in your own words; not interrupting or diverting you)" },
-  { id: 'q3', text: "Really listening (paying close attention to what you were saying; not looking at the notes or computer as you were talking)" },
-  { id: 'q4', text: "Being interested in you as a whole person (asking/knowing relevant details about your life, your situation; not treating you as 'just a number')" },
-  { id: 'q5', text: "Fully understanding your concerns (communicating that he/she had accurately understood your concerns; not overlooking or dismissing anything)" },
-  { id: 'q6', text: "Showing care and compassion (seeming genuinely concerned, connecting with you on a human level; not being indifferent or 'detached')" },
-  { id: 'q7', text: "Being positive (having a positive approach and a positive attitude; being honest but not negative about your problems)" },
-  { id: 'q8', text: "Explaining things clearly (fully answering your questions, explaining clearly, giving you adequate information; not being vague)" },
-  { id: 'q9', text: "Helping you to take control (exploring with you what you can do to improve your health yourself; encouraging rather than 'lecturing' you)" },
-  { id: 'q10', text: "Making a plan of action with you (discussing the options, involving you in decisions as much as you want to be involved; not ignoring your views)" },
+  // SECTION 1: Access & Setting
+  {
+    id: 'q1',
+    section: 'Access & Setting',
+    text: 'Was the clinical setting appropriate for your consultation?',
+    type: 'radio',
+    options: ['Yes', 'No', 'Not sure']
+  },
+  {
+    id: 'q2',
+    section: 'Access & Setting',
+    text: 'Did the consultation happen at a suitable time for you?',
+    type: 'radio',
+    options: ['Yes', 'No', 'Not applicable']
+  },
+
+  // SECTION 2: Communication & Listening
+  {
+    id: 'q3',
+    section: 'Communication & Listening',
+    text: 'Did the doctor listen carefully to you?',
+    type: 'rating', // Special handling for scoring if needed, but treated as radio here
+    options: ['Yes, definitely', 'Yes, to some extent', 'No']
+  },
+  {
+    id: 'q4',
+    section: 'Communication & Listening',
+    text: 'Did the doctor explain things in a way you could understand?',
+    type: 'rating',
+    options: ['Yes, definitely', 'Yes, to some extent', 'No']
+  },
+  {
+    id: 'q5',
+    section: 'Communication & Listening',
+    text: 'Did you feel you had enough time to discuss your concerns?',
+    type: 'radio',
+    options: ['Yes', 'No']
+  },
+
+  // SECTION 3: Trust, Respect & Professionalism
+  {
+    id: 'q6',
+    section: 'Trust & Respect',
+    text: 'Did the doctor treat you with kindness and respect?',
+    type: 'rating',
+    options: ['Yes, always', 'Yes, mostly', 'No']
+  },
+  {
+    id: 'q7',
+    section: 'Trust & Respect',
+    text: 'Did you feel confident in the doctor’s care and decisions?',
+    type: 'rating',
+    options: ['Yes, definitely', 'Yes, to some extent', 'No']
+  },
+
+  // SECTION 4: Involvement
+  {
+    id: 'q8',
+    section: 'Involvement',
+    text: 'Were you involved as much as you wanted to be in decisions about your care?',
+    type: 'radio',
+    options: ['Yes', 'No', 'Not applicable']
+  },
+  {
+    id: 'q9',
+    section: 'Involvement',
+    text: 'Did you feel able to ask questions or raise concerns?',
+    type: 'radio',
+    options: ['Yes', 'No']
+  },
+
+  // SECTION 5: Overall
+  {
+    id: 'q10',
+    section: 'Overall Experience',
+    text: 'Overall, how would you rate your experience of this consultation?',
+    type: 'scale',
+    options: ['Very good', 'Good', 'Neither good nor poor', 'Poor', 'Very poor']
+  },
+
+  // SECTION 6: Free Text
+  {
+    id: 'q11',
+    section: 'Feedback',
+    text: 'What did the doctor do particularly well?',
+    type: 'text',
+    placeholder: 'e.g. They explained the treatment clearly...'
+  },
+  {
+    id: 'q12',
+    section: 'Feedback',
+    text: 'Is there anything the doctor could improve?',
+    type: 'text',
+    placeholder: 'e.g. I would have liked more time...'
+  }
 ];
 
-export const RATINGS = [
-  { value: 'poor', label: 'Poor to Fair' },
-  { value: 'fair', label: 'Fair' },
-  { value: 'good', label: 'Good' },
-  { value: 'very_good', label: 'Very Good' },
-  { value: 'excellent', label: 'Excellent' },
-  { value: 'outstanding', label: 'Outstanding' },
-];
+// Helper to map ratings to scores for analytics (Optional)
+export const getScore = (answer: string) => {
+    const map: Record<string, number> = {
+        'Yes, definitely': 3, 'Yes, always': 3, 'Very good': 5,
+        'Yes, to some extent': 2, 'Yes, mostly': 2, 'Good': 4,
+        'No': 0, 'Neither good nor poor': 3, 'Poor': 2, 'Very poor': 1
+    };
+    return map[answer] || 0;
+};
