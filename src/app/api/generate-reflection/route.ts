@@ -25,83 +25,81 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { question, answer, userNotes, mode } = await req.json();
-
-    if (!question || !answer) {
-      return NextResponse.json(
-        { error: "Missing question or answer" },
-        { status: 400 }
-      );
-    }
+    const body = await req.json();
+    const { mode, userNotes } = body;
 
     // --- 1. DEFINE PROMPTS BASED ON MODE ---
     let systemInstruction = "";
-    let outputFormat = "";
+    let contextContent = "";
 
-    if (mode === 'personalise') {
+    if (mode === 'psq_analysis') {
+        // NEW MODE: PSQ ANALYSIS
+        const { stats, strengths, weaknesses, comments } = body;
+        
+        systemInstruction = `
+        You are an expert Medical Appraiser for the NHS.
+        Your task is to draft a "Reflective Note" for a doctor's annual appraisal based on their Patient Satisfaction Questionnaire (PSQ) results.
+        
+        GUIDELINES:
+        1. Tone: Professional, first-person ("I felt...", "The data shows...").
+        2. Structure:
+           - Summary of Feedback (Mention the score and volume).
+           - Analysis of Strengths (What are patients happy with?).
+           - Area for Development (Address the lowest scoring area diplomatically).
+           - Action Plan (Propose 1-2 concrete steps to improve).
+        3. Be concise (approx 150-200 words).
+        4. Do NOT use markdown headers (like ##), just plain paragraphs.
+        `;
+
+        contextContent = `
+        DATA TO ANALYZE:
+        - Total Responses: ${stats.totalResponses}
+        - Average Score: ${stats.averageScore}/5.0
+        - Top Strength: ${strengths}
+        - Area to Improve: ${weaknesses}
+        - Recent Patient Comments: ${JSON.stringify(comments)}
+        
+        USER'S ROUGH NOTES (If any): "${userNotes || ''}"
+        `;
+
+    } else if (mode === 'personalise') {
       // MODE: PERSONALISE (TIDY UP ONLY)
-      // We explicitly tell it NOT to use the headers.
       systemInstruction = `
       You are an expert Medical Editor. 
       The user has written rough clinical notes below.
-      
       YOUR TASK:
       1. Tidy up the grammar, spelling, and flow.
       2. Make it sound professional and concise.
-      3. **KEEP IT EXACT:** Do NOT add new facts, do NOT invent patients, and do NOT add sections like "Key Learning" or "Next Steps". Just give back the polished paragraphs.
+      3. KEEP IT EXACT: Do NOT add new facts. Just polish.
       `;
-      
-      outputFormat = `
-      Output the polished text directly.
-      Then, on a new line, add '---TAGS---' followed by a JSON string array of 5-7 keywords.
-      `;
+      contextContent = `TARGET TEXT: "${userNotes}"`;
 
     } else {
-      // MODE: AUTO-GENERATE (FULL STRUCTURE)
-      // This keeps the original helpful structure for generic learning.
+      // MODE: AUTO-GENERATE (STANDARD Q&A)
+      const { question, answer } = body;
       systemInstruction = `
       You are Umbil, a UK clinical reflection assistant.
-      The user wants a GENERIC educational reflection based on the Q&A below.
-      
-      YOUR TASK:
-      1. Write a reflective entry (I refreshed my knowledge on...).
-      2. DO NOT invent a specific patient encounter.
-      3. Focus on the clinical theory.
+      Write a generic educational reflection based on the Q&A below.
+      Focus on clinical theory, not specific patients.
       `;
-
-      outputFormat = `
-      Structure your response into these 4 sections:
-      1. Key learning
-      2. Application
-      3. Next steps
-      4. GMC domains
-      
-      Then, on a new line, add '---TAGS---' followed by a JSON string array of 5-7 keywords.
-      `;
+      contextContent = `Question: ${question}\nAnswer: ${answer}\nNotes: ${userNotes || ''}`;
     }
 
-    // --- 2. CONSTRUCT FINAL PROMPT ---
+    // --- 2. STREAMING CALL ---
     const finalPrompt = `
-${systemInstruction}
+    ${systemInstruction}
+    
+    ---
+    ${contextContent}
+    ---
+    
+    RESPOND ONLY WITH THE DRAFTED TEXT.
+    `;
 
----
-CONTEXT (Background Info):
-Question: ${question}
-Answer: ${answer}
-
-USER NOTES (Target Text):
-"${userNotes ? userNotes : "(No notes provided)"}"
----
-
-${outputFormat}
-RESPOND ONLY WITH PLAIN TEXT (No Markdown).
-`;
-
-    // --- 3. STREAMING CALL ---
     const result = await streamText({
       model: together(MODEL_SLUG),
       messages: [{ role: "user", content: finalPrompt }],
-      temperature: 0.2, // Keep strictly factual
+      temperature: 0.2,
       maxOutputTokens: 1024,
     });
 

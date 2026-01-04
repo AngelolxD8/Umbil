@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase';
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, TrendingUp, Award, Activity, MessageSquareQuote, Calendar } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Award, Activity, MessageSquareQuote, Calendar, Sparkles, Copy, Check } from 'lucide-react';
 import {
   ResponsiveContainer,
   LineChart,
@@ -29,8 +29,13 @@ function AnalyticsContent() {
   const [trendData, setTrendData] = useState<any[]>([]);
   const [questionPerformance, setQuestionPerformance] = useState<any[]>([]);
   const [textFeedback, setTextFeedback] = useState<any[]>([]);
-  const [stats, setStats] = useState({ totalResponses: 0, averageScore: 0, topArea: 'N/A' });
+  const [stats, setStats] = useState({ totalResponses: 0, averageScore: 0, topArea: 'N/A', lowestArea: 'N/A' });
   const [reportTitle, setReportTitle] = useState('Feedback Analytics');
+  
+  // Reflection State
+  const [reflection, setReflection] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (email) fetchStats();
@@ -61,15 +66,10 @@ function AnalyticsContent() {
     }
 
     // --- SCORING LOGIC ---
-    // Maps various text answers to a normalized 0-5 score for charts
     const ratingMap: Record<string, number> = {
-        // High scores
         'Yes, definitely': 5, 'Yes, always': 5, 'Very good': 5, 'Yes': 5,
-        // Mid scores
         'Yes, to some extent': 3, 'Yes, mostly': 3, 'Good': 4, 'Neither good nor poor': 3,
-        // Low scores
         'No': 1, 'Poor': 2, 'Very poor': 1,
-        // Excluded
         'Not applicable': -1, 'Not sure': -1
     };
 
@@ -77,12 +77,11 @@ function AnalyticsContent() {
     let totalResponseCount = 0;
     let allTextResponses: any[] = [];
     
-    // 1. Process Trend Data (Over time)
+    // 1. Process Trend Data
     const trends = surveys.map(s => {
       const responses = s.psq_responses || [];
       if (responses.length === 0) return null;
 
-      // Collect text feedback while looping
       responses.forEach((r: any) => {
         if (r.answers['q11'] || r.answers['q12']) {
             allTextResponses.push({
@@ -93,16 +92,12 @@ function AnalyticsContent() {
         }
       });
 
-      // Calculate average for this specific survey/cycle
       const surveyTotal = responses.reduce((acc: number, r: any) => {
         let rSum = 0;
         let rCount = 0;
         Object.values(r.answers || {}).forEach((val) => {
             const score = ratingMap[val as string] || 0;
-            if (score > -1) { // Only count valid scores
-                rSum += score;
-                rCount++;
-            }
+            if (score > -1) { rSum += score; rCount++; }
         });
         return acc + (rCount > 0 ? (rSum / rCount) : 0);
       }, 0);
@@ -114,16 +109,15 @@ function AnalyticsContent() {
       return {
         name: s.title.replace('PSQ Cycle ', ''),
         date: new Date(s.created_at).toLocaleDateString(),
-        score: parseFloat(avg.toFixed(2)) // 0-5 Scale
+        score: parseFloat(avg.toFixed(2))
       };
     }).filter(Boolean);
 
     setTrendData(trends);
-    setTextFeedback(allTextResponses.reverse().slice(0, 10)); // Show last 10 comments
+    setTextFeedback(allTextResponses.reverse().slice(0, 10));
 
-    // 2. Process Question Performance (Strengths/Weaknesses)
+    // 2. Process Question Performance
     const qCounts: Record<string, { sum: number, count: number }> = {};
-
     surveys.forEach(s => {
         s.psq_responses?.forEach((r: any) => {
             Object.entries(r.answers || {}).forEach(([qId, val]) => {
@@ -144,7 +138,7 @@ function AnalyticsContent() {
     };
 
     const performance = Object.entries(qCounts)
-        .filter(([id]) => qLabels[id]) // Only show mapped questions
+        .filter(([id]) => qLabels[id])
         .map(([id, data]) => ({
             name: qLabels[id] || id,
             score: data.count > 0 ? parseFloat((data.sum / data.count).toFixed(2)) : 0
@@ -156,10 +150,56 @@ function AnalyticsContent() {
     setStats({
         totalResponses: totalResponseCount,
         averageScore: totalResponseCount ? parseFloat((totalScoreSum / totalResponseCount).toFixed(2)) : 0,
-        topArea: performance.length > 0 ? performance[0].name : 'N/A'
+        topArea: performance.length > 0 ? performance[0].name : 'N/A',
+        lowestArea: performance.length > 0 ? performance[performance.length - 1].name : 'N/A'
     });
 
     setLoading(false);
+  };
+
+  const handleGenerateReflection = async () => {
+    if (stats.totalResponses === 0) return;
+    setIsGenerating(true);
+    setReflection('');
+
+    try {
+        const response = await fetch('/api/generate-reflection', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                mode: 'psq_analysis',
+                stats: stats,
+                strengths: stats.topArea,
+                weaknesses: stats.lowestArea,
+                comments: textFeedback.slice(0, 5).map(t => t.positive || t.improve).filter(Boolean)
+            })
+        });
+
+        if (!response.body) throw new Error("No stream");
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let done = false;
+
+        while (!done) {
+            const { value, done: doneReading } = await reader.read();
+            done = doneReading;
+            const chunkValue = decoder.decode(value);
+            setReflection((prev) => prev + chunkValue);
+        }
+
+    } catch (e) {
+        console.error(e);
+        alert("Failed to generate reflection. Please try again.");
+    } finally {
+        setIsGenerating(false);
+    }
+  };
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(reflection);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   if (authLoading || loading) {
@@ -219,6 +259,48 @@ function AnalyticsContent() {
                 color="amber"
                 isText
             />
+        </div>
+
+        {/* --- REFLECTIVE PRACTICE SECTION (NEW) --- */}
+        <div className="mb-10 bg-white rounded-2xl shadow-sm border border-[var(--umbil-brand-teal)] overflow-hidden">
+            <div className="p-6 bg-teal-50/50 border-b border-teal-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h3 className="text-lg font-bold text-teal-900 flex items-center gap-2">
+                        <Sparkles size={20} className="text-[var(--umbil-brand-teal)]" />
+                        Reflective Practice
+                    </h3>
+                    <p className="text-teal-700/80 text-sm mt-1">
+                        Generate a structured reflection for your appraisal based on this data.
+                    </p>
+                </div>
+                <button 
+                    onClick={handleGenerateReflection}
+                    disabled={isGenerating || stats.totalResponses === 0}
+                    className="bg-[var(--umbil-brand-teal)] text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-teal-500/20 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                >
+                    {isGenerating ? 'Drafting...' : 'Auto-Draft Reflection'}
+                </button>
+            </div>
+            
+            <div className="p-6">
+                <div className="relative">
+                    <textarea 
+                        value={reflection}
+                        onChange={(e) => setReflection(e.target.value)}
+                        placeholder="Click 'Auto-Draft' to generate a reflection based on your results, or write your own here..."
+                        className="w-full h-48 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[var(--umbil-brand-teal)] focus:border-transparent outline-none transition-all text-slate-700 leading-relaxed resize-y"
+                    />
+                    {reflection && (
+                        <button 
+                            onClick={handleCopy}
+                            className="absolute top-4 right-4 p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-[var(--umbil-brand-teal)] hover:border-[var(--umbil-brand-teal)] transition-all shadow-sm"
+                            title="Copy to clipboard"
+                        >
+                            {copied ? <Check size={16} /> : <Copy size={16} />}
+                        </button>
+                    )}
+                </div>
+            </div>
         </div>
 
         {/* Charts Section */}
@@ -329,7 +411,7 @@ function AnalyticsContent() {
   );
 }
 
-// Sub-components for cleaner code
+// Sub-components
 function StatCard({ label, value, sub, icon, color, isText = false }: any) {
     const colors: any = {
         blue: 'bg-blue-50 text-blue-600',
