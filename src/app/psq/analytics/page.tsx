@@ -57,7 +57,7 @@ function AnalyticsContent() {
     }
 
     if (surveyId && surveys.length > 0) {
-        setReportTitle(`${surveys[0].title}`);
+        setReportTitle(surveys[0].title);
     }
 
     // --- SCORING LOGIC ---
@@ -260,7 +260,7 @@ function AnalyticsContent() {
             />
         </div>
 
-        {/* --- REFLECTIVE PRACTICE SECTION (The "Feature Box") --- */}
+        {/* --- REFLECTIVE PRACTICE SECTION (BIG FEATURE BOX) --- */}
         <div className="mb-12 rounded-3xl overflow-hidden shadow-lg border border-[var(--umbil-brand-teal)]/20 bg-white ring-4 ring-teal-50/50">
             <div className="p-8 md:p-10 bg-gradient-to-r from-teal-50 to-white border-b border-teal-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
@@ -294,14 +294,15 @@ function AnalyticsContent() {
             </div>
             
             <div className="p-8 md:p-10 bg-white relative group">
+                {/* BIG TEXTAREA HERE */}
                 <textarea 
                     value={reflection}
                     onChange={(e) => setReflection(e.target.value)}
                     placeholder={stats.totalResponses > 0 ? "Click the button above to generate your reflection..." : "Collect responses first to generate a reflection."}
-                    className="w-full min-h-[280px] p-6 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[var(--umbil-brand-teal)]/10 focus:border-[var(--umbil-brand-teal)] outline-none transition-all text-slate-700 leading-8 text-lg resize-y placeholder:text-slate-400"
+                    className="w-full min-h-[400px] p-8 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[var(--umbil-brand-teal)]/10 focus:border-[var(--umbil-brand-teal)] outline-none transition-all text-slate-700 leading-8 text-lg resize-y placeholder:text-slate-400 font-serif"
                 />
                 
-                {/* Action Bar inside Textarea */}
+                {/* Copy Button (Floats inside) */}
                 {reflection && (
                     <div className="absolute top-14 right-14 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <button 

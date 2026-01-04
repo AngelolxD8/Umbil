@@ -1,78 +1,94 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextResponse, type NextRequest } from 'next/server'
+import { createServerClient } from "@supabase/ssr";
+import { type NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
     request: {
       headers: request.headers,
     },
-  })
+  });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
+        getAll() {
+          return request.cookies.getAll();
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
-          })
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            request.cookies.set(name, value)
+          );
           response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          })
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          })
-          response.cookies.set({
-            name,
-            value: '',
-            ...options,
-          })
+            request,
+          });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options)
+          );
         },
       },
     }
-  )
+  );
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // 1. Refresh session (required by Supabase)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  // PROTECTED ROUTES LOGIC
-  // If user is NOT logged in AND trying to access a private page
-  // We exclude '/s/' (Surveys) and '/auth' (Login pages)
-  if (!session && 
-      !request.nextUrl.pathname.startsWith('/s/') && 
-      !request.nextUrl.pathname.startsWith('/auth')
-  ) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/auth' // Redirect to your login page
-    return NextResponse.redirect(url)
+  // 2. Define Protected Routes
+  // Any route starting with these will require login
+  const protectedPaths = [
+    "/dashboard",
+    "/cpd",
+    "/pdp",
+    "/psq",
+    "/profile",
+    "/settings",
+    "/api/ask", // Protect your API routes too
+  ];
+
+  const isProtected = protectedPaths.some((path) =>
+    request.nextUrl.pathname.startsWith(path)
+  );
+
+  // 3. Define Auth Routes (pages you shouldn't see if already logged in)
+  const authPaths = ["/auth"];
+  const isAuthPage = authPaths.some((path) =>
+    request.nextUrl.pathname.startsWith(path)
+  );
+
+  // 4. Redirect Logic
+  
+  // CASE A: User is NOT logged in and tries to access a protected route
+  if (!user && isProtected) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/auth";
+    // Optional: Add ?next=... to redirect back after login
+    // redirectUrl.searchParams.set("next", request.nextUrl.pathname);
+    return NextResponse.redirect(redirectUrl);
   }
 
-  return response
+  // CASE B: User IS logged in and tries to access /auth (Login page)
+  if (user && isAuthPage) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/dashboard";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // CASE C: Landing Page (/) and other public routes -> Allow through
+  return response;
 }
 
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|s/|auth).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public folder files (svgs, etc)
+     */
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
-}
+};
