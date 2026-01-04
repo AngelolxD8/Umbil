@@ -6,18 +6,13 @@ import { supabase } from '@/lib/supabase';
 import { useUserEmail } from "@/hooks/useUser";
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, TrendingUp, Award, Activity, MessageSquareQuote, Calendar, Sparkles, Copy, Check } from 'lucide-react';
+import { 
+  ArrowLeft, TrendingUp, Award, Activity, MessageSquareQuote, 
+  Calendar, Sparkles, Copy, Check, ChevronRight 
+} from 'lucide-react';
 import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  BarChart,
-  Bar,
-  Cell
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, 
+  CartesianGrid, Tooltip, BarChart, Bar, Cell
 } from 'recharts';
 
 function AnalyticsContent() {
@@ -62,7 +57,7 @@ function AnalyticsContent() {
     }
 
     if (surveyId && surveys.length > 0) {
-        setReportTitle(`${surveys[0].title} Report`);
+        setReportTitle(`${surveys[0].title}`);
     }
 
     // --- SCORING LOGIC ---
@@ -204,131 +199,155 @@ function AnalyticsContent() {
 
   if (authLoading || loading) {
       return (
-        <div className="flex h-[80vh] items-center justify-center">
-            <div className="animate-pulse text-[var(--umbil-brand-teal)] font-semibold">Generating Insights...</div>
+        <div className="flex h-[80vh] items-center justify-center bg-slate-50">
+            <div className="flex flex-col items-center gap-4">
+                <div className="w-8 h-8 border-4 border-[var(--umbil-brand-teal)] border-t-transparent rounded-full animate-spin"></div>
+                <div className="text-slate-400 font-medium animate-pulse">Gathering insights...</div>
+            </div>
         </div>
       );
   }
 
   return (
-    <section className="main-content bg-slate-50 min-h-screen">
-      <div className="container mx-auto max-w-5xl px-4 py-8">
+    <section className="main-content bg-slate-50 min-h-screen font-sans">
+      <div className="container mx-auto max-w-7xl px-6 py-12">
         
-        {/* Header */}
-        <div className="mb-10">
-            <Link href="/psq" className="inline-flex items-center gap-2 text-slate-500 hover:text-[var(--umbil-brand-teal)] mb-6 font-medium transition-colors group">
+        {/* Navigation & Header */}
+        <div className="mb-12">
+            <Link href="/psq" className="inline-flex items-center gap-2 text-slate-500 hover:text-[var(--umbil-brand-teal)] mb-6 font-medium transition-colors group px-3 py-1.5 rounded-lg hover:bg-white">
                 <ArrowLeft size={18} className="group-hover:-translate-x-1 transition-transform" /> Back to Dashboard
             </Link>
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+            
+            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6">
                 <div>
-                    <h1 className="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight">{reportTitle}</h1>
-                    <p className="text-slate-500 mt-2 text-lg">
-                        {surveyId ? 'Detailed analysis for this specific feedback cycle.' : 'Longitudinal analysis of your patient satisfaction.'}
+                    <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight leading-tight">{reportTitle}</h1>
+                    <p className="text-slate-500 mt-3 text-xl max-w-2xl">
+                        {surveyId ? 'Detailed breakdown of patient feedback for this cycle.' : 'Longitudinal analysis of your patient satisfaction.'}
                     </p>
                 </div>
                 {trendData.length > 0 && (
-                    <div className="bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm flex items-center gap-2 text-sm font-medium text-slate-600">
-                        <Calendar size={16} className="text-[var(--umbil-brand-teal)]" />
-                        Last updated: {trendData[trendData.length - 1].date}
+                    <div className="bg-white px-5 py-3 rounded-full border border-slate-200 shadow-sm flex items-center gap-3 text-sm font-medium text-slate-600">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                        Last response: {trendData[trendData.length - 1].date}
                     </div>
                 )}
             </div>
         </div>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+        {/* Top Level Stats - Big & Bold */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
             <StatCard 
                 label="Total Responses" 
                 value={stats.totalResponses} 
                 sub="Patients surveyed"
-                icon={<Activity size={24} />}
+                icon={<Activity size={28} />}
                 color="blue"
             />
             <StatCard 
                 label="Overall Score" 
                 value={stats.averageScore} 
                 sub="/ 5.0"
-                icon={<TrendingUp size={24} />}
+                icon={<TrendingUp size={28} />}
                 color="teal"
             />
             <StatCard 
                 label="Key Strength" 
                 value={stats.topArea} 
                 sub="Highest rated area"
-                icon={<Award size={24} />}
+                icon={<Award size={28} />}
                 color="amber"
                 isText
             />
         </div>
 
-        {/* --- REFLECTIVE PRACTICE SECTION (NEW) --- */}
-        <div className="mb-10 bg-white rounded-2xl shadow-sm border border-[var(--umbil-brand-teal)] overflow-hidden">
-            <div className="p-6 bg-teal-50/50 border-b border-teal-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        {/* --- REFLECTIVE PRACTICE SECTION (The "Feature Box") --- */}
+        <div className="mb-12 rounded-3xl overflow-hidden shadow-lg border border-[var(--umbil-brand-teal)]/20 bg-white ring-4 ring-teal-50/50">
+            <div className="p-8 md:p-10 bg-gradient-to-r from-teal-50 to-white border-b border-teal-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div>
-                    <h3 className="text-lg font-bold text-teal-900 flex items-center gap-2">
-                        <Sparkles size={20} className="text-[var(--umbil-brand-teal)]" />
-                        Reflective Practice
-                    </h3>
-                    <p className="text-teal-700/80 text-sm mt-1">
-                        Generate a structured reflection for your appraisal based on this data.
+                    <div className="flex items-center gap-3 mb-2">
+                        <div className="p-2 bg-[var(--umbil-brand-teal)] text-white rounded-lg">
+                            <Sparkles size={20} fill="currentColor" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-teal-950">Appraisal Reflection</h3>
+                    </div>
+                    <p className="text-teal-800/70 text-base max-w-xl leading-relaxed">
+                        Instantly generate a structured, GMC-aligned reflection based on this data to use in your annual appraisal.
                     </p>
                 </div>
                 <button 
                     onClick={handleGenerateReflection}
                     disabled={isGenerating || stats.totalResponses === 0}
-                    className="bg-[var(--umbil-brand-teal)] text-white px-5 py-2.5 rounded-xl font-semibold shadow-lg shadow-teal-500/20 hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
+                    className="group bg-[var(--umbil-brand-teal)] hover:bg-[#1a9eb3] text-white px-8 py-4 rounded-xl font-bold shadow-xl shadow-teal-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-3 text-base transform hover:-translate-y-0.5"
                 >
-                    {isGenerating ? 'Drafting...' : 'Auto-Draft Reflection'}
+                    {isGenerating ? (
+                        <>
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
+                            Writing...
+                        </>
+                    ) : (
+                        <>
+                            <Sparkles size={18} />
+                            Auto-Draft Reflection
+                        </>
+                    )}
                 </button>
             </div>
             
-            <div className="p-6">
-                <div className="relative">
-                    <textarea 
-                        value={reflection}
-                        onChange={(e) => setReflection(e.target.value)}
-                        placeholder="Click 'Auto-Draft' to generate a reflection based on your results, or write your own here..."
-                        className="w-full h-48 p-4 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-[var(--umbil-brand-teal)] focus:border-transparent outline-none transition-all text-slate-700 leading-relaxed resize-y"
-                    />
-                    {reflection && (
+            <div className="p-8 md:p-10 bg-white relative group">
+                <textarea 
+                    value={reflection}
+                    onChange={(e) => setReflection(e.target.value)}
+                    placeholder={stats.totalResponses > 0 ? "Click the button above to generate your reflection..." : "Collect responses first to generate a reflection."}
+                    className="w-full min-h-[280px] p-6 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-[var(--umbil-brand-teal)]/10 focus:border-[var(--umbil-brand-teal)] outline-none transition-all text-slate-700 leading-8 text-lg resize-y placeholder:text-slate-400"
+                />
+                
+                {/* Action Bar inside Textarea */}
+                {reflection && (
+                    <div className="absolute top-14 right-14 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                         <button 
                             onClick={handleCopy}
-                            className="absolute top-4 right-4 p-2 bg-white border border-slate-200 rounded-lg text-slate-500 hover:text-[var(--umbil-brand-teal)] hover:border-[var(--umbil-brand-teal)] transition-all shadow-sm"
-                            title="Copy to clipboard"
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-all ${
+                                copied 
+                                ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' 
+                                : 'bg-white text-slate-600 border border-slate-200 hover:text-[var(--umbil-brand-teal)] hover:border-[var(--umbil-brand-teal)]'
+                            }`}
                         >
                             {copied ? <Check size={16} /> : <Copy size={16} />}
+                            {copied ? 'Copied!' : 'Copy Text'}
                         </button>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         </div>
 
-        {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+        {/* Charts Grid - More Spacious */}
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-10 mb-12">
             {/* Trend Chart */}
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                    <TrendingUp size={20} className="text-[var(--umbil-brand-teal)]" />
-                    Performance Trend
-                </h3>
-                <div className="h-72 w-full">
+            <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-100">
+                <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                        <div className="p-2 bg-blue-50 text-blue-600 rounded-lg"><TrendingUp size={20} /></div>
+                        Performance Trend
+                    </h3>
+                </div>
+                <div className="h-80 w-full">
                     {trendData.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={10} />
+                                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} dy={15} />
                                 <YAxis domain={[0, 5]} axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
                                 <Tooltip 
-                                    contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} 
-                                    itemStyle={{ color: 'var(--umbil-brand-teal)', fontWeight: 600 }}
+                                    contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)', padding: '12px 16px' }} 
+                                    itemStyle={{ color: 'var(--umbil-brand-teal)', fontWeight: 700, fontSize: '14px' }}
                                 />
                                 <Line 
                                     type="monotone" 
                                     dataKey="score" 
                                     stroke="var(--umbil-brand-teal)" 
-                                    strokeWidth={3} 
-                                    dot={{ r: 4, fill: 'white', strokeWidth: 2 }} 
-                                    activeDot={{ r: 6, fill: 'var(--umbil-brand-teal)' }} 
+                                    strokeWidth={4} 
+                                    dot={{ r: 6, fill: 'white', strokeWidth: 3 }} 
+                                    activeDot={{ r: 8, fill: 'var(--umbil-brand-teal)', stroke: 'white', strokeWidth: 2 }} 
                                 />
                             </LineChart>
                         </ResponsiveContainer>
@@ -339,15 +358,17 @@ function AnalyticsContent() {
             </div>
 
             {/* Strengths Bar Chart */}
-            <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                <h3 className="text-lg font-bold text-slate-800 mb-6 flex items-center gap-2">
-                    <Award size={20} className="text-[var(--umbil-brand-teal)]" />
-                    Breakdown by Area
-                </h3>
-                <div className="h-72 w-full">
+            <div className="bg-white p-8 md:p-10 rounded-3xl shadow-sm border border-slate-100">
+                <div className="flex items-center justify-between mb-8">
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                        <div className="p-2 bg-amber-50 text-amber-600 rounded-lg"><Award size={20} /></div>
+                        Breakdown by Area
+                    </h3>
+                </div>
+                <div className="h-80 w-full">
                      {questionPerformance.length > 0 ? (
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={questionPerformance} layout="vertical" margin={{ left: 40, right: 20 }}>
+                            <BarChart data={questionPerformance} layout="vertical" margin={{ left: 60, right: 20 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#f1f5f9" />
                                 <XAxis type="number" domain={[0, 5]} hide />
                                 <YAxis 
@@ -356,10 +377,10 @@ function AnalyticsContent() {
                                     width={100} 
                                     axisLine={false} 
                                     tickLine={false} 
-                                    tick={{fill: '#475569', fontSize: 12, fontWeight: 500}} 
+                                    tick={{fill: '#475569', fontSize: 13, fontWeight: 600}} 
                                 />
-                                <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
-                                <Bar dataKey="score" radius={[0, 6, 6, 0]} barSize={24}>
+                                <Tooltip cursor={{fill: '#f8fafc'}} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }} />
+                                <Bar dataKey="score" radius={[0, 8, 8, 0]} barSize={32}>
                                     {questionPerformance.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={index < 3 ? 'var(--umbil-brand-teal)' : '#cbd5e1'} />
                                     ))}
@@ -373,32 +394,37 @@ function AnalyticsContent() {
             </div>
         </div>
 
-        {/* Written Feedback Section */}
+        {/* Written Feedback Section - Cleaner List */}
         {textFeedback.length > 0 && (
-            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-                <div className="p-6 border-b border-slate-100 bg-slate-50/50">
-                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                        <MessageSquareQuote size={20} className="text-[var(--umbil-brand-teal)]" />
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                    <h3 className="text-xl font-bold text-slate-800 flex items-center gap-3">
+                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg"><MessageSquareQuote size={20} /></div>
                         Patient Comments
                     </h3>
+                    <span className="text-sm font-semibold text-slate-400 uppercase tracking-wider">Recent Feedback</span>
                 </div>
                 <div className="divide-y divide-slate-100">
                     {textFeedback.map((fb, idx) => (
-                        <div key={idx} className="p-6 hover:bg-slate-50 transition-colors">
-                            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{fb.date}</div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {fb.positive && (
-                                    <div>
-                                        <span className="text-sm font-semibold text-emerald-600 block mb-1">Do Well</span>
-                                        <p className="text-slate-700 italic">"{fb.positive}"</p>
-                                    </div>
-                                )}
-                                {fb.improve && (
-                                    <div>
-                                        <span className="text-sm font-semibold text-amber-600 block mb-1">Improve</span>
-                                        <p className="text-slate-700 italic">"{fb.improve}"</p>
-                                    </div>
-                                )}
+                        <div key={idx} className="p-8 hover:bg-slate-50 transition-colors group">
+                            <div className="flex flex-col md:flex-row gap-6 md:gap-12">
+                                <div className="md:w-32 shrink-0">
+                                    <div className="text-sm font-bold text-slate-400">{fb.date}</div>
+                                </div>
+                                <div className="grow grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    {fb.positive && (
+                                        <div>
+                                            <span className="inline-block px-2 py-1 bg-emerald-50 text-emerald-700 text-xs font-bold rounded mb-2 uppercase tracking-wide">Done Well</span>
+                                            <p className="text-slate-700 text-lg leading-relaxed">"{fb.positive}"</p>
+                                        </div>
+                                    )}
+                                    {fb.improve && (
+                                        <div>
+                                            <span className="inline-block px-2 py-1 bg-amber-50 text-amber-700 text-xs font-bold rounded mb-2 uppercase tracking-wide">To Improve</span>
+                                            <p className="text-slate-700 text-lg leading-relaxed">"{fb.improve}"</p>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     ))}
@@ -420,17 +446,17 @@ function StatCard({ label, value, sub, icon, color, isText = false }: any) {
     };
 
     return (
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center justify-between transition-transform hover:-translate-y-1 duration-300">
+        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex items-center justify-between transition-all hover:shadow-md hover:-translate-y-1 duration-300">
             <div>
                 <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">{label}</h3>
                 <div className="flex items-baseline gap-2">
-                    <span className={`font-extrabold text-slate-900 ${isText ? 'text-xl' : 'text-3xl'}`}>
+                    <span className={`font-extrabold text-slate-900 ${isText ? 'text-2xl line-clamp-1' : 'text-4xl'}`} title={isText ? value : ''}>
                         {value}
                     </span>
                     {sub && <span className="text-sm font-medium text-slate-400">{sub}</span>}
                 </div>
             </div>
-            <div className={`p-4 rounded-xl ${colors[color] || colors.teal}`}>
+            <div className={`p-5 rounded-2xl ${colors[color] || colors.teal}`}>
                 {icon}
             </div>
         </div>
@@ -440,15 +466,16 @@ function StatCard({ label, value, sub, icon, color, isText = false }: any) {
 function EmptyState() {
     return (
         <div className="h-full flex flex-col items-center justify-center text-slate-400">
-            <Activity size={32} className="mb-2 opacity-20" />
-            <p className="text-sm">Not enough data to display chart</p>
+            <Activity size={40} className="mb-4 opacity-20" />
+            <p className="text-base font-medium">No data available yet</p>
+            <p className="text-sm opacity-60">Share your survey link to get started</p>
         </div>
     );
 }
 
 export default function PSQAnalyticsPage() {
   return (
-    <Suspense fallback={<div className="p-20 text-center text-gray-400">Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-slate-50"><div className="animate-pulse font-semibold text-slate-400">Loading Report...</div></div>}>
       <AnalyticsContent />
     </Suspense>
   );
