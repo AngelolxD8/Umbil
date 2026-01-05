@@ -37,15 +37,13 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // 2. Define Protected Routes
-  // Any route starting with these will require login
+  // REMOVED "/dashboard" and "/api/ask" to allow guest access
   const protectedPaths = [
-    "/dashboard",
     "/cpd",
     "/pdp",
     "/psq",
     "/profile",
     "/settings",
-    "/api/ask", // Protect your API routes too
   ];
 
   const isProtected = protectedPaths.some((path) =>
