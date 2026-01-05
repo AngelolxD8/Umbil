@@ -28,6 +28,18 @@ const getErrorMessage = (err: unknown): string => {
   return "An unexpected error occurred.";
 };
 
+// NEW: Helper to strip markdown artifacts
+function cleanMarkdown(text: string): string {
+  if (!text) return "";
+  return text
+    .replace(/\*\*/g, "")      // Remove bold (**)
+    .replace(/__/g, "")        // Remove bold (__)
+    .replace(/^#+\s/gm, "")    // Remove headers (# Header)
+    .replace(/`/g, "")         // Remove code ticks
+    .replace(/\[|\]/g, "")     // Remove brackets if needed
+    .trim();
+}
+
 export default function ReflectionModal({
   isOpen,
   onClose,
@@ -151,18 +163,25 @@ export default function ReflectionModal({
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        
         fullText += decoder.decode(value);
-        if (fullText.includes("---TAGS---")) {
-          const parts = fullText.split("---TAGS---");
-          setReflection(parts[0]); 
-        } else {
-          setReflection(fullText); 
+        
+        // --- CLEAN MARKDOWN ON THE FLY ---
+        // We clean the text before setting it to state
+        let displayText = fullText;
+        if (displayText.includes("---TAGS---")) {
+           displayText = displayText.split("---TAGS---")[0];
         }
+        
+        // Clean markdown characters from the display text
+        setReflection(cleanMarkdown(displayText)); 
       }
 
+      // Final cleanup and tag parsing
       if (fullText.includes("---TAGS---")) {
         const parts = fullText.split("---TAGS---");
-        setReflection(parts[0].trim()); 
+        setReflection(cleanMarkdown(parts[0])); // Ensure final result is clean
+        
         const tagText = parts[1].trim();
         try {
           const parsedTags = JSON.parse(tagText);

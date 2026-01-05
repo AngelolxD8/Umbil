@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
            - Area for Development (Address the lowest scoring area diplomatically).
            - Action Plan (Propose 1-2 concrete steps to improve).
         3. Be concise (approx 150-200 words).
-        4. Do NOT use markdown headers (like ##), just plain paragraphs.
+        4. STRICTLY PLAIN TEXT ONLY. Do NOT use markdown headers (##), bold (**), or italics (*). Use standard paragraph spacing only.
         `;
 
         contextContent = `
@@ -71,6 +71,7 @@ export async function POST(req: NextRequest) {
       1. Tidy up the grammar, spelling, and flow.
       2. Make it sound professional and concise.
       3. KEEP IT EXACT: Do NOT add new facts. Just polish.
+      4. STRICTLY PLAIN TEXT ONLY. Remove all markdown formatting. No bold (**), no headers (##).
       `;
       contextContent = `TARGET TEXT: "${userNotes}"`;
 
@@ -81,6 +82,7 @@ export async function POST(req: NextRequest) {
       You are Umbil, a UK clinical reflection assistant.
       Write a generic educational reflection based on the Q&A below.
       Focus on clinical theory, not specific patients.
+      STRICTLY PLAIN TEXT ONLY. Do not use markdown headers (##) or bold (**).
       `;
       contextContent = `Question: ${question}\nAnswer: ${answer}\nNotes: ${userNotes || ''}`;
     }
@@ -93,7 +95,7 @@ export async function POST(req: NextRequest) {
     ${contextContent}
     ---
     
-    RESPOND ONLY WITH THE DRAFTED TEXT.
+    RESPOND ONLY WITH THE DRAFTED TEXT. NO MARKDOWN.
     `;
 
     const result = await streamText({
