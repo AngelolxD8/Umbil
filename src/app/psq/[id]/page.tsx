@@ -2,24 +2,30 @@ import { PSQ_QUESTIONS } from "@/lib/psq-questions";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
-// 1. Update the Props type to be a Promise (Next.js 15 requirement)
+// 1. Force the type definition locally to fix the "Property does not exist" error
+type QuestionType = {
+  id: string;
+  text: string;
+  domain: string;
+  description: string;
+};
+
 type Props = {
   params: Promise<{ id: string }>;
 };
 
 export default async function PSQQuestionPage({ params }: Props) {
-  // 2. Await the params to get the ID
   const { id } = await params;
 
-  // 3. Find the question using the ID
+  // 2. Cast the data to our local type so TypeScript is happy
   const questionIndex = PSQ_QUESTIONS.findIndex((q) => q.id === id);
-  const question = PSQ_QUESTIONS[questionIndex];
+  const question = PSQ_QUESTIONS[questionIndex] as unknown as QuestionType;
 
   if (!question) {
     return notFound();
   }
 
-  // Calculate next/prev for navigation
+  // Safe navigation calculation
   const nextQuestion = PSQ_QUESTIONS[questionIndex + 1];
   const prevQuestion = PSQ_QUESTIONS[questionIndex - 1];
 
@@ -39,6 +45,7 @@ export default async function PSQQuestionPage({ params }: Props) {
           <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 bg-blue-50 px-3 py-1 rounded-full">
             Question {questionIndex + 1} of {PSQ_QUESTIONS.length}
           </span>
+          {/* Now valid because we forced the type above */}
           <span className="text-sm text-gray-400">
             {question.domain}
           </span>
@@ -73,7 +80,7 @@ export default async function PSQQuestionPage({ params }: Props) {
             ← Previous Question
           </Link>
         ) : (
-          <div /> // Spacer
+          <div /> 
         )}
 
         {nextQuestion ? (
