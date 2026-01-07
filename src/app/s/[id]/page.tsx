@@ -71,7 +71,7 @@ export default function PublicSurveyPage() {
     checkSurvey();
   }, [id]);
 
-  // Scroll helper
+  // Scroll helper - Scrolls the actual window now
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -155,6 +155,8 @@ export default function PublicSurveyPage() {
   }
 
   // --- MAIN LAYOUT ---
+  // FIXED: Changed h-[100dvh] to min-h-screen. 
+  // This allows the page to grow naturally so window scrolling works.
   return (
     <div className="min-h-screen w-full bg-[#f8fafc] font-sans text-slate-900 flex flex-col items-center">
       
@@ -169,7 +171,7 @@ export default function PublicSurveyPage() {
         }
       `}</style>
 
-      {/* 1. TOP HEADER (Full Width, Centered Content) */}
+      {/* 1. TOP HEADER (Centered) */}
       <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm flex justify-center">
         <div className="w-full max-w-4xl px-6 h-20 flex items-center justify-between">
           
@@ -198,10 +200,10 @@ export default function PublicSurveyPage() {
         </div>
       </header>
 
-      {/* 2. MAIN CONTENT AREA (Centered & Constrained) */}
+      {/* 2. MAIN CONTENT AREA (Centered) */}
       <main className="w-full max-w-4xl px-4 sm:px-6 py-10 sm:py-16 pb-32 flex flex-col items-center">
         
-        {/* --- VIEW: INTRO (CENTERED) --- */}
+        {/* --- VIEW: INTRO --- */}
         {viewState === 'intro' && (
           <div className="animate-safe flex flex-col items-center text-center w-full">
             
@@ -214,13 +216,13 @@ export default function PublicSurveyPage() {
               Help us improve<br/> your care experience.
             </h1>
             
-            <p className="text-xl sm:text-2xl text-slate-500 mb-12 leading-relaxed max-w-2xl">
+            <p className="text-xl sm:text-2xl text-slate-500 mb-12 leading-relaxed max-w-2xl mx-auto">
               Your feedback is anonymous and takes less than 2 minutes. 
               We use this to improve our services and for professional revalidation.
             </p>
 
             {/* Reassurance Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mb-12 max-w-3xl">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mb-12 max-w-3xl mx-auto">
                <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center justify-center gap-3 hover:shadow-md transition-shadow">
                  <UserX size={28} className="text-slate-400"/>
                  <span className="font-bold text-lg text-slate-700">Anonymous</span>
@@ -235,7 +237,7 @@ export default function PublicSurveyPage() {
                </div>
             </div>
 
-            {/* BIGGER CENTERED BUTTON */}
+            {/* START BUTTON */}
             <button 
               onClick={() => { setViewState('questions'); scrollToTop(); }}
               className="group w-full sm:w-auto text-2xl font-bold py-6 px-16 rounded-2xl transition-all active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 text-white bg-[#1fb8cd] hover:bg-[#189cad]"
@@ -246,7 +248,7 @@ export default function PublicSurveyPage() {
           </div>
         )}
 
-        {/* --- VIEW: QUESTIONS (CENTERED) --- */}
+        {/* --- VIEW: QUESTIONS --- */}
         {viewState === 'questions' && (
           <div key={fadeKey} className="animate-safe w-full flex flex-col items-center">
             
@@ -260,7 +262,7 @@ export default function PublicSurveyPage() {
               </button>
             </div>
 
-            {/* Domain Label */}
+            {/* Domain */}
             <span 
               className="text-sm font-bold uppercase tracking-widest mb-4 block text-[#1fb8cd] text-center"
             >
@@ -272,14 +274,14 @@ export default function PublicSurveyPage() {
               {currentQuestion.text}
             </h2>
 
-            {/* Description Box */}
+            {/* Description */}
             {currentQuestion.description && (
               <div className="w-full max-w-2xl bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm mb-10 text-slate-600 text-lg sm:text-xl leading-relaxed text-center">
                 {currentQuestion.description}
               </div>
             )}
 
-            {/* Options List */}
+            {/* Options */}
             <div className="flex flex-col gap-4 w-full max-w-xl">
               {OPTIONS.map((opt) => {
                 const isSelected = currentAnswer === opt.value;
@@ -314,7 +316,7 @@ export default function PublicSurveyPage() {
           </div>
         )}
 
-        {/* --- VIEW: FEEDBACK (CENTERED) --- */}
+        {/* --- VIEW: FEEDBACK --- */}
         {viewState === 'feedback' && (
            <div className="animate-safe flex flex-col items-center text-center w-full">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">Final Comments</h2>
@@ -348,7 +350,7 @@ export default function PublicSurveyPage() {
            </div>
         )}
 
-        {/* --- VIEW: COMPLETED (CENTERED) --- */}
+        {/* --- VIEW: COMPLETED --- */}
         {viewState === 'completed' && (
             <div className="animate-safe flex items-center justify-center min-h-[50vh] w-full">
                 <div className="text-center w-full max-w-lg bg-white p-10 rounded-[2.5rem] shadow-2xl border border-gray-100">
