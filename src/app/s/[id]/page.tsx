@@ -16,12 +16,11 @@ import {
   ShieldCheck,
   Clock,
   UserX,
-  Activity
+  Activity,
+  CheckCircle2
 } from 'lucide-react';
 
 // --- Constants ---
-const UMBIL_TEAL = '#1fb8cd';
-
 const OPTIONS = [
   { value: 1, label: "Poor" },
   { value: 2, label: "Less than satisfactory" },
@@ -72,8 +71,9 @@ export default function PublicSurveyPage() {
     checkSurvey();
   }, [id]);
 
-  // Scroll helper - Updated to scroll the container
+  // Scroll helper
   const scrollToTop = () => {
+    // Try to scroll the main container first, fallback to window
     const container = document.getElementById('survey-container');
     if (container) {
         container.scrollTo({ top: 0, behavior: 'smooth' });
@@ -142,7 +142,7 @@ export default function PublicSurveyPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-white">
-        <Activity className="w-10 h-10 animate-pulse mb-4" style={{ color: UMBIL_TEAL }} />
+        <Activity className="w-10 h-10 animate-pulse mb-4 text-[#1fb8cd]" />
         <p className="text-gray-400 font-medium">Loading...</p>
       </div>
     );
@@ -161,7 +161,6 @@ export default function PublicSurveyPage() {
   }
 
   // --- MAIN LAYOUT ---
-  // Added id="survey-container" and overflow-y-auto to fix scrolling issues
   return (
     <div id="survey-container" className="h-[100dvh] w-full bg-[#f8fafc] font-sans text-slate-900 overflow-y-auto overflow-x-hidden">
       
@@ -182,7 +181,7 @@ export default function PublicSurveyPage() {
           
           {/* Logo / Brand */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: UMBIL_TEAL }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm bg-[#1fb8cd]">
                <MessageSquare className="w-5 h-5 text-white" />
             </div>
             <span className="font-bold text-xl tracking-tight text-slate-800 hidden xs:block">Umbil Feedback</span>
@@ -196,8 +195,8 @@ export default function PublicSurveyPage() {
               </span>
               <div className="w-24 sm:w-32 h-3 bg-gray-100 rounded-full overflow-hidden">
                 <div 
-                   className="h-full rounded-full transition-all duration-500 ease-out"
-                   style={{ width: `${progress}%`, backgroundColor: UMBIL_TEAL }}
+                   className="h-full rounded-full transition-all duration-500 ease-out bg-[#1fb8cd]"
+                   style={{ width: `${progress}%` }}
                 />
               </div>
             </div>
@@ -212,7 +211,7 @@ export default function PublicSurveyPage() {
         {viewState === 'intro' && (
           <div className="animate-safe flex flex-col items-center sm:items-start text-center sm:text-left">
             <div className="mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-gray-200 text-slate-500 text-sm font-semibold shadow-sm">
-              <Sparkles size={16} style={{ color: UMBIL_TEAL }} /> 
+              <Sparkles size={16} className="text-[#1fb8cd]" /> 
               <span>Patient Experience Survey</span>
             </div>
             
@@ -241,14 +240,13 @@ export default function PublicSurveyPage() {
                </div>
             </div>
 
-            {/* BIGGER BUTTON */}
+            {/* BIGGER BUTTON - PURE TAILWIND */}
             <button 
               onClick={() => { setViewState('questions'); scrollToTop(); }}
-              className="w-full sm:w-auto text-2xl font-bold py-6 px-16 rounded-2xl transition-transform active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 text-white"
-              style={{ backgroundColor: UMBIL_TEAL }}
+              className="group w-full sm:w-auto text-2xl font-bold py-6 px-16 rounded-2xl transition-all active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 text-white bg-[#1fb8cd] hover:bg-[#189cad]"
             >
               Start Survey
-              <ChevronRight size={28} strokeWidth={3} />
+              <ChevronRight size={28} strokeWidth={3} className="group-hover:translate-x-1 transition-transform" />
             </button>
           </div>
         )}
@@ -267,8 +265,7 @@ export default function PublicSurveyPage() {
 
             {/* Domain Label */}
             <span 
-              className="text-sm font-bold uppercase tracking-widest mb-4 block"
-              style={{ color: UMBIL_TEAL }}
+              className="text-sm font-bold uppercase tracking-widest mb-4 block text-[#1fb8cd]"
             >
                {currentQuestion.domain}
             </span>
@@ -296,11 +293,10 @@ export default function PublicSurveyPage() {
                     className={`
                       w-full p-6 sm:p-7 rounded-2xl text-left border-2 transition-all duration-200 flex items-center justify-between group
                       ${isSelected 
-                        ? 'bg-white shadow-lg transform scale-[1.01] z-10' 
+                        ? 'bg-white border-[#1fb8cd] shadow-lg transform scale-[1.01] z-10' 
                         : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
                       }
                     `}
-                    style={{ borderColor: isSelected ? UMBIL_TEAL : '' }}
                   >
                     <span className={`text-xl font-bold ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>
                         {opt.label}
@@ -309,12 +305,8 @@ export default function PublicSurveyPage() {
                     <div 
                       className={`
                         w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors
-                        ${isSelected ? '' : 'border-gray-300 group-hover:border-gray-400'}
+                        ${isSelected ? 'bg-[#1fb8cd] border-[#1fb8cd]' : 'border-gray-300 group-hover:border-gray-400'}
                       `}
-                      style={{ 
-                        backgroundColor: isSelected ? UMBIL_TEAL : 'transparent',
-                        borderColor: isSelected ? UMBIL_TEAL : ''
-                      }}
                     >
                         {isSelected && <Check size={16} className="text-white" />}
                     </div>
@@ -334,8 +326,7 @@ export default function PublicSurveyPage() {
               </p>
 
               <textarea
-                className="w-full h-56 p-6 rounded-2xl border-2 border-gray-200 text-xl outline-none transition-all resize-none mb-10 bg-white focus:ring-4 focus:ring-teal-50"
-                style={{ borderColor: `rgba(31, 184, 205, 0.5)` }}
+                className="w-full h-56 p-6 rounded-2xl border-2 border-gray-200 text-xl outline-none transition-all resize-none mb-10 bg-white focus:ring-4 focus:ring-teal-50 focus:border-[#1fb8cd]"
                 placeholder="Type your feedback here..."
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
@@ -345,8 +336,7 @@ export default function PublicSurveyPage() {
                     <button
                         onClick={submitFeedback}
                         disabled={submitting}
-                        className="w-full sm:w-auto text-white font-bold py-5 px-12 rounded-2xl transition-transform active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed text-xl"
-                        style={{ backgroundColor: UMBIL_TEAL }}
+                        className="w-full sm:w-auto text-white font-bold py-5 px-12 rounded-2xl transition-transform active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed text-xl bg-[#1fb8cd] hover:bg-[#189cad]"
                     >
                         {submitting ? 'Sending...' : 'Submit Feedback'} <Send size={20} />
                     </button>
@@ -363,16 +353,24 @@ export default function PublicSurveyPage() {
 
         {/* --- VIEW: COMPLETED --- */}
         {viewState === 'completed' && (
-            <div className="animate-safe text-center py-12 px-4">
-                <div className="w-24 h-24 rounded-full bg-teal-50 flex items-center justify-center mb-8 mx-auto">
-                    <Sparkles size={48} style={{ color: UMBIL_TEAL }} />
-                </div>
-                <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">Thank You!</h2>
-                <p className="text-xl text-slate-500 mb-12 max-w-lg mx-auto leading-relaxed">
-                    Your feedback has been securely recorded. You have helped us improve our care standards.
-                </p>
-                <div className="inline-block px-6 py-3 bg-gray-100 rounded-full text-slate-500 font-medium text-base">
-                    You can now close this window.
+            <div className="animate-safe flex items-center justify-center min-h-[50vh]">
+                <div className="text-center w-full max-w-lg bg-white p-10 rounded-[2.5rem] shadow-2xl border border-gray-100">
+                    <div className="w-24 h-24 rounded-full bg-teal-50 flex items-center justify-center mb-8 mx-auto animate-bounce">
+                        <CheckCircle2 size={48} className="text-[#1fb8cd]" />
+                    </div>
+                    
+                    <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">
+                        Thank You!
+                    </h2>
+                    
+                    <p className="text-lg text-slate-500 mb-8 leading-relaxed">
+                        Your feedback has been securely recorded. <br/>
+                        You have helped us improve our care standards.
+                    </p>
+                    
+                    <div className="inline-block px-6 py-3 bg-gray-50 rounded-full text-slate-400 font-medium text-sm border border-gray-100">
+                        You may now close this window safely.
+                    </div>
                 </div>
             </div>
         )}

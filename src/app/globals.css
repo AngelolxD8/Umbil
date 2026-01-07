@@ -45,6 +45,7 @@
     border: 1px solid var(--umbil-card-border);
   }
 }
+/* REPLACE THESE TWO BLOCKS IN YOUR globals.css */
 
 body {
   font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
