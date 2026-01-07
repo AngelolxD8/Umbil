@@ -1,12 +1,12 @@
 // src/app/s/[id]/page.tsx
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { PSQ_QUESTIONS } from '@/lib/psq-questions';
 import { 
-  CheckCircle2, 
+  Check, 
   ChevronRight, 
   ChevronLeft, 
   AlertCircle, 
@@ -16,14 +16,12 @@ import {
   ShieldCheck,
   Clock,
   UserX,
-  HelpCircle,
-  ChevronDown,
-  ChevronUp
+  Activity
 } from 'lucide-react';
 
-// --- Types & Constants ---
+// --- Constants ---
+const UMBIL_TEAL = '#1fb8cd';
 
-// Modern "Card" options for answers with distinct values
 const OPTIONS = [
   { value: 1, label: "Poor" },
   { value: 2, label: "Less than satisfactory" },
@@ -38,7 +36,7 @@ type ViewState = 'intro' | 'questions' | 'feedback' | 'completed';
 
 export default function PublicSurveyPage() {
   const params = useParams();
-  const id = params?.id as string; // Survey ID
+  const id = params?.id as string;
 
   // --- State ---
   const [loading, setLoading] = useState(true);
@@ -50,10 +48,7 @@ export default function PublicSurveyPage() {
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [feedbackText, setFeedbackText] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  
-  // UI State
-  const [showDescription, setShowDescription] = useState(false);
-  const topRef = useRef<HTMLDivElement>(null);
+  const [fadeKey, setFadeKey] = useState(0); 
 
   // 1. Verify Survey Exists
   useEffect(() => {
@@ -77,10 +72,14 @@ export default function PublicSurveyPage() {
     checkSurvey();
   }, [id]);
 
-  // Scroll to top helper
+  // Scroll helper - Updated to scroll the container
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    topRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = document.getElementById('survey-container');
+    if (container) {
+        container.scrollTo({ top: 0, behavior: 'smooth' });
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   // 2. Handle Answer Selection
@@ -88,35 +87,30 @@ export default function PublicSurveyPage() {
     const currentQId = PSQ_QUESTIONS[currentQIndex].id;
     setAnswers((prev) => ({ ...prev, [currentQId]: value }));
     
-    // Auto-advance logic with small delay for visual feedback
+    // Auto-advance
     setTimeout(() => {
-      handleNext(true);
-    }, 350);
-  };
-
-  const handleNext = (isAutoAdvance = false) => {
-    setShowDescription(false); // Reset hint visibility
-    
-    if (currentQIndex < PSQ_QUESTIONS.length - 1) {
-      setCurrentQIndex(prev => prev + 1);
-      if (!isAutoAdvance) scrollToTop();
-    } else {
-      setViewState('feedback');
-      scrollToTop();
-    }
+      if (currentQIndex < PSQ_QUESTIONS.length - 1) {
+        setCurrentQIndex(prev => prev + 1);
+        setFadeKey(prev => prev + 1);
+        scrollToTop();
+      } else {
+        setViewState('feedback');
+        scrollToTop();
+      }
+    }, 250);
   };
 
   const handleBack = () => {
-    setShowDescription(false);
     if (currentQIndex > 0) {
       setCurrentQIndex(prev => prev - 1);
+      setFadeKey(prev => prev - 1);
     } else {
       setViewState('intro');
     }
     scrollToTop();
   };
 
-  // 3. Submit All Data to Supabase
+  // 3. Submit
   const submitFeedback = async () => {
     setSubmitting(true);
     
@@ -127,13 +121,11 @@ export default function PublicSurveyPage() {
       created_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase
-      .from('psq_responses')
-      .insert(payload);
+    const { error } = await supabase.from('psq_responses').insert(payload);
 
     if (error) {
       console.error('Submission error:', error);
-      alert('There was a problem submitting your feedback. Please try again.');
+      alert('Problem submitting feedback. Please try again.');
       setSubmitting(false);
     } else {
       setViewState('completed');
@@ -141,305 +133,251 @@ export default function PublicSurveyPage() {
     }
   };
 
-  // --- Render: Loading ---
+  // --- DERIVED DATA ---
+  const currentQuestion = PSQ_QUESTIONS[currentQIndex];
+  const progress = ((currentQIndex + 1) / PSQ_QUESTIONS.length) * 100;
+  const currentAnswer = answers[currentQuestion?.id];
+
+  // --- RENDER: LOADING / ERROR ---
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-4 border-teal-500 border-t-transparent rounded-full animate-spin"></div>
-        </div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+        <Activity className="w-10 h-10 animate-pulse mb-4" style={{ color: UMBIL_TEAL }} />
+        <p className="text-gray-400 font-medium">Loading...</p>
       </div>
     );
   }
 
-  // --- Render: Error ---
   if (!surveyValid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50">
-        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-slate-200 p-10 text-center">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-6" />
-          <h1 className="text-2xl font-bold text-slate-900 mb-3">Survey Not Found</h1>
-          <p className="text-slate-500 mb-8 leading-relaxed">
-            This survey link appears to be invalid or has expired. Please check the link and try again.
-          </p>
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center">
+          <AlertCircle className="w-12 h-12 text-rose-400 mx-auto mb-4" />
+          <h1 className="text-xl font-bold text-gray-900 mb-2">Survey Not Found</h1>
+          <p className="text-gray-500">The link appears to be invalid or expired.</p>
         </div>
       </div>
     );
   }
 
-  // --- Render: Completed ---
-  if (viewState === 'completed') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-slate-50 animate-in fade-in duration-500">
-        <div className="max-w-lg w-full bg-white rounded-3xl shadow-xl border border-slate-100 p-12 text-center">
-          <div className="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-8 bg-teal-50 text-teal-600 ring-4 ring-teal-50/50">
-            <Sparkles size={48} />
+  // --- MAIN LAYOUT ---
+  // Added id="survey-container" and overflow-y-auto to fix scrolling issues
+  return (
+    <div id="survey-container" className="h-[100dvh] w-full bg-[#f8fafc] font-sans text-slate-900 overflow-y-auto overflow-x-hidden">
+      
+      {/* LOCAL STYLES FOR SAFE ANIMATION */}
+      <style jsx global>{`
+        @keyframes fadeInScale {
+          from { opacity: 0; transform: scale(0.98) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
+        }
+        .animate-safe {
+          animation: fadeInScale 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+      `}</style>
+
+      {/* 1. TOP HEADER */}
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
+        <div className="max-w-4xl mx-auto px-6 h-20 flex items-center justify-between">
+          
+          {/* Logo / Brand */}
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shadow-sm" style={{ backgroundColor: UMBIL_TEAL }}>
+               <MessageSquare className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-bold text-xl tracking-tight text-slate-800 hidden xs:block">Umbil Feedback</span>
           </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-4 tracking-tight">Thank You!</h1>
-          <p className="text-slate-600 mb-10 text-xl leading-relaxed">
-            Your feedback has been successfully recorded anonymously.
-          </p>
-          <div className="text-sm text-slate-400 font-medium bg-slate-50 py-3 px-6 rounded-full inline-block border border-slate-100">
-            You may now close this window
-          </div>
+
+          {/* Mini Progress Indicator */}
+          {viewState === 'questions' && (
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-bold text-slate-400 uppercase tracking-wider hidden sm:block">
+                {Math.round(progress)}%
+              </span>
+              <div className="w-24 sm:w-32 h-3 bg-gray-100 rounded-full overflow-hidden">
+                <div 
+                   className="h-full rounded-full transition-all duration-500 ease-out"
+                   style={{ width: `${progress}%`, backgroundColor: UMBIL_TEAL }}
+                />
+              </div>
+            </div>
+          )}
         </div>
-      </div>
-    );
-  }
+      </header>
 
-  // --- Render: Intro (Landing Page) ---
-  if (viewState === 'intro') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4 md:p-6 bg-slate-50">
-        <div className="max-w-3xl w-full bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden animate-in fade-in zoom-in-95 duration-300">
-          
-          {/* Hero Section */}
-          <div className="p-10 md:p-16 text-center bg-gradient-to-br from-teal-600 to-teal-700 text-white relative overflow-hidden">
-            {/* Background decoration */}
-            <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-              <div className="absolute top-[-50%] left-[-20%] w-[500px] h-[500px] rounded-full bg-white blur-3xl"></div>
+      {/* 2. MAIN CONTENT AREA */}
+      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-16 pb-32">
+        
+        {/* --- VIEW: INTRO --- */}
+        {viewState === 'intro' && (
+          <div className="animate-safe flex flex-col items-center sm:items-start text-center sm:text-left">
+            <div className="mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-gray-200 text-slate-500 text-sm font-semibold shadow-sm">
+              <Sparkles size={16} style={{ color: UMBIL_TEAL }} /> 
+              <span>Patient Experience Survey</span>
+            </div>
+            
+            <h1 className="text-4xl sm:text-6xl font-extrabold text-slate-900 mb-8 leading-[1.1]">
+              Help us improve<br/> your care experience.
+            </h1>
+            
+            <p className="text-xl sm:text-2xl text-slate-500 mb-12 leading-relaxed max-w-3xl">
+              Your feedback is anonymous and takes less than 2 minutes. 
+              We use this to improve our services and for professional revalidation.
+            </p>
+
+            {/* Reassurance Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mb-12">
+               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center sm:items-start gap-3 hover:shadow-md transition-shadow">
+                 <UserX size={28} className="text-slate-400"/>
+                 <span className="font-bold text-lg text-slate-700">Anonymous</span>
+               </div>
+               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center sm:items-start gap-3 hover:shadow-md transition-shadow">
+                 <Clock size={28} className="text-slate-400"/>
+                 <span className="font-bold text-lg text-slate-700">~2 Minutes</span>
+               </div>
+               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center sm:items-start gap-3 hover:shadow-md transition-shadow">
+                 <ShieldCheck size={28} className="text-slate-400"/>
+                 <span className="font-bold text-lg text-slate-700">Secure</span>
+               </div>
             </div>
 
-            <div className="relative z-10">
-                <div className="w-20 h-20 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-6 backdrop-blur-sm shadow-inner ring-1 ring-white/30">
-                    <MessageSquare size={40} className="text-white" />
-                </div>
-                <h1 className="text-3xl md:text-5xl font-bold mb-4 tracking-tight">Patient Feedback</h1>
-                <p className="text-teal-50 text-xl font-medium opacity-90">Help us improve your care</p>
-            </div>
-          </div>
-          
-          <div className="p-8 md:p-12 lg:p-16 flex flex-col items-center">
-            <div className="prose prose-lg text-center text-slate-600 mb-12 max-w-2xl leading-relaxed">
-              <p>
-                We would be grateful if you would complete this brief questionnaire about your visit today. 
-                Your honest feedback is vital for our revalidation and improvement.
-              </p>
-            </div>
-
-            {/* Reassurance Badges */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mb-12">
-                <ReassuranceBadge 
-                    icon={<UserX size={22} />} 
-                    title="Anonymous" 
-                    desc="Your identity is hidden"
-                />
-                <ReassuranceBadge 
-                    icon={<Clock size={22} />} 
-                    title="Quick" 
-                    desc="Takes less than 2 mins"
-                />
-                <ReassuranceBadge 
-                    icon={<ShieldCheck size={22} />} 
-                    title="Safe" 
-                    desc="No impact on your care"
-                />
-            </div>
-
+            {/* BIGGER BUTTON */}
             <button 
-              onClick={() => {
-                setViewState('questions');
-                scrollToTop();
-              }}
-              className="group w-full md:w-auto min-w-[320px] bg-teal-600 text-white font-bold py-5 px-8 rounded-2xl transition-all flex items-center justify-center gap-3 text-lg md:text-xl shadow-lg hover:bg-teal-700 hover:shadow-xl hover:-translate-y-1 focus:ring-4 focus:ring-teal-200 outline-none"
+              onClick={() => { setViewState('questions'); scrollToTop(); }}
+              className="w-full sm:w-auto text-2xl font-bold py-6 px-16 rounded-2xl transition-transform active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 text-white"
+              style={{ backgroundColor: UMBIL_TEAL }}
             >
-              Start Questionnaire 
-              <ChevronRight size={24} className="group-hover:translate-x-1 transition-transform" />
+              Start Survey
+              <ChevronRight size={28} strokeWidth={3} />
             </button>
           </div>
-        </div>
-      </div>
-    );
-  }
+        )}
 
-  // --- Render: Feedback Text Step ---
-  if (viewState === 'feedback') {
-    return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 md:p-8 animate-in slide-in-from-right-4 duration-300">
-        <div className="max-w-4xl w-full" ref={topRef}>
-            {/* Header */}
-            <div className="mb-8 flex items-center gap-3 text-sm font-bold text-slate-400 uppercase tracking-wider">
-                <span className="text-teal-600">Final Step</span>
-                <span className="h-px bg-slate-300 flex-1"></span>
-            </div>
+        {/* --- VIEW: QUESTIONS --- */}
+        {viewState === 'questions' && (
+          <div key={fadeKey} className="animate-safe">
+            
+            {/* Back Link */}
+            <button 
+                onClick={handleBack}
+                className="mb-8 text-slate-400 hover:text-slate-600 font-medium text-sm flex items-center transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 -ml-2 w-fit"
+            >
+                <ChevronLeft size={18} className="mr-1" /> Back
+            </button>
 
-            <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden p-8 md:p-12">
-                <div className="text-center mb-8">
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 mb-3">Any other comments?</h2>
-                    <p className="text-slate-500 text-lg">
-                        If you have any other feedback about your experience, please write it below.
-                        <span className="block mt-1 text-sm text-slate-400">(Optional)</span>
-                    </p>
-                </div>
+            {/* Domain Label */}
+            <span 
+              className="text-sm font-bold uppercase tracking-widest mb-4 block"
+              style={{ color: UMBIL_TEAL }}
+            >
+               {currentQuestion.domain}
+            </span>
 
-                <textarea
-                    className="w-full h-48 p-5 rounded-2xl border-2 border-slate-200 text-lg focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10 outline-none transition-all resize-none mb-8 bg-slate-50 focus:bg-white placeholder:text-slate-400"
-                    placeholder="Type your feedback here..."
-                    value={feedbackText}
-                    onChange={(e) => setFeedbackText(e.target.value)}
-                />
+            {/* Question Text */}
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 mb-8 leading-tight">
+              {currentQuestion.text}
+            </h2>
 
-                <div className="flex flex-col-reverse md:flex-row justify-between items-center gap-4 pt-2">
-                     <button
-                        onClick={handleBack}
-                        className="w-full md:w-auto text-slate-500 hover:text-slate-900 font-semibold px-6 py-4 rounded-xl hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+            {/* Description Box */}
+            {currentQuestion.description && (
+              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm mb-10 text-slate-600 text-lg sm:text-xl leading-relaxed">
+                {currentQuestion.description}
+              </div>
+            )}
+
+            {/* Options List */}
+            <div className="flex flex-col gap-4">
+              {OPTIONS.map((opt) => {
+                const isSelected = currentAnswer === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    onClick={() => handleOptionSelect(opt.value)}
+                    className={`
+                      w-full p-6 sm:p-7 rounded-2xl text-left border-2 transition-all duration-200 flex items-center justify-between group
+                      ${isSelected 
+                        ? 'bg-white shadow-lg transform scale-[1.01] z-10' 
+                        : 'bg-white border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                      }
+                    `}
+                    style={{ borderColor: isSelected ? UMBIL_TEAL : '' }}
+                  >
+                    <span className={`text-xl font-bold ${isSelected ? 'text-slate-900' : 'text-slate-600'}`}>
+                        {opt.label}
+                    </span>
+                    
+                    <div 
+                      className={`
+                        w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors
+                        ${isSelected ? '' : 'border-gray-300 group-hover:border-gray-400'}
+                      `}
+                      style={{ 
+                        backgroundColor: isSelected ? UMBIL_TEAL : 'transparent',
+                        borderColor: isSelected ? UMBIL_TEAL : ''
+                      }}
                     >
-                        <ChevronLeft size={20} /> Back
-                    </button>
+                        {isSelected && <Check size={16} className="text-white" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
+        {/* --- VIEW: FEEDBACK --- */}
+        {viewState === 'feedback' && (
+           <div className="animate-safe">
+              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">Final Comments</h2>
+              <p className="text-slate-500 mb-10 text-xl">
+                  Is there anything else you would like to share about your experience? (Optional)
+              </p>
+
+              <textarea
+                className="w-full h-56 p-6 rounded-2xl border-2 border-gray-200 text-xl outline-none transition-all resize-none mb-10 bg-white focus:ring-4 focus:ring-teal-50"
+                style={{ borderColor: `rgba(31, 184, 205, 0.5)` }}
+                placeholder="Type your feedback here..."
+                value={feedbackText}
+                onChange={(e) => setFeedbackText(e.target.value)}
+              />
+
+              <div className="flex flex-col sm:flex-row items-center gap-6">
                     <button
                         onClick={submitFeedback}
                         disabled={submitting}
-                        className="w-full md:w-auto bg-teal-600 text-white font-bold py-4 px-10 rounded-2xl transition-all text-lg shadow-lg hover:bg-teal-700 hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed focus:ring-4 focus:ring-teal-200 outline-none"
+                        className="w-full sm:w-auto text-white font-bold py-5 px-12 rounded-2xl transition-transform active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed text-xl"
+                        style={{ backgroundColor: UMBIL_TEAL }}
                     >
-                        {submitting ? 'Sending...' : 'Complete Survey'} <Send size={20} />
+                        {submitting ? 'Sending...' : 'Submit Feedback'} <Send size={20} />
                     </button>
-                </div>
-            </div>
-        </div>
-      </div>
-    );
-  }
-
-  // --- Render: Main Question Wizard ---
-  const question = PSQ_QUESTIONS[currentQIndex];
-  const progress = ((currentQIndex + 1) / PSQ_QUESTIONS.length) * 100;
-  const currentAnswer = answers[question.id];
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col" ref={topRef}>
-        
-      {/* Top Progress Bar */}
-      <div className="w-full h-1.5 bg-slate-200 sticky top-0 z-50">
-        <div 
-            className="h-full bg-teal-500 transition-all duration-500 ease-out shadow-[0_0_10px_rgba(20,184,166,0.5)]"
-            style={{ width: `${progress}%` }}
-        />
-      </div>
-
-      <div className="flex-1 flex flex-col items-center justify-center p-4 md:p-8">
-        <div className="max-w-5xl w-full">
-          
-          {/* Question Header & Counter */}
-          <div className="flex items-center justify-between mb-6 px-2">
-            <button 
-                onClick={handleBack}
-                className="text-slate-400 hover:text-slate-700 transition-colors p-2 -ml-2 rounded-full hover:bg-slate-100"
-                aria-label="Go back"
-            >
-                <ChevronLeft size={24} />
-            </button>
-            
-            <div className="bg-white border border-slate-200 text-slate-500 font-semibold text-xs md:text-sm px-4 py-1.5 rounded-full shadow-sm tracking-wide uppercase">
-                Question <span className="text-teal-600 font-bold">{currentQIndex + 1}</span> of {PSQ_QUESTIONS.length}
-            </div>
-            
-            <div className="w-10"></div> {/* Spacer for alignment */}
-          </div>
-
-          {/* Main Card */}
-          <div className="bg-white rounded-[2rem] shadow-xl border border-slate-100 overflow-hidden relative animate-in slide-in-from-right-8 duration-300 key={currentQIndex}">
-            
-            <div className="p-6 md:p-12 lg:p-14">
-              <div className="text-center mb-10 md:mb-12">
-                <h2 className="text-2xl md:text-4xl lg:text-5xl font-bold text-slate-900 mb-6 leading-tight tracking-tight">
-                    {question.text}
-                </h2>
-                
-                {/* Expandable Hint Section */}
-                <div className="flex flex-col items-center">
-                    <button 
-                        onClick={() => setShowDescription(!showDescription)}
-                        className="inline-flex items-center gap-2 text-teal-600 hover:text-teal-700 font-medium text-sm md:text-base bg-teal-50 hover:bg-teal-100 px-4 py-2 rounded-full transition-colors focus:ring-2 focus:ring-teal-200 outline-none"
-                    >
-                        <HelpCircle size={16} />
-                        What does this mean?
-                        {showDescription ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                    </button>
-
-                    {/* Description Content */}
-                    <div className={`
-                        overflow-hidden transition-all duration-300 ease-in-out w-full max-w-3xl
-                        ${showDescription ? 'max-h-40 opacity-100 mt-4' : 'max-h-0 opacity-0 mt-0'}
-                    `}>
-                        <div className="bg-slate-50 p-4 md:p-6 rounded-2xl border border-slate-100 text-slate-600 text-lg leading-relaxed shadow-inner">
-                            {question.description}
-                        </div>
-                    </div>
-                </div>
-              </div>
-
-              {/* ANSWER GRID - Modern Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-5 w-full max-w-5xl mx-auto">
-                {OPTIONS.map((opt) => {
-                  const isSelected = currentAnswer === opt.value;
-                  return (
+                    
                     <button
-                      key={opt.value}
-                      onClick={() => handleOptionSelect(opt.value)}
-                      className={`
-                        relative group w-full flex items-center justify-between 
-                        p-5 md:p-7 rounded-2xl border-2 transition-all duration-200 outline-none
-                        focus:ring-4 focus:ring-teal-100
-                        ${isSelected 
-                          ? 'bg-teal-50/80 border-teal-500 shadow-lg ring-1 ring-teal-500 z-10 scale-[1.01]' 
-                          : 'bg-white border-slate-100 hover:border-teal-200 hover:bg-slate-50 hover:shadow-md'
-                        }
-                      `}
+                        onClick={handleBack}
+                        className="w-full sm:w-auto py-4 text-slate-400 hover:text-slate-600 font-semibold transition-colors text-lg"
                     >
-                      <span className={`text-lg md:text-xl font-bold text-left ${isSelected ? 'text-teal-900' : 'text-slate-700'}`}>
-                          {opt.label}
-                      </span>
-                      
-                      {/* Checkbox Indicator */}
-                      <div className={`
-                        flex-shrink-0 w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all duration-200 ml-4
-                        ${isSelected 
-                            ? 'bg-teal-500 border-teal-500 scale-110' 
-                            : 'border-slate-200 group-hover:border-teal-300 bg-white'
-                        }
-                      `}>
-                          {isSelected && <CheckCircle2 className="text-white w-4 h-4" />}
-                      </div>
+                        Back
                     </button>
-                  );
-                })}
-              </div>
-            </div>
+                </div>
+           </div>
+        )}
 
-            {/* Simple Footer Progress/Next */}
-            <div className="bg-slate-50/50 p-6 border-t border-slate-100 flex justify-end">
-                <button
-                    onClick={() => handleNext(false)}
-                    disabled={currentAnswer === undefined}
-                    className={`flex items-center gap-2 font-bold px-8 py-3 rounded-xl transition-all text-base
-                    ${currentAnswer === undefined
-                        ? 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-50'
-                        : 'bg-teal-600 text-white hover:bg-teal-700 shadow-md hover:shadow-lg hover:-translate-y-0.5'}`}
-                >
-                    {currentQIndex === PSQ_QUESTIONS.length - 1 ? 'Finish' : 'Next'} <ChevronRight size={20} />
-                </button>
+        {/* --- VIEW: COMPLETED --- */}
+        {viewState === 'completed' && (
+            <div className="animate-safe text-center py-12 px-4">
+                <div className="w-24 h-24 rounded-full bg-teal-50 flex items-center justify-center mb-8 mx-auto">
+                    <Sparkles size={48} style={{ color: UMBIL_TEAL }} />
+                </div>
+                <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">Thank You!</h2>
+                <p className="text-xl text-slate-500 mb-12 max-w-lg mx-auto leading-relaxed">
+                    Your feedback has been securely recorded. You have helped us improve our care standards.
+                </p>
+                <div className="inline-block px-6 py-3 bg-gray-100 rounded-full text-slate-500 font-medium text-base">
+                    You can now close this window.
+                </div>
             </div>
+        )}
 
-          </div>
-        </div>
-      </div>
+      </main>
     </div>
   );
-}
-
-// --- Sub-components ---
-
-function ReassuranceBadge({ icon, title, desc }: { icon: React.ReactNode, title: string, desc: string }) {
-    return (
-        <div className="bg-teal-50/50 p-5 rounded-2xl flex flex-col md:flex-row items-center md:items-start gap-3 md:gap-4 text-center md:text-left border border-teal-100/50 hover:bg-teal-50 transition-colors">
-            <div className="p-3 bg-white rounded-xl text-teal-600 shadow-sm ring-1 ring-teal-100">
-                {icon}
-            </div>
-            <div>
-                <h3 className="font-bold text-teal-900 text-lg md:text-base">{title}</h3>
-                <p className="text-teal-700/80 text-sm">{desc}</p>
-            </div>
-        </div>
-    )
 }

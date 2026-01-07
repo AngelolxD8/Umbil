@@ -1,6 +1,5 @@
 /* src/app/globals.css */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-
 @import "tailwindcss";
 
 :root {
@@ -55,18 +54,26 @@ body {
   padding: 0;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  height: 100dvh;
+  
+  /* FIXED: Changed from 'height: 100dvh' to min-height to allow growth */
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  
+  /* FIXED: Changed from 'overflow: hidden' to 'auto' so pages can scroll! */
+  overflow-y: auto; 
+  overflow-x: hidden;
+  
   transition: background-color 0.3s, color 0.3s;
 }
 
 #root {
   display: flex;
   flex-direction: column;
-  height: 100dvh;
-  overflow: hidden;
+  /* FIXED: Allow root to grow with content */
+  min-height: 100dvh;
+  /* FIXED: Removed overflow:hidden so body scroll works */
+  overflow: visible; 
 }
 
 * {
@@ -251,7 +258,7 @@ a {
 }
 
 .umbil-logo-text {
-  font-size: 28px; /* CHANGED: Slightly smaller than 32px */
+  font-size: 28px; 
   font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--umbil-brand-teal);
@@ -259,7 +266,7 @@ a {
 }
 
 .tagline {
-  font-size: 13px; /* CHANGED: Slightly larger than 11px */
+  font-size: 13px; 
   font-weight: 500;
   color: var(--umbil-muted);
 }
