@@ -73,7 +73,6 @@ export default function PublicSurveyPage() {
 
   // Scroll helper
   const scrollToTop = () => {
-    // Try to scroll the main container first, fallback to window
     const container = document.getElementById('survey-container');
     if (container) {
         container.scrollTo({ top: 0, behavior: 'smooth' });
@@ -175,7 +174,7 @@ export default function PublicSurveyPage() {
         }
       `}</style>
 
-      {/* 1. TOP HEADER */}
+      {/* 1. TOP HEADER (Centered Content) */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
         <div className="max-w-4xl mx-auto px-6 h-20 flex items-center justify-between">
           
@@ -205,11 +204,12 @@ export default function PublicSurveyPage() {
       </header>
 
       {/* 2. MAIN CONTENT AREA */}
-      <main className="max-w-4xl mx-auto px-4 sm:px-6 py-8 sm:py-16 pb-32">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-16 pb-32">
         
-        {/* --- VIEW: INTRO --- */}
+        {/* --- VIEW: INTRO (CENTERED) --- */}
         {viewState === 'intro' && (
-          <div className="animate-safe flex flex-col items-center sm:items-start text-center sm:text-left">
+          <div className="animate-safe flex flex-col items-center text-center">
+            
             <div className="mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-gray-200 text-slate-500 text-sm font-semibold shadow-sm">
               <Sparkles size={16} className="text-[#1fb8cd]" /> 
               <span>Patient Experience Survey</span>
@@ -219,28 +219,28 @@ export default function PublicSurveyPage() {
               Help us improve<br/> your care experience.
             </h1>
             
-            <p className="text-xl sm:text-2xl text-slate-500 mb-12 leading-relaxed max-w-3xl">
+            <p className="text-xl sm:text-2xl text-slate-500 mb-12 leading-relaxed max-w-2xl mx-auto">
               Your feedback is anonymous and takes less than 2 minutes. 
               We use this to improve our services and for professional revalidation.
             </p>
 
-            {/* Reassurance Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mb-12">
-               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center sm:items-start gap-3 hover:shadow-md transition-shadow">
+            {/* Reassurance Grid (Centered) */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mb-12 max-w-2xl mx-auto">
+               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center justify-center gap-3 hover:shadow-md transition-shadow">
                  <UserX size={28} className="text-slate-400"/>
                  <span className="font-bold text-lg text-slate-700">Anonymous</span>
                </div>
-               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center sm:items-start gap-3 hover:shadow-md transition-shadow">
+               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center justify-center gap-3 hover:shadow-md transition-shadow">
                  <Clock size={28} className="text-slate-400"/>
                  <span className="font-bold text-lg text-slate-700">~2 Minutes</span>
                </div>
-               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center sm:items-start gap-3 hover:shadow-md transition-shadow">
+               <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center justify-center gap-3 hover:shadow-md transition-shadow">
                  <ShieldCheck size={28} className="text-slate-400"/>
                  <span className="font-bold text-lg text-slate-700">Secure</span>
                </div>
             </div>
 
-            {/* BIGGER BUTTON - PURE TAILWIND */}
+            {/* BIGGER CENTERED BUTTON */}
             <button 
               onClick={() => { setViewState('questions'); scrollToTop(); }}
               className="group w-full sm:w-auto text-2xl font-bold py-6 px-16 rounded-2xl transition-all active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 text-white bg-[#1fb8cd] hover:bg-[#189cad]"
@@ -251,39 +251,39 @@ export default function PublicSurveyPage() {
           </div>
         )}
 
-        {/* --- VIEW: QUESTIONS --- */}
+        {/* --- VIEW: QUESTIONS (CENTERED) --- */}
         {viewState === 'questions' && (
-          <div key={fadeKey} className="animate-safe">
+          <div key={fadeKey} className="animate-safe flex flex-col items-center">
             
-            {/* Back Link */}
+            {/* Back Link (Centered) */}
             <button 
                 onClick={handleBack}
-                className="mb-8 text-slate-400 hover:text-slate-600 font-medium text-sm flex items-center transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100 -ml-2 w-fit"
+                className="mb-8 text-slate-400 hover:text-slate-600 font-medium text-sm flex items-center transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
             >
-                <ChevronLeft size={18} className="mr-1" /> Back
+                <ChevronLeft size={18} className="mr-1" /> Go Back
             </button>
 
             {/* Domain Label */}
             <span 
-              className="text-sm font-bold uppercase tracking-widest mb-4 block text-[#1fb8cd]"
+              className="text-sm font-bold uppercase tracking-widest mb-4 block text-[#1fb8cd] text-center"
             >
                {currentQuestion.domain}
             </span>
 
-            {/* Question Text */}
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 mb-8 leading-tight">
+            {/* Question Text (Centered) */}
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 mb-8 leading-tight text-center">
               {currentQuestion.text}
             </h2>
 
-            {/* Description Box */}
+            {/* Description Box (Centered) */}
             {currentQuestion.description && (
-              <div className="bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm mb-10 text-slate-600 text-lg sm:text-xl leading-relaxed">
+              <div className="w-full bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm mb-10 text-slate-600 text-lg sm:text-xl leading-relaxed text-center">
                 {currentQuestion.description}
               </div>
             )}
 
-            {/* Options List */}
-            <div className="flex flex-col gap-4">
+            {/* Options List (Centered Container) */}
+            <div className="flex flex-col gap-4 w-full max-w-xl">
               {OPTIONS.map((opt) => {
                 const isSelected = currentAnswer === opt.value;
                 return (
@@ -304,7 +304,7 @@ export default function PublicSurveyPage() {
                     
                     <div 
                       className={`
-                        w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors
+                        w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors shrink-0 ml-4
                         ${isSelected ? 'bg-[#1fb8cd] border-[#1fb8cd]' : 'border-gray-300 group-hover:border-gray-400'}
                       `}
                     >
@@ -317,22 +317,22 @@ export default function PublicSurveyPage() {
           </div>
         )}
 
-        {/* --- VIEW: FEEDBACK --- */}
+        {/* --- VIEW: FEEDBACK (CENTERED) --- */}
         {viewState === 'feedback' && (
-           <div className="animate-safe">
+           <div className="animate-safe flex flex-col items-center text-center">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">Final Comments</h2>
-              <p className="text-slate-500 mb-10 text-xl">
+              <p className="text-slate-500 mb-10 text-xl max-w-2xl">
                   Is there anything else you would like to share about your experience? (Optional)
               </p>
 
               <textarea
-                className="w-full h-56 p-6 rounded-2xl border-2 border-gray-200 text-xl outline-none transition-all resize-none mb-10 bg-white focus:ring-4 focus:ring-teal-50 focus:border-[#1fb8cd]"
+                className="w-full max-w-2xl h-56 p-6 rounded-2xl border-2 border-gray-200 text-xl outline-none transition-all resize-none mb-10 bg-white focus:ring-4 focus:ring-teal-50 focus:border-[#1fb8cd] text-left"
                 placeholder="Type your feedback here..."
                 value={feedbackText}
                 onChange={(e) => setFeedbackText(e.target.value)}
               />
 
-              <div className="flex flex-col sm:flex-row items-center gap-6">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
                     <button
                         onClick={submitFeedback}
                         disabled={submitting}
@@ -351,7 +351,7 @@ export default function PublicSurveyPage() {
            </div>
         )}
 
-        {/* --- VIEW: COMPLETED --- */}
+        {/* --- VIEW: COMPLETED (CENTERED) --- */}
         {viewState === 'completed' && (
             <div className="animate-safe flex items-center justify-center min-h-[50vh]">
                 <div className="text-center w-full max-w-lg bg-white p-10 rounded-[2.5rem] shadow-2xl border border-gray-100">

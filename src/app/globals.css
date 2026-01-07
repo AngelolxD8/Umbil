@@ -45,7 +45,8 @@
     border: 1px solid var(--umbil-card-border);
   }
 }
-/* REPLACE THESE TWO BLOCKS IN YOUR globals.css */
+
+/* src/app/globals.css - REPLACE THE 'body' AND '#root' BLOCKS WITH THIS */
 
 body {
   font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -56,12 +57,12 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   
-  /* FIXED: Changed from 'height: 100dvh' to min-height to allow growth */
+  /* FIXED: Use min-height so content can grow */
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
   
-  /* FIXED: Changed from 'overflow: hidden' to 'auto' so pages can scroll! */
+  /* FIXED: Set overflow-y to auto to ENABLE SCROLLING */
   overflow-y: auto; 
   overflow-x: hidden;
   
@@ -71,9 +72,9 @@ body {
 #root {
   display: flex;
   flex-direction: column;
-  /* FIXED: Allow root to grow with content */
+  /* FIXED: Match body min-height */
   min-height: 100dvh;
-  /* FIXED: Removed overflow:hidden so body scroll works */
+  /* FIXED: Allow overflow so scrolling works */
   overflow: visible; 
 }
 
