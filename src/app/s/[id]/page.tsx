@@ -49,6 +49,28 @@ export default function PublicSurveyPage() {
   const [submitting, setSubmitting] = useState(false);
   const [fadeKey, setFadeKey] = useState(0); 
 
+  // --- FORCE SCROLL UNLOCKER ---
+  // This guarantees the page scrolls, even if globals.css tries to lock it
+  useEffect(() => {
+    // 1. Force Body to be scrollable
+    document.body.style.overflowY = 'auto';
+    document.body.style.height = 'auto';
+    document.body.style.minHeight = '100vh';
+    
+    // 2. Force HTML to allow scroll
+    document.documentElement.style.overflowY = 'auto';
+    document.documentElement.style.height = 'auto';
+
+    // 3. Cleanup when leaving this page (optional, keeps dashboard app-like)
+    return () => {
+      document.body.style.overflowY = '';
+      document.body.style.height = '';
+      document.body.style.minHeight = '';
+      document.documentElement.style.overflowY = '';
+      document.documentElement.style.height = '';
+    };
+  }, []);
+
   // 1. Verify Survey Exists
   useEffect(() => {
     async function checkSurvey() {
@@ -71,7 +93,7 @@ export default function PublicSurveyPage() {
     checkSurvey();
   }, [id]);
 
-  // Scroll helper - Scrolls the actual window now
+  // Scroll helper
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -155,8 +177,6 @@ export default function PublicSurveyPage() {
   }
 
   // --- MAIN LAYOUT ---
-  // FIXED: Changed h-[100dvh] to min-h-screen. 
-  // This allows the page to grow naturally so window scrolling works.
   return (
     <div className="min-h-screen w-full bg-[#f8fafc] font-sans text-slate-900 flex flex-col items-center">
       
@@ -168,6 +188,11 @@ export default function PublicSurveyPage() {
         }
         .animate-safe {
           animation: fadeInScale 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+        /* EXTRA SAFEGUARD: Ensure this container allows scrolling */
+        html, body {
+            overflow-y: auto !important;
+            height: auto !important;
         }
       `}</style>
 
@@ -237,7 +262,7 @@ export default function PublicSurveyPage() {
                </div>
             </div>
 
-            {/* START BUTTON */}
+            {/* BIGGER CENTERED BUTTON */}
             <button 
               onClick={() => { setViewState('questions'); scrollToTop(); }}
               className="group w-full sm:w-auto text-2xl font-bold py-6 px-16 rounded-2xl transition-all active:scale-95 shadow-xl hover:shadow-2xl hover:-translate-y-1 flex items-center justify-center gap-3 text-white bg-[#1fb8cd] hover:bg-[#189cad]"
