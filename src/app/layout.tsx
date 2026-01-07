@@ -53,7 +53,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        style={{ height: '100dvh', overflow: 'hidden', margin: 0 }}
+        // FIXED: Removed the inline style={{ overflow: 'hidden' }} 
+        // This allows globals.css to control scrolling.
       >
         <ClientLayout>
           {children}
