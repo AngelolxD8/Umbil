@@ -73,12 +73,7 @@ export default function PublicSurveyPage() {
 
   // Scroll helper
   const scrollToTop = () => {
-    const container = document.getElementById('survey-container');
-    if (container) {
-        container.scrollTo({ top: 0, behavior: 'smooth' });
-    } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   // 2. Handle Answer Selection
@@ -140,7 +135,7 @@ export default function PublicSurveyPage() {
   // --- RENDER: LOADING / ERROR ---
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-white w-full">
         <Activity className="w-10 h-10 animate-pulse mb-4 text-[#1fb8cd]" />
         <p className="text-gray-400 font-medium">Loading...</p>
       </div>
@@ -149,7 +144,7 @@ export default function PublicSurveyPage() {
 
   if (!surveyValid) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center p-6 bg-gray-50 w-full">
         <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-gray-200 p-10 text-center">
           <AlertCircle className="w-12 h-12 text-rose-400 mx-auto mb-4" />
           <h1 className="text-xl font-bold text-gray-900 mb-2">Survey Not Found</h1>
@@ -161,7 +156,7 @@ export default function PublicSurveyPage() {
 
   // --- MAIN LAYOUT ---
   return (
-    <div id="survey-container" className="h-[100dvh] w-full bg-[#f8fafc] font-sans text-slate-900 overflow-y-auto overflow-x-hidden">
+    <div className="min-h-screen w-full bg-[#f8fafc] font-sans text-slate-900 flex flex-col items-center">
       
       {/* LOCAL STYLES FOR SAFE ANIMATION */}
       <style jsx global>{`
@@ -174,9 +169,9 @@ export default function PublicSurveyPage() {
         }
       `}</style>
 
-      {/* 1. TOP HEADER (Centered Content) */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-4xl mx-auto px-6 h-20 flex items-center justify-between">
+      {/* 1. TOP HEADER (Full Width, Centered Content) */}
+      <header className="w-full bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm flex justify-center">
+        <div className="w-full max-w-4xl px-6 h-20 flex items-center justify-between">
           
           {/* Logo / Brand */}
           <div className="flex items-center gap-3">
@@ -203,12 +198,12 @@ export default function PublicSurveyPage() {
         </div>
       </header>
 
-      {/* 2. MAIN CONTENT AREA */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-16 pb-32">
+      {/* 2. MAIN CONTENT AREA (Centered & Constrained) */}
+      <main className="w-full max-w-4xl px-4 sm:px-6 py-10 sm:py-16 pb-32 flex flex-col items-center">
         
         {/* --- VIEW: INTRO (CENTERED) --- */}
         {viewState === 'intro' && (
-          <div className="animate-safe flex flex-col items-center text-center">
+          <div className="animate-safe flex flex-col items-center text-center w-full">
             
             <div className="mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-gray-200 text-slate-500 text-sm font-semibold shadow-sm">
               <Sparkles size={16} className="text-[#1fb8cd]" /> 
@@ -219,13 +214,13 @@ export default function PublicSurveyPage() {
               Help us improve<br/> your care experience.
             </h1>
             
-            <p className="text-xl sm:text-2xl text-slate-500 mb-12 leading-relaxed max-w-2xl mx-auto">
+            <p className="text-xl sm:text-2xl text-slate-500 mb-12 leading-relaxed max-w-2xl">
               Your feedback is anonymous and takes less than 2 minutes. 
               We use this to improve our services and for professional revalidation.
             </p>
 
-            {/* Reassurance Grid (Centered) */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mb-12 max-w-2xl mx-auto">
+            {/* Reassurance Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 w-full mb-12 max-w-3xl">
                <div className="p-6 rounded-2xl bg-white border border-gray-200 shadow-sm flex flex-col items-center justify-center gap-3 hover:shadow-md transition-shadow">
                  <UserX size={28} className="text-slate-400"/>
                  <span className="font-bold text-lg text-slate-700">Anonymous</span>
@@ -253,15 +248,17 @@ export default function PublicSurveyPage() {
 
         {/* --- VIEW: QUESTIONS (CENTERED) --- */}
         {viewState === 'questions' && (
-          <div key={fadeKey} className="animate-safe flex flex-col items-center">
+          <div key={fadeKey} className="animate-safe w-full flex flex-col items-center">
             
-            {/* Back Link (Centered) */}
-            <button 
-                onClick={handleBack}
-                className="mb-8 text-slate-400 hover:text-slate-600 font-medium text-sm flex items-center transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
-            >
-                <ChevronLeft size={18} className="mr-1" /> Go Back
-            </button>
+            {/* Back Link */}
+            <div className="w-full flex justify-center sm:justify-start mb-8 max-w-xl">
+               <button 
+                  onClick={handleBack}
+                  className="text-slate-400 hover:text-slate-600 font-medium text-sm flex items-center transition-colors px-3 py-1.5 rounded-lg hover:bg-gray-100"
+              >
+                  <ChevronLeft size={18} className="mr-1" /> Go Back
+              </button>
+            </div>
 
             {/* Domain Label */}
             <span 
@@ -270,19 +267,19 @@ export default function PublicSurveyPage() {
                {currentQuestion.domain}
             </span>
 
-            {/* Question Text (Centered) */}
-            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 mb-8 leading-tight text-center">
+            {/* Question Text */}
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold text-slate-900 mb-8 leading-tight text-center max-w-3xl">
               {currentQuestion.text}
             </h2>
 
-            {/* Description Box (Centered) */}
+            {/* Description Box */}
             {currentQuestion.description && (
-              <div className="w-full bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm mb-10 text-slate-600 text-lg sm:text-xl leading-relaxed text-center">
+              <div className="w-full max-w-2xl bg-white p-6 sm:p-8 rounded-2xl border border-gray-200 shadow-sm mb-10 text-slate-600 text-lg sm:text-xl leading-relaxed text-center">
                 {currentQuestion.description}
               </div>
             )}
 
-            {/* Options List (Centered Container) */}
+            {/* Options List */}
             <div className="flex flex-col gap-4 w-full max-w-xl">
               {OPTIONS.map((opt) => {
                 const isSelected = currentAnswer === opt.value;
@@ -319,7 +316,7 @@ export default function PublicSurveyPage() {
 
         {/* --- VIEW: FEEDBACK (CENTERED) --- */}
         {viewState === 'feedback' && (
-           <div className="animate-safe flex flex-col items-center text-center">
+           <div className="animate-safe flex flex-col items-center text-center w-full">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-6">Final Comments</h2>
               <p className="text-slate-500 mb-10 text-xl max-w-2xl">
                   Is there anything else you would like to share about your experience? (Optional)
@@ -332,7 +329,7 @@ export default function PublicSurveyPage() {
                 onChange={(e) => setFeedbackText(e.target.value)}
               />
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full">
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 w-full max-w-2xl">
                     <button
                         onClick={submitFeedback}
                         disabled={submitting}
@@ -353,7 +350,7 @@ export default function PublicSurveyPage() {
 
         {/* --- VIEW: COMPLETED (CENTERED) --- */}
         {viewState === 'completed' && (
-            <div className="animate-safe flex items-center justify-center min-h-[50vh]">
+            <div className="animate-safe flex items-center justify-center min-h-[50vh] w-full">
                 <div className="text-center w-full max-w-lg bg-white p-10 rounded-[2.5rem] shadow-2xl border border-gray-100">
                     <div className="w-24 h-24 rounded-full bg-teal-50 flex items-center justify-center mb-8 mx-auto animate-bounce">
                         <CheckCircle2 size={48} className="text-[#1fb8cd]" />

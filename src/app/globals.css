@@ -46,7 +46,7 @@
   }
 }
 
-/* src/app/globals.css - REPLACE THE 'body' AND '#root' BLOCKS WITH THIS */
+/* REPLACE THE EXISTING body AND #root BLOCKS WITH THIS */
 
 body {
   font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -57,12 +57,15 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   
-  /* FIXED: Use min-height so content can grow */
+  /* FIXED: Use width:100% to prevent scrollbar shift */
+  width: 100%;
+  /* FIXED: Use min-height so it grows */
   min-height: 100dvh;
+  
   display: flex;
   flex-direction: column;
   
-  /* FIXED: Set overflow-y to auto to ENABLE SCROLLING */
+  /* FIXED: Allow vertical scrolling, kill horizontal gap */
   overflow-y: auto; 
   overflow-x: hidden;
   
@@ -72,10 +75,9 @@ body {
 #root {
   display: flex;
   flex-direction: column;
-  /* FIXED: Match body min-height */
   min-height: 100dvh;
-  /* FIXED: Allow overflow so scrolling works */
-  overflow: visible; 
+  width: 100%;
+  overflow: visible; /* Let children manage overflow */
 }
 
 * {
