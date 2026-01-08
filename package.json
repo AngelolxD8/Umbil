@@ -12,6 +12,8 @@
     "@ai-sdk/openai": "^2.0.62",
     "@ai-sdk/react": "^2.0.87",
     "@ai-sdk/togetherai": "^1.0.27",
+    "@headlessui/react": "^2.2.9",
+    "@react-pdf/renderer": "^4.3.2",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
     "@tavily/core": "^0.5.13",
