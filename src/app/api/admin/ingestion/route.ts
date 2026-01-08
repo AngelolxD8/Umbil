@@ -2,14 +2,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabaseService";
 import { generateEmbedding }from "@/lib/rag";
-import { createTogetherAI } from "@ai-sdk/togetherai";
+import { OpenAI } from "openai";
 import { embed, generateText } from "ai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
 import { metadata } from "@/app/head";
 import { Truculenta } from "next/font/google";
 
-const togetherai = createTogetherAI({ apiKey: process.env.TOGETHER_API_KEY! });
-const MODEL_SLUG = "openai/gpt-oss-120b";
+const openai = new OpenAI();
+const MODEL_SLUG = "gpt-4.1";
 
 export async function POST(request: NextRequest) {
   try {
@@ -20,14 +20,29 @@ export async function POST(request: NextRequest) {
     }
 
     // 1. rewrite step
-    const { text: originalUmbilContent } = await generateText({
-      model: togetherai(MODEL_SLUG),
-      prompt: `${INGESTION_PROMPT}\n\n${text}`,
+    const completion = await openai.chat.completions.create({
+      model: MODEL_SLUG,
+      messages: [
+      {
+        role: "system",
+        content: INGESTION_PROMPT
+      },
+      {
+        role: "user",
+        content: text
+      }
+      ],
       temperature: 0.3, // This keeps it highly factual and avoid hallucination
     });
 
+    const originalUmbilContent = completion.choices[0].message.content;
+
+    if (!originalUmbilContent) {
+      throw new Error("OpenAI returned no content");
+    }
+
     // 2. chonking
-    const chunks = originalUmbilContent.split("\n\n").filter((c) => c.length > 50);
+    const chunks = originalUmbilContent.split("\n\n").filter((c) => c.length > 100);
 
     // 3. embed & store in supabase
     let chunksProcessed = 0;

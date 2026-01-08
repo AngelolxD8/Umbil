@@ -1,7 +1,5 @@
 // src/lib/rag.ts
 
-// !! Uses OPENAI text-embedding-small model (paid per token), do we want that?
-
 import { OpenAI } from "openai";
 import { supabaseService } from "./supabaseService";
 
