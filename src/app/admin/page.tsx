@@ -1,13 +1,16 @@
 // src/app/admin/page.tsx
 "use client";
 
+import Toast from "@/components/Toast";
 import { useState } from "react";
 
 export default function AdminIngestionPage() {
 	const [text, setText] = useState("");
 	const [source, setSource] = useState("");
+  const [rewritten, setRewritten] = useState("");
 	const [password, setPassword] = useState("");
 	const [status, setStatus] = useState<string | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 	const [loading, setLoading] = useState(false);
 
 	const handleIngestion = async () => {
@@ -17,6 +20,7 @@ export default function AdminIngestionPage() {
 			return;
 		}
 		if (!text.trim() || !source.trim()) {
+      setToastMessage("Error: Please provide both text and a source name.")
 			setStatus("Please provide both text and a source name.");
 			return;
 		}
@@ -35,9 +39,15 @@ export default function AdminIngestionPage() {
 
 			if (!response.ok) throw new Error(data.error || "Failed to complete ingestion process");
 			
+      setRewritten(data.rewrittenContent || "");
+
 			setStatus(`Success! Processed ${data.chunksProcessed} chunks from "${source}".`);
+      setToastMessage(`Success! Processed ${data.chunksProcessed} chunks from "${source}".`)
+      setSource("");
 			setText(""); // clears text for next process
+
 		} catch (err: any) {
+      setToastMessage("Error: Failed to complete ingestion process!")
 			console.error(err);
 			setStatus(`Error: ${err.message}`);
 		} finally {
@@ -106,10 +116,22 @@ export default function AdminIngestionPage() {
                 {status}
               </div>
             )}
-
+            <div style={{marginTop: "36px"}}>
+              Rewritten text:
+              <div style={{marginTop: "8px", width:"100%"}}>
+                <textarea
+                  className="form-control"
+                  disabled
+                  value={rewritten}
+                  rows={5}
+                  placeholder="Rewritten text will appear here"
+                />
+              </div>
+            </div>
           </div>
         </div>
       </div>
+      <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
     </section>
   );
 }

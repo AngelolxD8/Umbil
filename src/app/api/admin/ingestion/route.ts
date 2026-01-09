@@ -1,4 +1,4 @@
-// src/app/api/admin/ingest/route.ts
+// src/app/api/admin/ingestion/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabaseService";
 import { generateEmbedding }from "@/lib/rag";
@@ -25,7 +25,9 @@ export async function POST(request: NextRequest) {
       messages: [
       {
         role: "system",
-        content: INGESTION_PROMPT
+        content: `${INGESTION_PROMPT}
+        Include the source citation at the end of the rewritten original content.
+        Source: ${source}`
       },
       {
         role: "user",
@@ -41,6 +43,8 @@ export async function POST(request: NextRequest) {
       throw new Error("OpenAI returned no content");
     }
 
+    const rewrittenContent = originalUmbilContent;
+
     // 2. chonking
     const chunks = originalUmbilContent.split("\n\n").filter((c) => c.length > 100);
 
@@ -50,7 +54,7 @@ export async function POST(request: NextRequest) {
     for (const chunk of chunks) {
       const embedding = await generateEmbedding(chunk);
       
-      await supabaseService.from("documents").insert({
+      await supabaseService.from("knowledge_base").insert({
         content: chunk,
         metadata: {
           source,
@@ -65,6 +69,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       chunksProcessed,
+      rewrittenContent,
       message: "Contents have been rewritten and stored as Umbil Original."
     });
 
