@@ -25,7 +25,7 @@ export default function AdminIngestionPage() {
 		setStatus("Processing text.. (Chunking & Embedding text)");
 
 		try {
-			const response = await fetch("/api/admin/ingest", {
+			const response = await fetch("/api/admin/ingestion", {
 				method: "POST",
 				headers: { "Content-Type": "application/json"},
 				body: JSON.stringify({ text, source }),
