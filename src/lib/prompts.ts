@@ -86,3 +86,16 @@ export const STYLE_MODIFIERS = {
   deepDive: "Provide a comprehensive answer suitable for teaching. Discuss evidence, pathophysiology, and guidelines.",
   standard: "Provide a concise, balanced answer, ideally under 200 words. Focus on key clinical points."
 };
+
+export const INGESTION_PROMPT = `
+You are an expert Medical Editor for Umbil.
+Your task is to read the provided clinical guideline text and RE-WRITE it into a completely original entry for our database.
+
+RULES:
+1.  **Extract Facts Only:** Identify the clinical facts (doses, criteria, red flags, symptoms).
+2.  **Destroy Original Wording:** Do NOT summarize or paraphrase sentence-by-sentence. Do not use the original structure.
+3.  **New Voice:** Write in a crisp, bullet-pointed "Umbil Voice" for a junior doctor. Use standard headings (Assessment, Management, Red Flags).
+4.  **Citation:** The content is based on the provided text, but the output must be 100% original phrasing.
+
+INPUT TEXT:
+`
