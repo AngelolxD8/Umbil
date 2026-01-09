@@ -8,12 +8,13 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   ArrowLeft, TrendingUp, Award, Activity, MessageSquareQuote, 
-  Calendar, Sparkles, Copy, Check, ChevronRight 
+  Calendar, Sparkles, Copy, Check, ChevronRight, Printer 
 } from 'lucide-react';
 import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, 
   CartesianGrid, Tooltip, BarChart, Bar, Cell
 } from 'recharts';
+import { PSQ_QUESTIONS } from '@/lib/psq-questions';
 
 function AnalyticsContent() {
   const { email, loading: authLoading } = useUserEmail();
@@ -135,6 +136,7 @@ function AnalyticsContent() {
     const performance = Object.entries(qCounts)
         .filter(([id]) => qLabels[id])
         .map(([id, data]) => ({
+            id: id,
             name: qLabels[id] || id,
             score: data.count > 0 ? parseFloat((data.sum / data.count).toFixed(2)) : 0
         }))
@@ -197,6 +199,143 @@ function AnalyticsContent() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  // --- PRINT PDF REPORT GENERATOR ---
+  const printReport = () => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+        alert("Please allow popups to print your report.");
+        return;
+    }
+
+    // 1. Generate Rows for Question Table
+    const scoresRows = questionPerformance.map(q => {
+        // Try to find the full question text from the constant file
+        // ID format in state is 'q1', 'q2', but in constant file it is '1', '2'
+        const numericId = q.id.replace('q', '');
+        const fullQ = PSQ_QUESTIONS.find(item => item.id === numericId);
+        const questionText = fullQ ? fullQ.text : q.name;
+        
+        return `
+            <tr>
+                <td style="font-weight: 500;">${questionText}</td>
+                <td style="text-align: right; font-weight: 700; color: #0e7490;">${q.score.toFixed(2)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    // 2. Generate Comment List
+    const commentsHtml = textFeedback.map(fb => `
+        <div class="comment-box">
+            <div class="comment-date">${fb.date}</div>
+            ${fb.positive ? `<div class="comment-section"><strong>Done Well:</strong> "${fb.positive}"</div>` : ''}
+            ${fb.improve ? `<div class="comment-section" style="margin-top:4px;"><strong>To Improve:</strong> "${fb.improve}"</div>` : ''}
+        </div>
+    `).join('');
+
+    // 3. Reflection HTML
+    const reflectionHtml = reflection 
+        ? `<div class="reflection-box"><h3>💡 Reflection & Action Plan</h3><div class="markdown-body">${reflection.replace(/\n/g, '<br/>')}</div></div>`
+        : '';
+
+    // 4. Construct Full HTML
+    const htmlContent = `
+      <html>
+        <head>
+          <title>PSQ Report - ${reportTitle}</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; max-width: 900px; margin: 0 auto; line-height: 1.5; }
+            
+            /* Header */
+            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; display: flex; justify-content: space-between; align-items: end; }
+            h1 { color: #0f172a; margin: 0; font-size: 24px; }
+            .subtitle { color: #64748b; font-size: 14px; margin-top: 5px; }
+
+            /* Dashboard Summary */
+            .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 30px; background: #f0fdfa; padding: 20px; border-radius: 12px; border: 1px solid #ccfbf1; }
+            .stat-box { text-align: center; }
+            .stat-val { display: block; font-size: 24px; font-weight: 800; color: #0f766e; }
+            .stat-label { font-size: 11px; color: #5eead4; color: #115e59; text-transform: uppercase; font-weight: 700; letter-spacing: 0.05em; margin-top: 4px; }
+
+            /* Table Styles */
+            table { width: 100%; border-collapse: collapse; margin-bottom: 30px; font-size: 14px; }
+            th { text-align: left; border-bottom: 2px solid #cbd5e1; padding: 10px; color: #64748b; text-transform: uppercase; font-size: 12px; }
+            td { border-bottom: 1px solid #e2e8f0; padding: 12px 10px; color: #334155; }
+            tr:last-child td { border-bottom: none; }
+
+            /* Comments */
+            .section-title { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 15px; border-left: 4px solid #0d9488; padding-left: 10px; }
+            .comment-box { background: white; border: 1px solid #e2e8f0; padding: 15px; border-radius: 8px; margin-bottom: 15px; page-break-inside: avoid; }
+            .comment-date { font-size: 11px; color: #94a3b8; font-weight: 600; margin-bottom: 5px; }
+            .comment-section { font-size: 13px; color: #334155; font-style: italic; }
+
+            /* Reflection */
+            .reflection-box { background: #fff7ed; border: 1px solid #fed7aa; padding: 25px; border-radius: 8px; margin-bottom: 30px; }
+            .reflection-box h3 { color: #9a3412; margin: 0 0 15px 0; font-size: 16px; }
+            .markdown-body { font-size: 14px; color: #431407; white-space: pre-wrap; }
+
+            @media print { 
+                body { padding: 0; } 
+                .dashboard, .reflection-box, .comment-box { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+             <div>
+                <h1>${reportTitle}</h1>
+                <div class="subtitle">Patient Satisfaction Questionnaire Report • Generated by Umbil</div>
+             </div>
+             <div class="subtitle" style="text-align: right;">
+                Date: ${new Date().toLocaleDateString()}
+             </div>
+          </div>
+          
+          <div class="dashboard">
+             <div class="stat-box">
+                <span class="stat-val">${stats.totalResponses}</span>
+                <span class="stat-label">Total Responses</span>
+             </div>
+             <div class="stat-box">
+                <span class="stat-val">${stats.averageScore}</span>
+                <span class="stat-label">Average Score (Max 5)</span>
+             </div>
+             <div class="stat-box">
+                <span class="stat-val" style="font-size: 18px; line-height: 1.4;">${stats.topArea}</span>
+                <span class="stat-label">Highest Rated Area</span>
+             </div>
+          </div>
+
+          ${reflectionHtml}
+
+          <div class="section-title">Score Breakdown</div>
+          <table>
+            <thead>
+                <tr>
+                    <th>Question Area</th>
+                    <th style="text-align: right;">Average Score</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${scoresRows}
+            </tbody>
+          </table>
+
+          <div class="section-title" style="page-break-before: auto;">Patient Comments (Recent)</div>
+          ${commentsHtml.length > 0 ? commentsHtml : '<p style="color: #64748b; font-style: italic;">No written comments available.</p>'}
+          
+          <script>
+            window.onload = function() { setTimeout(() => window.print(), 500); }
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
+
   if (authLoading || loading) {
       return (
         <div className="flex h-[80vh] items-center justify-center bg-slate-50">
@@ -225,12 +364,24 @@ function AnalyticsContent() {
                         {surveyId ? 'Detailed breakdown of patient feedback for this cycle.' : 'Longitudinal analysis of your patient satisfaction.'}
                     </p>
                 </div>
-                {trendData.length > 0 && (
-                    <div className="bg-white px-5 py-3 rounded-full border border-slate-200 shadow-sm flex items-center gap-3 text-sm font-medium text-slate-600">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
-                        Last response: {trendData[trendData.length - 1].date}
-                    </div>
-                )}
+                
+                <div className="flex items-center gap-4">
+                    {/* EXPORT BUTTON */}
+                    <button 
+                        onClick={printReport}
+                        className="flex items-center gap-2 bg-white text-slate-700 px-4 py-2.5 rounded-xl border border-slate-200 font-semibold shadow-sm hover:shadow-md hover:text-[var(--umbil-brand-teal)] hover:border-[var(--umbil-brand-teal)] transition-all"
+                    >
+                        <Printer size={18} />
+                        <span className="hidden sm:inline">Export Report PDF</span>
+                    </button>
+
+                    {trendData.length > 0 && (
+                        <div className="bg-white px-5 py-3 rounded-full border border-slate-200 shadow-sm flex items-center gap-3 text-sm font-medium text-slate-600">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                            Last response: {trendData[trendData.length - 1].date}
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
 
