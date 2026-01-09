@@ -1,267 +1,393 @@
+// src/app/psq/page.tsx
 'use client';
 
-import React, { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { Plus, Copy, Check, FileText, PieChart, Trash2, X, ExternalLink } from 'lucide-react';
+import { useUserEmail } from "@/hooks/useUser";
 
-import { useUserEmail } from '@/hooks/useUser'; 
-import { calculatePsqAnalytics, PsqAnalytics } from '@/lib/psq-analytics';
-import ReportModal from '@/components/ReportModal';
-// Import new function
-import { getPsqData, PsqResponseRow } from '@/lib/store';
+export default function PSQDashboard() {
+  const [surveys, setSurveys] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newSurveyTitle, setNewSurveyTitle] = useState('');
+  const [creating, setCreating] = useState(false);
 
-// --- VISUAL COMPONENTS ---
+  const { email, loading: userLoading } = useUserEmail();
 
-const TrendBar = ({ height, label, active }: { height: number; label: string; active?: boolean }) => (
-  <div className="flex flex-col items-center gap-2 group">
-    <div className="relative h-32 w-4 flex items-end bg-gray-100 rounded-full overflow-hidden">
-      <div 
-        className={`w-full rounded-full transition-all duration-1000 ${active ? 'bg-blue-600' : 'bg-blue-300'}`}
-        style={{ height: `${height}%` }}
-      ></div>
-    </div>
-    <span className={`text-xs ${active ? 'font-bold text-gray-900' : 'text-gray-400'}`}>{label}</span>
-  </div>
-);
-
-const ScoreCard = ({ title, score, total, suffix = '', subtext }: { title: string, score: number, total?: number, suffix?: string, subtext?: string }) => (
-  <div className="bg-white overflow-hidden rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between h-full">
-    <div>
-      <dt className="text-sm font-medium text-gray-500 truncate">{title}</dt>
-      <dd className="mt-4 flex items-baseline">
-        <span className="text-4xl font-extrabold tracking-tight text-gray-900">
-          {score}
-        </span>
-        {total && <span className="ml-1 text-xl font-semibold text-gray-400">/{total}</span>}
-        {suffix && <span className="ml-1 text-xl font-semibold text-gray-400">{suffix}</span>}
-      </dd>
-    </div>
-    {subtext && <p className="mt-4 text-sm text-gray-500">{subtext}</p>}
-    <div className="mt-4 w-full bg-gray-100 rounded-full h-1.5">
-       <div 
-         className="bg-blue-600 h-1.5 rounded-full transition-all duration-1000" 
-         style={{ width: `${total ? (score/total)*100 : score}%` }}
-       />
-    </div>
-  </div>
-);
-
-// --- MAIN PAGE COMPONENT ---
-
-export default function MyPsqPage() {
-  const router = useRouter();
-  const { email, loading: userLoading } = useUserEmail(); 
-
-  const [responses, setResponses] = useState<PsqResponseRow[]>([]);
-  const [stats, setStats] = useState<PsqAnalytics | null>(null);
-  const [isReportOpen, setIsReportOpen] = useState(false);
-  const [dataLoading, setDataLoading] = useState(true);
-
-  // --- 1. Load Data from Supabase ---
   useEffect(() => {
-    async function loadData() {
-      if (userLoading || !email) {
-         if (!userLoading) setDataLoading(false);
-         return;
-      }
+    if (email) fetchSurveys();
+  }, [email]);
 
-      const { responses } = await getPsqData();
-      setResponses(responses || []);
-      setDataLoading(false);
+  const fetchSurveys = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const { data } = await supabase
+      .from('psq_surveys')
+      .select('*, psq_responses(count)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (data) setSurveys(data);
+    setLoading(false);
+  };
+
+  const handleCreateOpen = () => {
+    setNewSurveyTitle(`PSQ Cycle ${new Date().getFullYear()}`);
+    setIsModalOpen(true);
+  };
+
+  const createSurvey = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    if (user) {
+        const { data } = await supabase
+        .from('psq_surveys')
+        .insert({ user_id: user.id, title: newSurveyTitle })
+        .select()
+        .single();
+
+        if (data) {
+            setSurveys([data, ...surveys]);
+            setIsModalOpen(false);
+        }
     }
+    setCreating(false);
+  };
 
-    loadData();
-  }, [email, userLoading]);
+  const deleteSurvey = async (id: string) => {
+    if (!window.confirm("Are you sure? This will delete the survey AND all patient responses collected.")) return;
+    
+    const { error } = await supabase.from('psq_surveys').delete().eq('id', id);
+    
+    if (!error) {
+      setSurveys(surveys.filter(s => s.id !== id));
+    } else {
+      console.error('Delete error:', error);
+      alert("Could not delete. Please try again.");
+    }
+  };
 
-  // --- 2. Calculate Analytics ---
-  useEffect(() => {
-    // Pass ALL responses to analytics engine
-    const currentStats = calculatePsqAnalytics(responses);
-    setStats(currentStats);
-  }, [responses]);
+  const copyLink = (id: string) => {
+    const url = `${window.location.origin}/s/${id}`;
+    navigator.clipboard.writeText(url);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
-  if (userLoading || dataLoading) {
+  if (userLoading) return null;
+  
+  if (!email) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500 animate-pulse">Loading dashboard...</div>
-      </div>
+      <section className="main-content">
+        <div className="container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
+          <div className="card" style={{ maxWidth: '400px', textAlign: 'center', padding: '40px' }}>
+            <h3 style={{ marginBottom: '12px' }}>Sign in Required</h3>
+            <p style={{ color: 'var(--umbil-muted)', marginBottom: '24px' }}>Please sign in to manage your patient feedback.</p>
+            <Link href="/auth" className="btn btn--primary" style={{ display: 'inline-block', width: '100%' }}>Sign In</Link>
+          </div>
+        </div>
+      </section>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      
-      {/* HERO HEADER */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">PSQ Results Dashboard</h1>
-              <p className="mt-1 text-sm text-gray-500">
-                Aggregated feedback from your Patient Satisfaction Questionnaires.
-              </p>
-              {email && <p className="mt-1 text-xs text-gray-400">Logged in as {email}</p>}
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-               <button
-                 onClick={() => router.push('/psq/assessment')}
-                 className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
-               >
-                 Survey Settings
-               </button>
-               <button
-                 onClick={() => setIsReportOpen(true)}
-                 className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
-               >
-                 Export Report PDF
-               </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* DASHBOARD CONTENT */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <section className="main-content">
+      <div className="container" style={{ maxWidth: '1000px', paddingBottom: '60px' }}>
         
-        {/* TOP METRICS GRID */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          
-          {/* 1. Overall Score */}
-          <ScoreCard 
-            title="Overall Satisfaction" 
-            score={stats?.overallScore ?? 0} 
-            total={100} 
-            subtext="Average across all domains"
-          />
-
-          {/* 2. Key Strength */}
-          <div className="bg-white overflow-hidden rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col justify-between h-full">
-            <div>
-              <dt className="text-sm font-medium text-gray-500">Top Performing Area</dt>
-              <dd className="mt-4 text-xl font-bold text-green-600">
-                {stats?.keyStrength || 'N/A'}
-              </dd>
-            </div>
-            <p className="mt-4 text-sm text-gray-500">
-              Highest rated domain
-            </p>
-          </div>
-
-          {/* 3. Responses Count */}
-          <ScoreCard 
-            title="Total Responses" 
-            score={stats?.completedResponses ?? 0} 
-            subtext="Surveys submitted by patients"
-          />
-
-          {/* 4. Action Card */}
-          <div className="bg-blue-600 overflow-hidden rounded-xl shadow-sm border border-blue-600 p-6 flex flex-col justify-center items-center text-center h-full">
-            <h3 className="text-white font-bold text-lg mb-2">Need more data?</h3>
-            <p className="text-blue-100 text-sm mb-4">Share your survey link with more patients.</p>
-            <button 
-              onClick={() => {
-                 // Logic to copy link or go to share page
-                 // For now just refresh
-                 router.refresh();
-              }}
-              className="px-4 py-2 bg-white text-blue-600 text-sm font-medium rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              Share Survey
-            </button>
-          </div>
-        </div>
-
-        {/* MAIN SPLIT: Breakdown vs Trend */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          
-          {/* BREAKDOWN (Left 2/3) */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 flex flex-col">
-            <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
-               <h3 className="text-lg font-medium leading-6 text-gray-900">Domain Breakdown</h3>
-               <span className="text-xs text-gray-400 uppercase tracking-wider">Patient Ratings</span>
-            </div>
-            <div className="p-6 flex-1 space-y-6">
-              {stats?.breakdown && stats.breakdown.length > 0 ? (
-                stats.breakdown.map((item) => (
-                  <div key={item.id}>
-                    <div className="flex justify-between items-end mb-1">
-                      <span className="text-sm font-medium text-gray-700">{item.label}</span>
-                      <span className="text-sm font-bold text-gray-900">{item.percentage}%</span>
-                    </div>
-                    <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
-                      <div
-                        className={`h-2.5 rounded-full transition-all duration-700 ${
-                          item.percentage >= 80 ? 'bg-green-500' : 
-                          item.percentage >= 50 ? 'bg-blue-500' : 'bg-amber-400'
-                        }`}
-                        style={{ width: `${item.percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="py-12 text-center text-gray-400">
-                  <p>No feedback received yet.</p>
+        {/* Header Section */}
+        <div style={{ marginBottom: '40px' }}>
+            <div className="dashboard-header">
+                <div>
+                    <h1 style={{ fontSize: '2rem', fontWeight: 700, letterSpacing: '-0.02em', marginBottom: '8px' }}>Patient Feedback</h1>
+                    <p style={{ fontSize: '1.05rem', color: 'var(--umbil-muted)' }}>Collect and analyze anonymous feedback for your revalidation.</p>
                 </div>
-              )}
+                {/* Top Actions */}
+                <div className="header-actions">
+                    <Link href="/psq/analytics" className="btn btn--outline analytics-btn">
+                        <PieChart size={20} /> Analytics
+                    </Link>
+                    <button onClick={handleCreateOpen} className="btn btn--primary new-cycle-btn">
+                        <Plus size={20} /> New Cycle
+                    </button>
+                </div>
             </div>
-          </div>
-
-          {/* TREND & INSIGHTS (Right 1/3) */}
-          <div className="space-y-6">
-            
-            {/* Chart */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-               <h3 className="text-sm font-medium text-gray-500 mb-6">Recent Responses</h3>
-               <div className="flex items-end justify-around h-40 px-2 border-b border-gray-100 pb-4">
-                 {stats?.trend && stats.trend.length > 0 ? (
-                    stats.trend.map((t, idx) => (
-                      <TrendBar 
-                        key={idx} 
-                        height={t.score} 
-                        label={t.date} 
-                        active={idx === stats.trend.length - 1} 
-                      />
-                    ))
-                 ) : (
-                    <span className="text-gray-400 text-sm self-center">No history</span>
-                 )}
-               </div>
-               <p className="mt-4 text-xs text-gray-400 text-center">
-                 Trend of the last 5 feedback submissions.
-               </p>
-            </div>
-
-            {/* Quick Tip */}
-            <div className="bg-blue-50 rounded-xl p-6 border border-blue-100">
-               <div className="flex items-start gap-3">
-                 <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
-                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                   </svg>
-                 </div>
-                 <div>
-                   <h4 className="text-blue-900 font-medium text-sm">Focus Area</h4>
-                   <p className="text-blue-700 text-sm mt-1 leading-relaxed">
-                     {stats?.keyStrength !== 'No Data Yet' 
-                       ? `Patients appreciate your ${stats?.keyStrength}. Keep maintaining high standards here.`
-                       : "Waiting for more data to generate insights."}
-                   </p>
-                 </div>
-               </div>
-            </div>
-
-          </div>
         </div>
+
+        {/* List Section */}
+        {loading ? (
+           <div style={{ display: 'grid', gap: '16px' }}>
+             {[1, 2].map(i => <div key={i} className="card" style={{ height: '100px', background: 'var(--umbil-hover-bg)' }}></div>)}
+           </div>
+        ) : surveys.length === 0 ? (
+          <div className="card" style={{ padding: '80px 20px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+             <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '8px' }}>No feedback cycles yet</h3>
+             <button onClick={handleCreateOpen} className="btn btn--outline" style={{ marginTop: '24px' }}>Start Your First Cycle</button>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gap: '16px' }}>
+            {surveys.map((survey) => {
+              const responseCount = survey.psq_responses?.[0]?.count || 0;
+              return (
+                <div key={survey.id} className="card">
+                  <div className="card__body psq-card-body">
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 300px' }}>
+                        <div style={{ padding: '12px', background: 'var(--umbil-bg)', borderRadius: '12px', color: 'var(--umbil-brand-teal)' }}>
+                            <FileText size={24} />
+                        </div>
+                        <div>
+                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0 }}>{survey.title}</h3>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+                                <span style={{ fontSize: '0.85rem', color: 'var(--umbil-muted)', background: 'var(--umbil-hover-bg)', padding: '2px 8px', borderRadius: '6px' }}>
+                                    {new Date(survey.created_at).toLocaleDateString()}
+                                </span>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--umbil-brand-teal)' }}>
+                                    {responseCount} {responseCount === 1 ? 'Response' : 'Responses'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card-actions">
+                      <button 
+                        onClick={() => copyLink(survey.id)} 
+                        className="btn btn--outline" 
+                        title="Copy Link to Clipboard"
+                        style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 14px' }}
+                      >
+                        {copiedId === survey.id ? <Check size={16} /> : <Copy size={16}/>}
+                        <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
+                            {copiedId === survey.id ? 'Copied' : 'Link to Survey'}
+                        </span>
+                      </button>
+
+                      <Link href={`/psq/analytics?id=${survey.id}`} className="btn btn--primary" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 16px', fontSize: '0.9rem' }}>
+                        View Report <ExternalLink size={14} />
+                      </Link>
+
+                      <button onClick={() => deleteSurvey(survey.id)} className="delete-btn" title="Delete Cycle">
+                        <Trash2 size={20} />
+                      </button>
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* PDF REPORT MODAL */}
-      <ReportModal 
-        isOpen={isReportOpen} 
-        onClose={() => setIsReportOpen(false)} 
-        stats={stats}
-      />
+      {/* Styled Modal */}
+      {isModalOpen && (
+        <div className="modal-overlay">
+            <div className="modal-content card">
+                <div className="modal-header">
+                    <h3>Start New Cycle</h3>
+                    <button onClick={() => setIsModalOpen(false)} className="close-btn">
+                        <X size={20} />
+                    </button>
+                </div>
+                
+                <form onSubmit={createSurvey}>
+                    <div className="modal-body">
+                        <label>Cycle Name</label>
+                        <input 
+                            type="text" 
+                            value={newSurveyTitle}
+                            onChange={(e) => setNewSurveyTitle(e.target.value)}
+                            placeholder="e.g. PSQ 2026"
+                            className="input-field"
+                            autoFocus
+                        />
+                    </div>
+                    <div className="modal-footer">
+                        <button type="button" onClick={() => setIsModalOpen(false)} className="btn btn--outline" style={{ flex: 1 }}>
+                            Cancel
+                        </button>
+                        <button type="submit" disabled={creating} className="btn btn--primary" style={{ flex: 1 }}>
+                            {creating ? 'Creating...' : 'Create Cycle'}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+      )}
 
-    </div>
+      <style jsx>{`
+        /* Dashboard Styles */
+        .dashboard-header {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .header-actions {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+        }
+        .analytics-btn, .new-cycle-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 12px 24px;
+        }
+        .analytics-btn {
+            border: 2px solid var(--umbil-divider);
+            font-weight: 700;
+        }
+        .new-cycle-btn {
+            background: var(--umbil-brand-teal);
+            box-shadow: 0 4px 12px rgba(31, 184, 205, 0.3);
+        }
+        .psq-card-body {
+            padding: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 16px;
+        }
+        .card-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ef4444;
+            padding: 10px;
+            cursor: pointer;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+            display: flex;
+            align-items: center;
+            border-radius: 8px;
+        }
+        .delete-btn:hover {
+            opacity: 1;
+            background: #fef2f2;
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.2s ease-out;
+        }
+        .modal-content {
+            width: 100%;
+            max-width: 440px;
+            background: white;
+            padding: 0;
+            overflow: hidden;
+            animation: zoomIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+            border: 1px solid var(--umbil-divider);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+        .modal-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid var(--umbil-divider);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--umbil-bg);
+        }
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.15rem;
+            font-weight: 700;
+        }
+        .close-btn {
+            background: transparent;
+            border: none;
+            color: var(--umbil-muted);
+            cursor: pointer;
+            padding: 4px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .close-btn:hover {
+            background: rgba(0,0,0,0.05);
+            color: var(--umbil-text);
+        }
+        .modal-body {
+            padding: 24px;
+        }
+        .modal-body label {
+            display: block;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--umbil-text);
+            margin-bottom: 8px;
+        }
+        .input-field {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid var(--umbil-divider);
+            border-radius: 12px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.2s;
+            background: var(--umbil-bg);
+        }
+        .input-field:focus {
+            border-color: var(--umbil-brand-teal);
+            box-shadow: 0 0 0 3px rgba(31, 184, 205, 0.15);
+            background: white;
+        }
+        .modal-footer {
+            padding: 20px 24px;
+            background: var(--umbil-bg);
+            border-top: 1px solid var(--umbil-divider);
+            display: flex;
+            gap: 12px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes zoomIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @media (min-width: 768px) {
+            .dashboard-header {
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: flex-start;
+            }
+            .header-actions {
+                width: auto;
+            }
+        }
+      `}</style>
+    </section>
   );
 }
+
