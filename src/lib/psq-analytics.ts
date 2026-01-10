@@ -1,127 +1,174 @@
 import { PSQ_QUESTIONS } from './psq-questions';
 
 // --- Types ---
-export interface SectionScore {
+
+export interface SurveyData {
   id: string;
-  label: string;
-  score: number;      // Average score (0-5 or 0-100 normalized)
-  maxScore: number;
-  percentage: number; // 0-100%
+  title: string;
+  created_at: string;
+  psq_responses: Array<{
+    answers: Record<string, any>;
+    created_at: string;
+    feedback_text?: string; // Sometimes feedback is separate
+  }>;
 }
 
-export interface PsqAnalytics {
-  overallScore: number;
-  keyStrength: string;
-  breakdown: SectionScore[];
-  trend: { date: string; score: number }[];
-  totalQuestions: number;
-  completedResponses: number; // Changed from 'completedQuestions' to 'completedResponses'
-  lastUpdated: string;
+export interface AnalyticsResult {
+  stats: {
+    totalResponses: number;
+    averageScore: number;
+    topArea: string;
+    lowestArea: string;
+  };
+  trendData: Array<{
+    name: string;
+    date: string;
+    score: number;
+  }>;
+  breakdown: Array<{
+    id: string;
+    name: string;
+    score: number;
+  }>;
+  textFeedback: Array<{
+    date: string;
+    positive: string;
+    improve: string;
+  }>;
 }
 
-// --- Logic ---
-// Now accepts an Array of responses (from your DB)
-export function calculatePsqAnalytics(responses: Array<{ answers: Record<string, any>, created_at?: string }>): PsqAnalytics {
-  const safeResponses = responses || [];
-  const totalResponses = safeResponses.length;
+const RATING_MAP: Record<string, number> = {
+  'Yes, definitely': 5, 'Yes, always': 5, 'Very good': 5, 'Yes': 5,
+  'Yes, to some extent': 3, 'Yes, mostly': 3, 'Good': 4, 'Neither good nor poor': 3,
+  'No': 1, 'Poor': 2, 'Very poor': 1,
+  'Not applicable': -1, 'Not sure': -1
+};
+
+// Helper to get score from an answer value (number, string, or boolean)
+function getScore(val: any): number {
+  if (typeof val === 'number') return val;
+  if (typeof val === 'boolean') return val ? 5 : 1; // Fallback if boolean stored
+  if (typeof val === 'string') {
+    // Try map first
+    if (RATING_MAP[val] !== undefined) return RATING_MAP[val];
+    // Try parsing number
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? 0 : parsed;
+  }
+  return 0;
+}
+
+// Helper to find answer by ID (handles "1" vs "q1")
+function getAnswerValue(answers: Record<string, any>, id: string) {
+  return answers[id] ?? answers[`q${id}`];
+}
+
+export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
+  let totalScoreSum = 0;
+  let totalResponseCount = 0;
   
-  // 1. Identify Unique Domains
+  const textFeedback: any[] = [];
+  const domainScores: Record<string, { sum: number; count: number }> = {};
+  
+  // Initialize Domain Scores
   const uniqueDomains = Array.from(new Set(PSQ_QUESTIONS.map(q => q.domain)));
-
-  // 2. Calculate Breakdown (Average across all responses)
-  const breakdown: SectionScore[] = uniqueDomains.map((domainName) => {
-    const domainQuestions = PSQ_QUESTIONS.filter((q) => q.domain === domainName);
-    
-    let totalDomainScore = 0;
-    let totalDomainMax = 0;
-
-    // Loop through every response to get an aggregate for this domain
-    safeResponses.forEach(response => {
-       const answers = response.answers || {};
-       
-       domainQuestions.forEach((q) => {
-         const answer = answers[q.id];
-         let val = 0;
-         let maxVal = 5; // Likert 1-5
-
-         if (typeof answer === 'number') {
-           val = answer;
-         } else if (typeof answer === 'string') {
-           val = parseInt(answer, 10) || 0;
-         } else if (answer === true) {
-           val = 1; maxVal = 1;
-         }
-
-         // Add to totals
-         totalDomainScore += val;
-         totalDomainMax += maxVal;
-       });
-    });
-
-    // Calculate Percentage for this domain across all surveys
-    const percentage = totalDomainMax > 0 ? Math.round((totalDomainScore / totalDomainMax) * 100) : 0;
-
-    return {
-      id: domainName,
-      label: domainName,
-      score: totalDomainScore, // Raw sum (optional use)
-      maxScore: totalDomainMax,
-      percentage: percentage,
-    };
+  uniqueDomains.forEach(d => {
+    domainScores[d] = { sum: 0, count: 0 };
   });
 
-  // 3. Overall Score (Average of domain percentages)
-  // We use average of domain percentages to ensure equal weight to domains
-  const validDomains = breakdown.filter(b => b.maxScore > 0);
-  const sumPercentages = validDomains.reduce((acc, item) => acc + item.percentage, 0);
-  const overallScore = validDomains.length > 0 ? Math.round(sumPercentages / validDomains.length) : 0;
+  // 1. Process Trends (Per Survey Cycle)
+  const trendData = surveys.map(survey => {
+    const responses = survey.psq_responses || [];
+    if (responses.length === 0) return null;
 
-  // 4. Key Strength
-  const sortedStats = [...breakdown].sort((a, b) => b.percentage - a.percentage);
-  const keyStrength = (sortedStats.length > 0 && sortedStats[0].percentage > 0)
-    ? sortedStats[0].label
-    : 'No Data Yet';
+    let surveySum = 0;
+    let surveyCount = 0;
 
-  // 5. Trend Analysis (Group by date)
-  // Simple trend: Sort responses by date, average score per response chunk or just last 5 responses
-  const trend = [];
-  if (totalResponses > 0) {
-      // Sort by date if available
-      const sortedResponses = [...safeResponses].sort((a, b) => 
-        new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
-      );
-
-      // Create a simplified trend line (e.g. grouped by batch or individual response average)
-      // Here we just map the last 5 responses to show "recent performance"
-      const recent = sortedResponses.slice(-5);
+    responses.forEach(r => {
+      const answers = r.answers || {};
       
-      recent.forEach((res, index) => {
-         // Calculate single score for this response
-         let currentSum = 0;
-         let currentMax = 0;
-         PSQ_QUESTIONS.forEach(q => {
-            const val = Number(res.answers[q.id]) || 0;
-            currentSum += val;
-            currentMax += 5;
+      // A. Extract Text Feedback (usually Q11/Q12 or specific keys)
+      // We check common keys for text feedback
+      const positive = getAnswerValue(answers, '11') || getAnswerValue(answers, 'positive');
+      const improve = getAnswerValue(answers, '12') || getAnswerValue(answers, 'improve');
+      
+      if ((positive && typeof positive === 'string') || (improve && typeof improve === 'string')) {
+         textFeedback.push({
+            date: new Date(r.created_at).toLocaleDateString(),
+            positive: typeof positive === 'string' ? positive : '',
+            improve: typeof improve === 'string' ? improve : ''
          });
-         const score = currentMax > 0 ? Math.round((currentSum / currentMax) * 100) : 0;
-         
-         trend.push({
-             date: res.created_at ? new Date(res.created_at).toLocaleDateString() : `Response ${index + 1}`,
-             score: score
-         });
+      }
+
+      // B. Calculate Score for this response
+      let responseTotal = 0;
+      let responseQCount = 0;
+
+      PSQ_QUESTIONS.forEach(q => {
+        // Skip text-only questions if they are not rated (11 and 12 are usually text in some versions, but can be rated)
+        // Adjust based on your specific ID map. Assuming 1-10 are Likert.
+        if (['11', '12'].includes(q.id)) return; 
+
+        const val = getAnswerValue(answers, q.id);
+        const score = getScore(val);
+
+        if (score > -1) { // -1 usually denotes N/A
+            responseTotal += score;
+            responseQCount++;
+
+            // Add to Domain Totals
+            if (domainScores[q.domain]) {
+                domainScores[q.domain].sum += score;
+                domainScores[q.domain].count += 1;
+            }
+        }
       });
-  } else {
-    trend.push({ date: 'Start', score: 0 });
-  }
+
+      if (responseQCount > 0) {
+        const avg = responseTotal / responseQCount;
+        surveySum += avg;
+        surveyCount++;
+      }
+    });
+
+    if (surveyCount === 0) return null;
+
+    const surveyAvg = parseFloat((surveySum / surveyCount).toFixed(2));
+    
+    // Add to globals
+    totalScoreSum += surveySum; // Sum of averages
+    totalResponseCount += surveyCount;
+
+    return {
+      name: survey.title.replace('PSQ Cycle ', '') || 'Untitled',
+      date: new Date(survey.created_at).toLocaleDateString(),
+      score: surveyAvg
+    };
+  }).filter(Boolean) as any[];
+
+  // 2. Process Breakdown (By Domain)
+  const breakdown = Object.entries(domainScores)
+    .map(([name, data]) => ({
+      id: name,
+      name: name,
+      score: data.count > 0 ? parseFloat((data.sum / data.count).toFixed(2)) : 0
+    }))
+    .sort((a, b) => b.score - a.score);
+
+  // 3. Final Stats
+  const averageScore = totalResponseCount > 0 
+    ? parseFloat((totalScoreSum / totalResponseCount).toFixed(2)) 
+    : 0;
 
   return {
-    overallScore,
-    keyStrength,
-    breakdown,
-    trend,
-    totalQuestions: PSQ_QUESTIONS.length,
-    completedResponses: totalResponses,
-    lastUpdated: new Date().toLocaleDateString(),
+    stats: {
+      totalResponses: totalResponseCount,
+      averageScore,
+      topArea: breakdown.length > 0 ? breakdown[0].name : 'N/A',
+      lowestArea: breakdown.length > 0 ? breakdown[breakdown.length - 1].name : 'N/A'
+    },
+    trendData: trendData,
+    breakdown: breakdown,
+    textFeedback: textFeedback.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10)
   };
 }
