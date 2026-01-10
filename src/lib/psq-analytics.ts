@@ -1,7 +1,6 @@
 import { PSQ_QUESTIONS } from './psq-questions';
 
-// --- Types ---
-
+// --- NEW TYPES (Used by your new Analytics Page) ---
 export interface SurveyData {
   id: string;
   title: string;
@@ -9,7 +8,7 @@ export interface SurveyData {
   psq_responses: Array<{
     answers: Record<string, any>;
     created_at: string;
-    feedback_text?: string; // Sometimes feedback is separate
+    feedback_text?: string;
   }>;
 }
 
@@ -37,6 +36,7 @@ export interface AnalyticsResult {
   }>;
 }
 
+// --- LOGIC ---
 const RATING_MAP: Record<string, number> = {
   'Yes, definitely': 5, 'Yes, always': 5, 'Very good': 5, 'Yes': 5,
   'Yes, to some extent': 3, 'Yes, mostly': 3, 'Good': 4, 'Neither good nor poor': 3,
@@ -44,21 +44,17 @@ const RATING_MAP: Record<string, number> = {
   'Not applicable': -1, 'Not sure': -1
 };
 
-// Helper to get score from an answer value (number, string, or boolean)
 function getScore(val: any): number {
   if (typeof val === 'number') return val;
-  if (typeof val === 'boolean') return val ? 5 : 1; // Fallback if boolean stored
+  if (typeof val === 'boolean') return val ? 5 : 1;
   if (typeof val === 'string') {
-    // Try map first
     if (RATING_MAP[val] !== undefined) return RATING_MAP[val];
-    // Try parsing number
     const parsed = parseFloat(val);
     return isNaN(parsed) ? 0 : parsed;
   }
   return 0;
 }
 
-// Helper to find answer by ID (handles "1" vs "q1")
 function getAnswerValue(answers: Record<string, any>, id: string) {
   return answers[id] ?? answers[`q${id}`];
 }
@@ -70,13 +66,12 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
   const textFeedback: any[] = [];
   const domainScores: Record<string, { sum: number; count: number }> = {};
   
-  // Initialize Domain Scores
   const uniqueDomains = Array.from(new Set(PSQ_QUESTIONS.map(q => q.domain)));
   uniqueDomains.forEach(d => {
     domainScores[d] = { sum: 0, count: 0 };
   });
 
-  // 1. Process Trends (Per Survey Cycle)
+  // 1. Process Trends
   const trendData = surveys.map(survey => {
     const responses = survey.psq_responses || [];
     if (responses.length === 0) return null;
@@ -87,8 +82,6 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
     responses.forEach(r => {
       const answers = r.answers || {};
       
-      // A. Extract Text Feedback (usually Q11/Q12 or specific keys)
-      // We check common keys for text feedback
       const positive = getAnswerValue(answers, '11') || getAnswerValue(answers, 'positive');
       const improve = getAnswerValue(answers, '12') || getAnswerValue(answers, 'improve');
       
@@ -100,23 +93,17 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
          });
       }
 
-      // B. Calculate Score for this response
       let responseTotal = 0;
       let responseQCount = 0;
 
       PSQ_QUESTIONS.forEach(q => {
-        // Skip text-only questions if they are not rated (11 and 12 are usually text in some versions, but can be rated)
-        // Adjust based on your specific ID map. Assuming 1-10 are Likert.
         if (['11', '12'].includes(q.id)) return; 
-
         const val = getAnswerValue(answers, q.id);
         const score = getScore(val);
 
-        if (score > -1) { // -1 usually denotes N/A
+        if (score > -1) {
             responseTotal += score;
             responseQCount++;
-
-            // Add to Domain Totals
             if (domainScores[q.domain]) {
                 domainScores[q.domain].sum += score;
                 domainScores[q.domain].count += 1;
@@ -134,9 +121,7 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
     if (surveyCount === 0) return null;
 
     const surveyAvg = parseFloat((surveySum / surveyCount).toFixed(2));
-    
-    // Add to globals
-    totalScoreSum += surveySum; // Sum of averages
+    totalScoreSum += surveySum;
     totalResponseCount += surveyCount;
 
     return {
@@ -146,7 +131,7 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
     };
   }).filter(Boolean) as any[];
 
-  // 2. Process Breakdown (By Domain)
+  // 2. Process Breakdown
   const breakdown = Object.entries(domainScores)
     .map(([name, data]) => ({
       id: name,
@@ -171,4 +156,25 @@ export function calculateAnalytics(surveys: SurveyData[]): AnalyticsResult {
     breakdown: breakdown,
     textFeedback: textFeedback.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 10)
   };
+}
+
+// --- LEGACY / DEPRECATED TYPES (Restored for Build Compatibility) ---
+// These are needed because src/components/ReportModal.tsx still imports them.
+
+export interface SectionScore {
+  id: string;
+  label: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+}
+
+export interface PsqAnalytics {
+  overallScore: number;
+  keyStrength: string;
+  breakdown: SectionScore[];
+  trend: { date: string; score: number }[];
+  totalQuestions: number;
+  completedResponses: number;
+  lastUpdated: string;
 }
