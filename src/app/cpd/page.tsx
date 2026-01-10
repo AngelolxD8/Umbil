@@ -115,7 +115,8 @@ function CPDInner() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `Umbil_CPD_Export_${new Date().toISOString().split('T')[0]}.csv`;
+    // UPDATED: Filename
+    a.download = `Umbil_Learning_Log_Export_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -358,7 +359,8 @@ function CPDInner() {
                     </div>
 
                     {e.id && (
-                        <button title="Delete learning entry" disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
+                        // UPDATED: Tooltip
+                        <button title="Delete entry" disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
                           {/* SVG Trash Replacement */}
                           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
                         </button>
