@@ -20,8 +20,8 @@ function GlobalStreakDisplay() {
   const streakDisplay = currentStreak > 0 ? currentStreak : 0;
   const className = `global-streak ${hasLoggedToday ? '' : 'faded'}`;
   const title = hasLoggedToday 
-    ? "You've logged CPD today! Click to view your profile." 
-    : "Log CPD today to keep your streak alive! Click to view your profile.";
+    ? "You've captured learning today! Click to view your profile." 
+    : "Capture learning today to keep your streak alive! Click to view your profile.";
 
   return (
     <Link href="/profile" className={className} title={title}>

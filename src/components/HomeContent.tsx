@@ -121,7 +121,7 @@ const CpdNudge = ({ onLog }: { onLog: () => void }) => (
       className="btn btn--sm btn--outline"
       style={{ alignSelf: 'flex-start', marginLeft: '44px' }}
     >
-      Log to CPD
+      Capture learning
     </button>
   </div>
 );
@@ -343,7 +343,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const isCpdSaved = searchParams.get("cpdSaved") === "true";
     if (isCpdSaved) {
        refetchStreaks(); // Ensure streak is up to date
-       setToastMessage("✅ Learning captured successfully!");
+       setToastMessage("✅ Learning entry saved!");
        
        // Handle cleanup of URL params
        const currentUrl = new URL(window.location.href);
@@ -606,7 +606,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
        return;
     }
 
-    if (!email) { setToastMessage("Please sign in to add CPD entries."); return; }
+    if (!email) { setToastMessage("Please sign in to add learning entries."); return; }
     
     // Updated: Store context with conversationId and route to new full page
     if (typeof window !== 'undefined') {
@@ -639,13 +639,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     
     if (error) { 
         console.error("Failed to save CPD entry:", error); 
-        setToastMessage("❌ Failed to save CPD entry."); 
+        setToastMessage("❌ Failed to save learning entry."); 
     } else { 
         if (isFirstLogToday) { 
             setStreakToDisplay(nextStreak); 
             setIsStreakPopupOpen(true); 
         } else { 
-            setToastMessage("✅ CPD entry saved remotely!"); 
+            setToastMessage("✅ Learning entry saved!"); 
         } 
         refetchStreaks(); 
         
@@ -719,7 +719,15 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
             <button className="action-button" onClick={() => handleSmartCopy(index)} title="Copy this message"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg> Copy</button>
             {isLastMessage && !loading && entry.question && ( <button className="action-button" onClick={() => handleDeepDive(entry, index)} title="Deep dive on this topic"><svg className="icon-zoom-in" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg> Deep Dive</button> )}
             {isLastMessage && !loading && ( <button className="action-button" onClick={handleRegenerateResponse} title="Regenerate response"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 0 0 7.1 4.14M3.51 15A9 9 0 0 0 16.9 19.86"></path></svg> Regenerate</button> )}
-            <button id={isTourOpen ? "tour-highlight-cpd-button" : undefined} className="action-button" onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} title="Add reflection to your CPD log"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Log learning (CPD)</button>
+            <button 
+              id={isTourOpen ? "tour-highlight-cpd-button" : undefined} 
+              className="action-button" 
+              onClick={() => isTourOpen ? handleTourStepChange(5) : handleOpenAddCpdModal(entry)} 
+              title="Add reflection to your Learning Log"
+              style={{ color: 'var(--umbil-brand-teal)', fontWeight: 600 }}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"></path></svg> Capture learning
+            </button>
             <button className="action-button" onClick={() => handleOpenReportModal(entry)} title="Report incorrect information" style={{color: '#9ca3af'}}>
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"></path><line x1="4" y1="22" x2="4" y2="15"></line></svg>
             </button>
