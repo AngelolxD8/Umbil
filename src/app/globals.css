@@ -14,9 +14,9 @@
   --umbil-focus-ring: rgba(31, 184, 205, 0.4);
   --umbil-divider: rgba(16,24,40,0.1);
 
-  /* Design Tokens */
+  /* Design Tokens - FORCED BOXY */
   --umbil-radius-sm: 8px;
-  --umbil-radius-lg: 24px;
+  --umbil-radius-lg: 12px; /* Reduced from 24px/16px to be boxier */
   --umbil-shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --umbil-shadow-lg: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
@@ -350,12 +350,12 @@ a {
   color: var(--umbil-muted);
 }
 
-/* Ask Bar Styles - UPDATED WITH TEAL BORDER */
+/* Ask Bar Styles - UPDATED WITH TEAL BORDER & BOXY RADIUS */
 .ask-bar-container-new {
   width: 100%;
   background-color: var(--umbil-surface);
   border: 1px solid rgba(31, 184, 205, 0.3); /* Subtle teal border */
-  border-radius: 24px;
+  border-radius: var(--umbil-radius-sm); /* FIXED: Made boxy */
   box-shadow: var(--umbil-shadow-sm);
   display: flex;
   flex-direction: column;
@@ -394,7 +394,7 @@ a {
   border: none;
   cursor: pointer;
   padding: 8px;
-  border-radius: 50%;
+  border-radius: var(--umbil-radius-sm); /* FIXED: Use 8px instead of 50% */
   color: var(--umbil-muted);
   transition: background-color 0.2s, color 0.2s;
   display: flex;
@@ -409,7 +409,7 @@ a {
 
 /* Specific styling for the Tools button */
 .action-icon-btn[title="Medical Tools"] {
-  border-radius: 8px; 
+  border-radius: var(--umbil-radius-sm); 
   padding: 6px 10px;
   background-color: var(--umbil-hover-bg);
   color: var(--umbil-text);
@@ -421,12 +421,12 @@ a {
   background-color: #3f3f46;
 }
 
-/* SEND BUTTON - ALWAYS TEAL */
+/* SEND BUTTON - ALWAYS TEAL, BOXY */
 .send-icon-btn {
   background-color: var(--umbil-brand-teal);
   color: var(--umbil-surface);
   border: none;
-  border-radius: 50%;
+  border-radius: var(--umbil-radius-sm); /* FIXED: Made boxy */
   width: 36px;
   height: 36px;
   display: flex;
@@ -1327,4 +1327,24 @@ a {
 .pattern-bg {
   background-image: radial-gradient(rgba(255, 255, 255, 0.1) 1px, transparent 1px);
   background-size: 20px 20px;
+}
+
+/* Force Boxy Design (8px radius) */
+:root {
+  --radius-boxy: 0.5rem; /* 8px */
+}
+
+/* Override common button/input classes to be boxy */
+.btn, 
+.action-button, 
+button[class*="btn"], 
+input, 
+textarea, 
+select {
+  border-radius: var(--radius-boxy) !important;
+}
+
+/* targeted fix for the Capture Page specifically if needed */
+.capture-input, .capture-btn {
+  border-radius: var(--radius-boxy) !important;
 }

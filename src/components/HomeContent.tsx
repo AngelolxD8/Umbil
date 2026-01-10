@@ -320,14 +320,13 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   const [conversationId, setConversationId] = useState<string | null>(null);
 
   const [showWelcomeModal, setShowWelcomeModal] = useState(false);
-  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false); // NEW STATE
+  const [showGuestLimitModal, setShowGuestLimitModal] = useState(false); 
   const [isTourOpen, setIsTourOpen] = useState(false);
   const [tourStep, setTourStep] = useState(0); 
 
   const [isStreakPopupOpen, setIsStreakPopupOpen] = useState(false);
   const [streakToDisplay, setStreakToDisplay] = useState(0);
 
-  // NEW: Track the last time a CPD entry was logged to reset the nudge logic
   const [lastLoggedCount, setLastLoggedCount] = useState(0);
 
   const { isRecording, toggleRecording } = useSpeechRecognition({
@@ -338,6 +337,24 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
   useEffect(() => {
     if (email) getMyProfile().then(setProfile);
   }, [email]);
+
+  // --- NEW: Check for CPD Success Return ---
+  useEffect(() => {
+    const isCpdSaved = searchParams.get("cpdSaved") === "true";
+    if (isCpdSaved) {
+       refetchStreaks(); // Ensure streak is up to date
+       setToastMessage("✅ Learning captured successfully!");
+       
+       // Handle cleanup of URL params
+       const currentUrl = new URL(window.location.href);
+       currentUrl.searchParams.delete("cpdSaved");
+       router.replace(currentUrl.pathname + currentUrl.search, { scroll: false });
+       
+       // Update local nudge tracking since we just logged
+       const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
+       setLastLoggedCount(currentTotalUserQuestions);
+    }
+  }, [searchParams, router, conversation, refetchStreaks]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -357,7 +374,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
       setConversation([]);
       setQ("");
       setConversationId(null);
-      // Reset the nudge counter on new chat
       setLastLoggedCount(0);
       if (isTour && isForceTour) { setIsTourOpen(true); setTourStep(0); }
       router.replace("/dashboard", { scroll: false });
@@ -509,13 +525,10 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         const nextUsage = currentUsage + 1;
         localStorage.setItem('umbil_guest_usage', nextUsage.toString());
 
-        // Check if we hit the limit or a multiple of it (7, 14, 21...)
-        // We do NOT return here, allowing the search to proceed (soft lock).
         if (nextUsage > 0 && nextUsage % GUEST_LIMIT === 0) {
             setShowGuestLimitModal(true);
         }
     }
-    // ----------------------------------------------
 
     let currentCid = conversationId;
     if (!currentCid) { 
@@ -585,28 +598,41 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const historyForDeepDive = conversation.slice(0, index);
     await fetchUmbilResponse(historyForDeepDive, 'deepDive', conversationId);
   };
+
   const handleOpenAddCpdModal = (entry: ConversationEntry) => {
-    if (isTourOpen) return;
+    if (isTourOpen) {
+       setCurrentCpdEntry(DUMMY_CPD_ENTRY);
+       setIsModalOpen(true);
+       return;
+    }
+
     if (!email) { setToastMessage("Please sign in to add CPD entries."); return; }
-    setCurrentCpdEntry({ question: entry.question || "", answer: entry.content });
-    setIsModalOpen(true);
+    
+    // Updated: Store context with conversationId and route to new full page
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('umbil_cpd_context', JSON.stringify({
+            question: entry.question || "",
+            answer: entry.content,
+            conversationId: conversationId // Saved to link back correctly
+        }));
+    }
+    
+    router.push('/capture-learning');
   };
 
-  // UPDATED: Now accepts duration from modal
   const handleSaveCpd = async (reflection: string, tags: string[], duration: number) => {
     if (isTourOpen) { handleTourStepChange(6); return; }
     if (!currentCpdEntry) return;
     const isFirstLogToday = !hasLoggedToday;
     const nextStreak = currentStreak + (isFirstLogToday ? 1 : 0);
     
-    // UPDATED: Passes duration to addCPD
     const cpdEntry: Omit<CPDEntry, 'id' | 'user_id'> = { 
         timestamp: new Date().toISOString(), 
         question: currentCpdEntry.question, 
         answer: currentCpdEntry.answer, 
         reflection, 
         tags,
-        duration // Saved here
+        duration 
     };
     
     const { error } = await addCPD(cpdEntry);
@@ -623,7 +649,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         } 
         refetchStreaks(); 
         
-        // --- IMPROVED LOGIC: Reset Nudge Counter ---
         const currentTotalUserQuestions = conversation.filter(c => c.type === 'user').length;
         setLastLoggedCount(currentTotalUserQuestions);
     }
@@ -667,21 +692,12 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
     const highlightId = isTourOpen && isUmbil ? "tour-highlight-message" : undefined;
     
     // --- UPDATED NUDGE LOGIC ---
-    // Count how many user messages appeared before this point
     const userMsgCount = convoToShow.slice(0, index + 1).filter(m => m.type === 'user').length;
-    
-    // Calculate questions asked SINCE the last time they logged
     const questionsSinceLastLog = userMsgCount - lastLoggedCount;
-
-    // Show nudge if:
-    // 1. It is an Umbil message
-    // 2. We have asked at least one new question since the last log
-    // 3. We hit a multiple of 10 SINCE the last log (e.g., 10th, 20th new question)
     const showNudge = isUmbil && questionsSinceLastLog > 0 && questionsSinceLastLog % 10 === 0 && !loading;
 
     return (
       <div key={index} id={highlightId} className={className}>
-        {/* --- WRAPPER FOR SMART COPY --- */}
         <div id={`msg-content-${index}`}>
             {isUmbil ? ( 
                 <div className="markdown-content-wrapper">
@@ -710,7 +726,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
           </div>
         )}
 
-        {/* --- RENDER NUDGE IF APPLICABLE --- */}
         {showNudge && <CpdNudge onLog={() => handleOpenAddCpdModal(entry)} />}
 
       </div>
@@ -748,8 +763,6 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
         )}
       </div>
       {showWelcomeModal && <TourWelcomeModal onStart={handleStartTour} onSkip={handleSkipTour} />}
-      
-      {/* NEW: Guest Limit Modal */}
       {showGuestLimitModal && <GuestLimitModal isOpen={showGuestLimitModal} onClose={() => setShowGuestLimitModal(false)} onSignUp={() => router.push('/auth')} />}
 
       {(isModalOpen || (isTourOpen && tourStep === 5)) && (
