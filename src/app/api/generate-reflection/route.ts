@@ -26,14 +26,14 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { mode, userNotes } = body;
+    const { mode, userNotes, context } = body;
 
     // --- 1. DEFINE PROMPTS BASED ON MODE ---
     let systemInstruction = "";
     let contextContent = "";
 
     if (mode === 'psq_analysis') {
-        // NEW MODE: PSQ ANALYSIS
+        // MODE: PSQ ANALYSIS
         const { stats, strengths, weaknesses, comments } = body;
         
         systemInstruction = `
@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
         `;
 
     } else if (mode === 'personalise') {
-      // MODE: PERSONALISE (TIDY UP ONLY)
+      // MODE: FIX GRAMMAR & FLOW
       systemInstruction = `
       You are an expert Medical Editor. 
       The user has written rough clinical notes below.
@@ -74,6 +74,43 @@ export async function POST(req: NextRequest) {
       4. STRICTLY PLAIN TEXT ONLY. Remove all markdown formatting. No bold (**), no headers (##).
       `;
       contextContent = `TARGET TEXT: "${userNotes}"`;
+
+    } else if (mode === 'structured_reflection') {
+      // MODE: AUTO-GENERATE STRUCTURED REFLECTION
+      systemInstruction = `
+      You are an expert Medical Educator (UK).
+      Rewrite the user's rough notes into a structured clinical reflection using the "What, So What, Now What" framework, but with specific headers.
+      
+      STRUCTURE REQUIRED:
+      ## Learning
+      (Summarize what was learned or discussed. Be specific.)
+      
+      ## Application
+      (How does this apply to your daily clinical practice?)
+      
+      ## Next Steps
+      (Actionable items, e.g. read specific guidelines, change prescribing habits.)
+      
+      RULES:
+      1. Keep it concise, professional, and suitable for a portfolio.
+      2. Use the Markdown headers provided above.
+      3. Do NOT invent facts. Use the provided notes and context.
+      `;
+      contextContent = `USER NOTES: "${userNotes}" \n CONTEXT: "${JSON.stringify(context || {})}"`;
+
+    } else if (mode === 'generate_tags') {
+      // MODE: GENERATE TAGS
+      systemInstruction = `
+      You are a medical taxonomy expert.
+      Analyze the provided clinical notes and extract 3-5 short, relevant, specific medical tags (e.g., Cardiology, Hypertension, Paediatrics, Guidelines, Safeguarding).
+      
+      RULES:
+      1. Return ONLY a comma-separated list of tags.
+      2. No numbering, no bullet points, no extra text.
+      3. Do not include "General Practice" or "CPD". Be specific.
+      4. Example output: "Cardiology, Heart Failure, NICE Guidelines"
+      `;
+      contextContent = `NOTES: "${userNotes}" \n CONTEXT: "${JSON.stringify(context || {})}"`;
 
     } else {
       // MODE: AUTO-GENERATE (STANDARD Q&A)
@@ -95,7 +132,7 @@ export async function POST(req: NextRequest) {
     ${contextContent}
     ---
     
-    RESPOND ONLY WITH THE DRAFTED TEXT. NO MARKDOWN.
+    RESPOND ONLY WITH THE REQUESTED TEXT.
     `;
 
     const result = await streamText({
