@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
   try {
-    const { toolType, input } = await req.json();
+    const { toolType, input, signerName, signerRole } = await req.json();
     
     // Explicit cast to ToolId
     const config = TOOLS[toolType as ToolId];
@@ -87,10 +87,17 @@ export async function POST(req: NextRequest) {
       context = await getContext(searchQuery);
     }
 
+    // Dynamic Signature Injection
+    const signatureBlock = (signerName || signerRole) 
+      ? `\nIMPORTANT: Sign off the letter exactly as follows:\n"Kind regards,\n${signerName || ''}\n${signerRole || ''}"`
+      : `\nSign off as: "Kind regards,\nDr [Name], GP" (or appropriate role based on context)`;
+
     const finalPrompt = `
 ${config.systemPrompt}
 
 ${context ? `Use the following guidelines to ensure safety/accuracy:\n${context}` : ""}
+
+${signatureBlock}
 
 USER INPUT NOTES:
 ${input}
