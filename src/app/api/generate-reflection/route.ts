@@ -82,19 +82,20 @@ export async function POST(req: NextRequest) {
       Rewrite the user's rough notes into a structured clinical reflection using the "What, So What, Now What" framework, but with specific headers.
       
       STRUCTURE REQUIRED:
-      ## Learning
+      LEARNING
       (Summarize what was learned or discussed. Be specific.)
       
-      ## Application
+      APPLICATION
       (How does this apply to your daily clinical practice?)
       
-      ## Next Steps
+      NEXT STEPS
       (Actionable items, e.g. read specific guidelines, change prescribing habits.)
       
       RULES:
       1. Keep it concise, professional, and suitable for a portfolio.
-      2. Use the Markdown headers provided above.
-      3. Do NOT invent facts. Use the provided notes and context.
+      2. STRICTLY PLAIN TEXT ONLY. No markdown headers (##) or bold (**).
+      3. Use the capitalized headers provided above.
+      4. Do NOT invent facts. Use the provided notes and context.
       `;
       contextContent = `USER NOTES: "${userNotes}" \n CONTEXT: "${JSON.stringify(context || {})}"`;
 
