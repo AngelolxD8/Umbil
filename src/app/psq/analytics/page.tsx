@@ -25,7 +25,7 @@ function AnalyticsContent() {
   
   // Data State
   const [data, setData] = useState<AnalyticsResult>({
-    stats: { totalResponses: 0, averageScore: 0, topArea: 'N/A', lowestArea: 'N/A' },
+    stats: { totalResponses: 0, averageScore: 0, topArea: 'N/A', lowestArea: 'N/A', thresholdMet: false },
     trendData: [],
     breakdown: [],
     textFeedback: []
@@ -99,7 +99,7 @@ function AnalyticsContent() {
                 stats: data.stats,
                 strengths: data.stats.topArea,
                 weaknesses: data.stats.lowestArea,
-                comments: data.textFeedback.slice(0, 5).map(t => t.positive || t.improve).filter(Boolean)
+                comments: data.textFeedback.slice(0, 5).map(t => t.good || t.improve).filter(Boolean)
             })
         });
 
@@ -148,7 +148,7 @@ function AnalyticsContent() {
     const commentsHtml = data.textFeedback.map(fb => `
         <div class="comment-box">
             <div class="comment-date">${fb.date}</div>
-            ${fb.positive ? `<div class="comment-section"><strong>Done Well:</strong> "${fb.positive}"</div>` : ''}
+            ${fb.good ? `<div class="comment-section"><strong>Done Well:</strong> "${fb.good}"</div>` : ''}
             ${fb.improve ? `<div class="comment-section" style="margin-top:4px;"><strong>To Improve:</strong> "${fb.improve}"</div>` : ''}
         </div>
     `).join('');
@@ -374,10 +374,10 @@ function AnalyticsContent() {
                                     </div>
                                 </div>
                                 <div className="grow space-y-4">
-                                    {fb.positive && (
+                                    {fb.good && (
                                         <div>
                                             <span className="inline-block text-[10px] uppercase font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded mb-1">Done Well</span>
-                                            <p className="text-sm text-[var(--umbil-text)] leading-relaxed">"{fb.positive}"</p>
+                                            <p className="text-sm text-[var(--umbil-text)] leading-relaxed">"{fb.good}"</p>
                                         </div>
                                     )}
                                     {fb.improve && (
