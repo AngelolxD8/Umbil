@@ -105,6 +105,11 @@ ${signatureBlock}
 USER INPUT NOTES:
 ${input}
 
+STRICT INSTRUCTION: 
+Refine the above input into the requested format. 
+Do not add any new medical facts. 
+If the input is too vague, do your best with what is there, but do not invent details.
+
 OUTPUT:
 `;
 
