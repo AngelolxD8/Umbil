@@ -1,7 +1,8 @@
-import { createBrowserClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
 
-// This is the modern, safe way to create a client on the browser
-export const supabase = createBrowserClient(
+// Switched to standard createClient to prevent build errors in Server Routes.
+// This client is safe for both Browser and Node.js environments.
+export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );

@@ -15,6 +15,7 @@ export default function PublicSurveyPage() {
 
   const [loading, setLoading] = useState(true);
   const [surveyValid, setSurveyValid] = useState(false);
+  const [customQuestions, setCustomQuestions] = useState<string[]>([]);
   const [started, setStarted] = useState(false);
   const [completed, setCompleted] = useState(false);
   
@@ -27,8 +28,11 @@ export default function PublicSurveyPage() {
   useEffect(() => {
     async function checkSurvey() {
       if (!id) return;
-      const { data, error } = await supabase.from('psq_surveys').select('id').eq('id', id).single();
-      if (data && !error) setSurveyValid(true);
+      const { data, error } = await supabase.from('psq_surveys').select('id, custom_questions').eq('id', id).single();
+      if (data && !error) {
+          setSurveyValid(true);
+          if (data.custom_questions) setCustomQuestions(data.custom_questions);
+      }
       setLoading(false);
     }
     checkSurvey();
@@ -55,7 +59,7 @@ export default function PublicSurveyPage() {
     e.preventDefault();
     setSubmitting(true);
     
-    // Validation
+    // Validation: Only score Likert questions are mandatory
     const missing = PSQ_QUESTIONS.filter(q => q.type === 'likert' && !answers[q.id]);
     if (missing.length > 0) {
         alert("Please answer all scored questions.");
@@ -143,6 +147,20 @@ export default function PublicSurveyPage() {
     );
   }
 
+  // Combine Core Questions with Optional Custom Questions
+  // Custom questions are inserted after Likert (index 9) but before Free Text
+  const renderQuestions = [
+      ...PSQ_QUESTIONS.slice(0, 10), // Likert 1-10
+      ...customQuestions.map((text, i) => ({
+          id: `custom_${i}`,
+          text,
+          type: 'text' as const, // Re-using text input type
+          domain: 'Custom',
+          isOptional: true
+      })).filter(q => q.text.trim().length > 0),
+      ...PSQ_QUESTIONS.slice(10) // Rest of questions
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       {/* Global Override for Scrolling Issue */}
@@ -153,8 +171,14 @@ export default function PublicSurveyPage() {
       <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8 pb-20">
         
         {/* QUESTIONS LOOP */}
-        {PSQ_QUESTIONS.map((q, idx) => (
-            <div key={q.id} className="bg-white p-6 sm:p-8 rounded-xl border border-gray-200 shadow-sm">
+        {renderQuestions.map((q, idx) => (
+            <div key={q.id} className="bg-white p-6 sm:p-8 rounded-xl border border-gray-200 shadow-sm relative overflow-hidden">
+                {q.isOptional && (
+                    <div className="absolute top-0 right-0 bg-gray-100 text-gray-500 text-[10px] font-bold px-3 py-1 rounded-bl-lg uppercase tracking-wide">
+                        Optional
+                    </div>
+                )}
+                
                 <div className="mb-6">
                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wide">Question {idx + 1}</span>
                     <h3 className="text-lg font-semibold text-gray-900 mt-1">{q.text}</h3>
@@ -195,15 +219,17 @@ export default function PublicSurveyPage() {
                     </div>
                 )}
 
-                {/* TEXT */}
+                {/* TEXT (Used for both Free Text & Custom Optional) */}
                 {q.type === 'text' && (
                     <div>
-                         <div className="mb-2 text-xs text-amber-600 font-medium flex items-center gap-1">
-                            <AlertCircle size={12}/> Please do not include names.
-                         </div>
+                         {!q.isOptional && (
+                             <div className="mb-2 text-xs text-amber-600 font-medium flex items-center gap-1">
+                                <AlertCircle size={12}/> Please do not include names.
+                             </div>
+                         )}
                          <textarea 
                             className="w-full p-4 border border-gray-300 rounded-lg h-32 focus:border-teal-500 outline-none"
-                            placeholder="Optional..."
+                            placeholder={q.isOptional ? "Optional..." : "Type here..."}
                             value={answers[q.id] || ''}
                             onChange={(e) => setAnswer(q.id, e.target.value)}
                         />

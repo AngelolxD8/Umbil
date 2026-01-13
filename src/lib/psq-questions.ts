@@ -22,6 +22,8 @@ export const PSQ_SCALE = [
   { value: 0, label: "Not applicable" },
 ];
 
+export const PSQ_FOOTER_TEXT = "This anonymised patient feedback was collected using a structured questionnaire aligned with GMC revalidation requirements and supports reflection across GMC domains 1–4.";
+
 export const PSQ_QUESTIONS: PSQQuestion[] = [
   // --- LIKERT QUESTIONS (Scored) ---
   {
