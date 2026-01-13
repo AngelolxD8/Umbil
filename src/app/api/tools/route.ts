@@ -87,10 +87,13 @@ export async function POST(req: NextRequest) {
       context = await getContext(searchQuery);
     }
 
-    // Dynamic Signature Injection
-    const signatureBlock = (signerName || signerRole) 
-      ? `\nIMPORTANT: Sign off the letter exactly as follows:\n"Kind regards,\n${signerName || ''}\n${signerRole || ''}"`
-      : `\nSign off as: "Kind regards,\nDr [Name], GP" (or appropriate role based on context)`;
+    // Dynamic Signature Injection (Only for Referrals)
+    let signatureBlock = "";
+    if (toolType === 'referral') {
+       signatureBlock = (signerName || signerRole) 
+        ? `\nIMPORTANT: Sign off the letter exactly as follows:\n"Kind regards,\n${signerName || ''}\n${signerRole || ''}"`
+        : `\nSign off as: "Kind regards,\nDr [Name], GP" (or appropriate role based on context)`;
+    }
 
     const finalPrompt = `
 ${config.systemPrompt}

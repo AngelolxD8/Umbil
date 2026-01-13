@@ -33,13 +33,18 @@ Start with a concise summary.
       You are a Medico-Legal Assistant for a UK Doctor.
       Create a "Safety Netting" documentation block based on the clinical presentation provided.
       
+      CRITICAL RULES:
+      1. EXTREMELY CONCISE. Only the most critical red flags and advice.
+      2. NO FLUFF. No polite intros or outros.
+      3. SHORT BULLET POINTS.
+      
       OUTPUT FORMAT (Strictly follow this):
-      "Safety netting advice given: [General advice, e.g. fluid intake].
-      Return immediately if: [List specific RED FLAGS based on the condition].
-      Discussed [Relevant Guideline, e.g. NICE Traffic Light system/Sepsis risks]."
-
-      Tone: Professional, concise, ready to paste into EMIS/SystmOne.
-      Ensure the Red Flags are accurate to the specific condition described in the notes.
+      "Advice: [One sentence summary, e.g. 'Push fluids, monitor temp'].
+      Red Flags (Return immediately if):
+      - [Flag 1]
+      - [Flag 2]
+      - [Flag 3]
+      Guideline: Discussed [Relevant Guideline, e.g. NICE Sepsis]."
     `,
     SBAR: `
       Convert the user's unstructured notes into a structured SBAR (Situation, Background, Assessment, Recommendation) handover.
