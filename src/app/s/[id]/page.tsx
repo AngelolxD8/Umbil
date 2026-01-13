@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { PSQ_QUESTIONS, PSQ_INTRO, PSQ_SCALE } from '@/lib/psq-questions';
 import { Check, ChevronRight, AlertCircle, ShieldCheck, RefreshCw } from 'lucide-react';
 
@@ -28,12 +27,24 @@ export default function PublicSurveyPage() {
   useEffect(() => {
     async function checkSurvey() {
       if (!id) return;
-      const { data, error } = await supabase.from('psq_surveys').select('id, custom_questions').eq('id', id).single();
-      if (data && !error) {
-          setSurveyValid(true);
-          if (data.custom_questions) setCustomQuestions(data.custom_questions);
+      
+      try {
+        // CHANGED: Fetch from our new public API instead of direct DB call
+        const res = await fetch(`/api/public/psq?id=${id}`, { cache: 'no-store' });
+        
+        if (res.ok) {
+            const data = await res.json();
+            setSurveyValid(true);
+            if (data.custom_questions) setCustomQuestions(data.custom_questions);
+        } else {
+            setSurveyValid(false);
+        }
+      } catch (error) {
+          console.error("Connection error:", error);
+          setSurveyValid(false);
+      } finally {
+          setLoading(false);
       }
-      setLoading(false);
     }
     checkSurvey();
   }, [id]);
@@ -67,16 +78,24 @@ export default function PublicSurveyPage() {
         return;
     }
 
-    const { error } = await supabase.from('psq_responses').insert({
-      survey_id: id,
-      answers: answers,
-      created_at: new Date().toISOString(),
-    });
+    try {
+        // CHANGED: Post to our new public API
+        const res = await fetch('/api/public/psq', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                survey_id: id,
+                answers: answers
+            })
+        });
 
-    if (!error) {
-        setCompleted(true);
-        window.scrollTo(0, 0);
-    } else {
+        if (res.ok) {
+            setCompleted(true);
+            window.scrollTo(0, 0);
+        } else {
+            throw new Error("Submission failed");
+        }
+    } catch (error) {
         alert('Error submitting. Please try again.');
         setSubmitting(false);
     }
