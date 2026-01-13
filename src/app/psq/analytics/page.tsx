@@ -25,7 +25,14 @@ function AnalyticsContent() {
   
   // Data State
   const [data, setData] = useState<AnalyticsResult>({
-    stats: { totalResponses: 0, averageScore: 0, topArea: 'N/A', lowestArea: 'N/A', thresholdMet: false },
+    stats: { 
+        totalResponses: 0, 
+        averageScore: 0, 
+        topArea: 'N/A', 
+        lowestArea: 'N/A', 
+        thresholdMet: false,
+        responsesNeeded: 34 // Added to fix missing property error
+    },
     trendData: [],
     breakdown: [],
     textFeedback: []
@@ -138,12 +145,16 @@ function AnalyticsContent() {
         return;
     }
 
-    const scoresRows = data.breakdown.map(q => `
-        <tr>
-            <td style="font-weight: 500;">${q.name}</td>
-            <td style="text-align: right; font-weight: 700; color: #1fb8cd;">${q.score.toFixed(2)}</td>
-        </tr>
-    `).join('');
+    // FIXED: Type check for score before using toFixed
+    const scoresRows = data.breakdown.map(q => {
+        const scoreDisplay = typeof q.score === 'number' ? q.score.toFixed(2) : q.score;
+        return `
+            <tr>
+                <td style="font-weight: 500;">${q.name}</td>
+                <td style="text-align: right; font-weight: 700; color: #1fb8cd;">${scoreDisplay}</td>
+            </tr>
+        `;
+    }).join('');
 
     const commentsHtml = data.textFeedback.map(fb => `
         <div class="comment-box">
