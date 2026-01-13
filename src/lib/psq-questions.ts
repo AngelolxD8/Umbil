@@ -12,6 +12,7 @@ export const PSQ_INTRO = {
   body: "Your feedback is anonymous and takes around 2 minutes. It will be used to improve our service and support professional revalidation. Please do not include names or personal details."
 };
 
+// GMC Standard Scale (Fixed)
 export const PSQ_SCALE = [
   { value: 5, label: "Strongly agree" },
   { value: 4, label: "Agree" },

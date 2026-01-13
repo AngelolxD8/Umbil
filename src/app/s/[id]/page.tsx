@@ -1,14 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { PSQ_QUESTIONS, PSQ_INTRO, PSQ_SCALE } from '@/lib/psq-questions';
-import { Check, ChevronRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Check, ChevronRight, AlertCircle, ShieldCheck, RefreshCw } from 'lucide-react';
 
 export default function PublicSurveyPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const id = params?.id as string;
+  const isKiosk = searchParams.get('kiosk') === 'true';
 
   const [loading, setLoading] = useState(true);
   const [surveyValid, setSurveyValid] = useState(false);
@@ -17,6 +20,9 @@ export default function PublicSurveyPage() {
   
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [submitting, setSubmitting] = useState(false);
+  
+  // Kiosk Auto-Refresh State
+  const [timeLeft, setTimeLeft] = useState(5);
 
   useEffect(() => {
     async function checkSurvey() {
@@ -28,11 +34,28 @@ export default function PublicSurveyPage() {
     checkSurvey();
   }, [id]);
 
+  // Handle Kiosk Countdown
+  useEffect(() => {
+    if (completed && isKiosk) {
+      const timer = setInterval(() => {
+        setTimeLeft((prev) => {
+          if (prev <= 1) {
+            clearInterval(timer);
+            window.location.reload(); // Hard reload to clear state for next patient
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      return () => clearInterval(timer);
+    }
+  }, [completed, isKiosk]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     
-    // Validation: Check if all Likert questions are answered
+    // Validation
     const missing = PSQ_QUESTIONS.filter(q => q.type === 'likert' && !answers[q.id]);
     if (missing.length > 0) {
         alert("Please answer all scored questions.");
@@ -46,9 +69,13 @@ export default function PublicSurveyPage() {
       created_at: new Date().toISOString(),
     });
 
-    if (!error) setCompleted(true);
-    else alert('Error submitting. Please try again.');
-    setSubmitting(false);
+    if (!error) {
+        setCompleted(true);
+        window.scrollTo(0, 0);
+    } else {
+        alert('Error submitting. Please try again.');
+        setSubmitting(false);
+    }
   };
 
   const setAnswer = (qId: string, val: any) => {
@@ -71,12 +98,19 @@ export default function PublicSurveyPage() {
   if (completed) {
     return (
       <div className="min-h-screen flex items-center justify-center p-6 bg-white text-center">
-        <div className="max-w-md">
+        <div className="max-w-md w-full">
            <div className="w-16 h-16 bg-teal-50 text-teal-600 rounded-full flex items-center justify-center mx-auto mb-6">
              <Check size={32} strokeWidth={3} />
            </div>
            <h2 className="text-2xl font-bold text-gray-900 mb-4">Thank you</h2>
-           <p className="text-gray-600">Your feedback has been recorded anonymously.</p>
+           <p className="text-gray-600 mb-8">Your feedback has been recorded anonymously.</p>
+           
+           {isKiosk && (
+             <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-center gap-3 text-sm text-gray-500">
+                <RefreshCw size={16} className="animate-spin" />
+                Next patient in {timeLeft}s...
+             </div>
+           )}
         </div>
       </div>
     );
@@ -85,12 +119,17 @@ export default function PublicSurveyPage() {
   if (!started) {
     return (
         <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+            {/* Global Override for Scrolling Issue */}
+            <style jsx global>{`
+                html, body { overflow-y: auto !important; height: auto !important; }
+            `}</style>
+            
             <div className="max-w-lg w-full bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
                 <h1 className="text-2xl font-bold text-gray-900 mb-4">{PSQ_INTRO.title}</h1>
                 <p className="text-gray-600 mb-8 leading-relaxed">{PSQ_INTRO.body}</p>
                 
-                <div className="flex items-center justify-center gap-2 text-sm text-teal-700 bg-teal-50 p-3 rounded-lg mb-8">
-                    <ShieldCheck size={16}/> 100% Anonymous
+                <div className="flex items-center justify-center gap-2 text-sm text-teal-700 bg-teal-50 p-3 rounded-lg mb-8 border border-teal-100">
+                    <ShieldCheck size={16}/> 100% Anonymous • No Personal Data
                 </div>
 
                 <button 
@@ -106,7 +145,12 @@ export default function PublicSurveyPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
-      <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8">
+      {/* Global Override for Scrolling Issue */}
+      <style jsx global>{`
+          html, body { overflow-y: auto !important; height: auto !important; }
+      `}</style>
+
+      <form onSubmit={handleSubmit} className="max-w-2xl mx-auto space-y-8 pb-20">
         
         {/* QUESTIONS LOOP */}
         {PSQ_QUESTIONS.map((q, idx) => (
@@ -153,12 +197,17 @@ export default function PublicSurveyPage() {
 
                 {/* TEXT */}
                 {q.type === 'text' && (
-                    <textarea 
-                        className="w-full p-4 border border-gray-300 rounded-lg h-32 focus:border-teal-500 outline-none"
-                        placeholder="Optional..."
-                        value={answers[q.id] || ''}
-                        onChange={(e) => setAnswer(q.id, e.target.value)}
-                    />
+                    <div>
+                         <div className="mb-2 text-xs text-amber-600 font-medium flex items-center gap-1">
+                            <AlertCircle size={12}/> Please do not include names.
+                         </div>
+                         <textarea 
+                            className="w-full p-4 border border-gray-300 rounded-lg h-32 focus:border-teal-500 outline-none"
+                            placeholder="Optional..."
+                            value={answers[q.id] || ''}
+                            onChange={(e) => setAnswer(q.id, e.target.value)}
+                        />
+                    </div>
                 )}
             </div>
         ))}

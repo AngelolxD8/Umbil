@@ -6,13 +6,13 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { 
   ArrowLeft, Copy, ExternalLink, Lock, CheckCircle2, 
-  BarChart3, FileText, Share2, Eye, Printer, AlertTriangle, Sparkles, Check
+  BarChart3, FileText, Share2, Eye, Printer, AlertTriangle, Sparkles, Check, Tablet
 } from 'lucide-react';
 import { PSQ_QUESTIONS, PSQ_SCALE } from '@/lib/psq-questions';
 import { calculateAnalytics, AnalyticsResult } from '@/lib/psq-analytics';
 import {
-  ResponsiveContainer, LineChart, Line, XAxis, YAxis, 
-  CartesianGrid, Tooltip, BarChart, Bar, Cell
+  ResponsiveContainer, BarChart, Bar, XAxis, YAxis, 
+  CartesianGrid, Tooltip
 } from 'recharts';
 
 export default function PSQCyclePage() {
@@ -25,6 +25,9 @@ export default function PSQCyclePage() {
   const [survey, setSurvey] = useState<any>(null);
   const [analytics, setAnalytics] = useState<AnalyticsResult | null>(null);
   const [copied, setCopied] = useState(false);
+  
+  // Results State
+  const [showComments, setShowComments] = useState(false);
   
   // Reflection State
   const [reflection, setReflection] = useState('');
@@ -46,7 +49,7 @@ export default function PSQCyclePage() {
 
     if (error || !data) {
         console.error('Error fetching survey', error);
-        router.push('/psq'); // Fallback
+        router.push('/psq');
         return;
     }
 
@@ -61,6 +64,10 @@ export default function PSQCyclePage() {
     navigator.clipboard.writeText(url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const openKioskMode = () => {
+      window.open(`/s/${id}?kiosk=true`, '_blank');
   };
 
   const handleGenerateReflection = async () => {
@@ -208,12 +215,12 @@ export default function PSQCyclePage() {
 
               <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-8 flex flex-col items-center text-center">
                  <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mb-4">
-                    <Printer size={32}/>
+                    <Tablet size={32}/>
                  </div>
-                 <h3 className="font-bold text-lg mb-2">QR Code Poster</h3>
-                 <p className="text-sm text-[var(--umbil-muted)] mb-6">Print this for your waiting room or desk.</p>
-                 <button className="btn btn--outline w-full" onClick={() => window.print()}>
-                    Download / Print Poster
+                 <h3 className="font-bold text-lg mb-2">Tablet / Kiosk Mode</h3>
+                 <p className="text-sm text-[var(--umbil-muted)] mb-6">Clean view that auto-refreshes for the next patient.</p>
+                 <button className="btn btn--outline w-full" onClick={openKioskMode}>
+                    Launch Kiosk Mode
                  </button>
               </div>
            </div>
@@ -263,24 +270,40 @@ export default function PSQCyclePage() {
                         </div>
                      </div>
 
-                     {/* Free Text (Protected) */}
+                     {/* Free Text (Protected & Toggable) */}
                      <div className="bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] rounded-xl p-6">
-                        <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-                            <FileText size={20}/> Patient Comments
-                        </h3>
-                        <div className="space-y-4">
-                            {analytics.textFeedback.length === 0 ? (
-                                <p className="text-gray-500 italic">No text comments provided yet.</p>
-                            ) : (
-                                analytics.textFeedback.map((fb, i) => (
-                                    <div key={i} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
-                                        <div className="text-xs text-gray-400 mb-2">{fb.date}</div>
-                                        {fb.good && <p className="text-sm text-gray-800 mb-2"><strong className="text-emerald-600">Good:</strong> {fb.good}</p>}
-                                        {fb.improve && <p className="text-sm text-gray-800"><strong className="text-amber-600">Improve:</strong> {fb.improve}</p>}
-                                    </div>
-                                ))
-                            )}
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="font-bold text-lg flex items-center gap-2">
+                                <FileText size={20}/> Patient Comments
+                            </h3>
+                            <button 
+                                onClick={() => setShowComments(!showComments)} 
+                                className="text-xs font-bold uppercase text-[var(--umbil-brand-teal)] border border-[var(--umbil-brand-teal)] px-3 py-1 rounded hover:bg-[var(--umbil-hover-bg)] transition-colors"
+                            >
+                                {showComments ? 'Hide Comments' : 'Show Comments'}
+                            </button>
                         </div>
+
+                        {showComments ? (
+                            <div className="space-y-4 animate-in fade-in duration-300">
+                                {analytics.textFeedback.length === 0 ? (
+                                    <p className="text-gray-500 italic">No text comments provided yet.</p>
+                                ) : (
+                                    analytics.textFeedback.map((fb, i) => (
+                                        <div key={i} className="p-4 bg-gray-50 rounded-lg border border-gray-100">
+                                            <div className="text-xs text-gray-400 mb-2">{fb.date}</div>
+                                            {fb.good && <p className="text-sm text-gray-800 mb-2"><strong className="text-emerald-600">Good:</strong> {fb.good}</p>}
+                                            {fb.improve && <p className="text-sm text-gray-800"><strong className="text-amber-600">Improve:</strong> {fb.improve}</p>}
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 bg-gray-50 rounded-lg border border-dashed border-gray-200 text-gray-400 text-sm">
+                                <FileText size={24} className="mx-auto mb-2 opacity-50"/>
+                                Comments hidden for presentation safety.
+                            </div>
+                        )}
                      </div>
                   </div>
               )}
