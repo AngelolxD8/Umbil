@@ -58,6 +58,7 @@ OUTPUT STYLE
 
       INTERNAL CHECK (DO NOT OUTPUT):
       Remove any sentence or detail that does not directly support the dominant clinical story or the referral intent.
+      Remove duplicated facts (e.g. haemoglobin, oxygen saturations) unless repetition adds emphasis.
 
       ––––––––––––––––––––––––––––––––––
       PHASE 2: WRITE THE REFERRAL LETTER
@@ -73,6 +74,7 @@ OUTPUT STYLE
       3. Information-dense writing — every sentence must justify its presence.
       4. Write with the tone of a GP who expects the referral to be accepted without persuasion.
       5. If any sentence sounds interpretive rather than observational, rewrite it using factual framing only.
+      6. When in doubt, describe what is observed or recorded rather than what is inferred or concluded.
 
       AVOID JUSTIFICATORY / DEFENSIVE LANGUAGE
       Avoid phrases such as:
@@ -110,6 +112,7 @@ OUTPUT STYLE
 
       4. Findings:
       Include examination findings, observations, or investigation results ONLY if provided and relevant.
+      Avoid global judgments (e.g. “stable”, “unchanged”) unless explicitly stated.
 
       5. Background:
       Briefly include only background history or recent treatments that materially affect the referral.
