@@ -96,12 +96,16 @@ export async function POST(req: NextRequest) {
         : `\nSign off as: "Kind regards,\nDr [Name], GP" (or appropriate role based on context)`;
     }
 
-    // --- V3 FEW-SHOT INJECTION (Style Anchors) ---
-    // Only applies if tool is 'referral' and we have examples
+    // --- V3 FEW-SHOT INJECTION & MODE HANDLING ---
+    // Uses Paul's original examples for tone, but adds a strict override for Quick Mode.
     let fewShotExamples = "";
+    let quickModeConstraint = "";
+
     if (toolType === 'referral' && REFERRAL_FEW_SHOT_EXAMPLES) {
        const mode = (referralMode as ReferralMode) || 'detailed';
        
+       // 1. Construct Few-Shot Examples (Tone Anchors)
+       // We use the Detailed examples as the gold standard for "Umbil Voice"
        const examplesStr = REFERRAL_FEW_SHOT_EXAMPLES.map(ex => `
 INPUT: "${ex.input}"
 OUTPUT:
@@ -110,12 +114,23 @@ ${mode === 'quick' ? ex.quick : ex.detailed}
 
        fewShotExamples = `
 \n\nThese are examples of high-quality GP-to-consultant referrals.
-Match their tone, brevity, narrative flow, and level of certainty exactly.
+Match their tone, narrative flow, and level of certainty exactly.
 Your output should feel interchangeable with these examples.
 
 ${examplesStr}
 \n--------------------\n
 `;
+
+       // 2. Inject STRICT Constraint for Quick Mode
+       if (mode === 'quick') {
+         quickModeConstraint = `
+\nSTRICT CONSTRAINT: You are in QUICK MODE. 
+- Limit output to maximum 3-4 sentences. 
+- Focus ONLY on the primary reason for referral and red flags. 
+- Do NOT repeat the full history. 
+- Be professional but ruthlessly concise.\n
+`;
+       }
     }
 
     const finalPrompt = `
@@ -134,6 +149,8 @@ STRICT INSTRUCTION:
 Refine the above input into the requested format. 
 Do not add any new medical facts. 
 If the input is too vague, do your best with what is there, but do not invent details.
+
+${quickModeConstraint}
 
 OUTPUT:
 `;
