@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase"; // Import Supabase client
 
 // Export the Type so HomeContent can use it
 export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
+export type ReferralMode = 'quick' | 'detailed';
 
 interface ToolConfig {
   id: ToolId;
@@ -96,6 +97,9 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
   const [showHistory, setShowHistory] = useState(false);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  
+  // V3 Referral Features
+  const [referralMode, setReferralMode] = useState<ReferralMode>('detailed');
 
   // User Signature State
   const [signerProfile, setSignerProfile] = useState<{name: string | null, role: string | null} | null>(null);
@@ -123,6 +127,8 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
       setOutput("");
       setIsEditing(false);
       setShowHistory(false);
+      // Reset mode on open if desired, or keep last state
+      setReferralMode('detailed');
     }
   }, [isOpen, initialTool]);
 
@@ -167,7 +173,9 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
           input,
           // Pass User Signature Data
           signerName: signerProfile?.name,
-          signerRole: signerProfile?.role
+          signerRole: signerProfile?.role,
+          // Pass Referral Mode (V3)
+          referralMode
         }),
       });
 
@@ -301,8 +309,52 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
               
               {/* Input Section */}
               <div className="input-section">
+                
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                  <label className="form-label" style={{ marginBottom: 0 }}>Clinical Notes</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <label className="form-label" style={{ marginBottom: 0 }}>Clinical Notes</label>
+                    
+                    {/* V3 Referral Toggle */}
+                    {activeTool.id === 'referral' && (
+                      <div className="referral-mode-toggle" style={{ display: 'flex', background: 'var(--umbil-bg-subtle)', borderRadius: '6px', padding: '2px', border: '1px solid var(--umbil-border)' }}>
+                        <button
+                          onClick={() => setReferralMode('quick')}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            borderRadius: '4px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: referralMode === 'quick' ? 'white' : 'transparent',
+                            color: referralMode === 'quick' ? 'var(--umbil-brand-teal)' : 'var(--umbil-muted)',
+                            boxShadow: referralMode === 'quick' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          Quick
+                        </button>
+                        <button
+                          onClick={() => setReferralMode('detailed')}
+                          style={{
+                            padding: '4px 12px',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            borderRadius: '4px',
+                            border: 'none',
+                            cursor: 'pointer',
+                            backgroundColor: referralMode === 'detailed' ? 'white' : 'transparent',
+                            color: referralMode === 'detailed' ? 'var(--umbil-brand-teal)' : 'var(--umbil-muted)',
+                            boxShadow: referralMode === 'detailed' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          Detailed
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
                   {input && (
                     <button 
                       onClick={() => setInput("")} 

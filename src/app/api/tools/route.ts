@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { streamText } from "ai";
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import { tavily } from "@tavily/core";
-import { SYSTEM_PROMPTS } from "@/lib/prompts";
+import { SYSTEM_PROMPTS, REFERRAL_FEW_SHOT_EXAMPLES } from "@/lib/prompts";
 
 // --- CONFIG ---
 const API_KEY = process.env.TOGETHER_API_KEY!;
@@ -15,6 +15,7 @@ const tvly = TAVILY_API_KEY ? tavily({ apiKey: TAVILY_API_KEY }) : null;
 
 // --- TYPE DEFINITIONS ---
 type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
+type ReferralMode = 'quick' | 'detailed';
 
 interface ToolConfig {
   systemPrompt: string;
@@ -27,7 +28,7 @@ const TOOLS: Record<ToolId, ToolConfig> = {
   referral: {
     useSearch: true, 
     searchQueryGenerator: (input) => `NICE CKS referral guidelines UK ${input}`,
-    systemPrompt: SYSTEM_PROMPTS.TOOLS.REFERRAL
+    systemPrompt: SYSTEM_PROMPTS.TOOLS.REFERRAL // New V3 Prompt
   },
   safety_netting: {
     useSearch: true,
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest) {
   if (!API_KEY) return NextResponse.json({ error: "API Key missing" }, { status: 500 });
 
   try {
-    const { toolType, input, signerName, signerRole } = await req.json();
+    const { toolType, input, signerName, signerRole, referralMode } = await req.json();
     
     // Explicit cast to ToolId
     const config = TOOLS[toolType as ToolId];
@@ -95,10 +96,34 @@ export async function POST(req: NextRequest) {
         : `\nSign off as: "Kind regards,\nDr [Name], GP" (or appropriate role based on context)`;
     }
 
+    // --- V3 FEW-SHOT INJECTION (Style Anchors) ---
+    // Only applies if tool is 'referral' and we have examples
+    let fewShotExamples = "";
+    if (toolType === 'referral' && REFERRAL_FEW_SHOT_EXAMPLES) {
+       const mode = (referralMode as ReferralMode) || 'detailed';
+       
+       const examplesStr = REFERRAL_FEW_SHOT_EXAMPLES.map(ex => `
+INPUT: "${ex.input}"
+OUTPUT:
+${mode === 'quick' ? ex.quick : ex.detailed}
+`).join("\n\n--------------------\n");
+
+       fewShotExamples = `
+\n\nThese are examples of high-quality GP-to-consultant referrals.
+Match their tone, brevity, narrative flow, and level of certainty exactly.
+Your output should feel interchangeable with these examples.
+
+${examplesStr}
+\n--------------------\n
+`;
+    }
+
     const finalPrompt = `
 ${config.systemPrompt}
 
 ${context ? `Use the following guidelines to ensure safety/accuracy:\n${context}` : ""}
+
+${fewShotExamples}
 
 ${signatureBlock}
 
