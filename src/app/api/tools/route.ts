@@ -126,6 +126,8 @@ ${examplesStr}
          quickModeConstraint = `
 \nSTRICT CONSTRAINT: You are in QUICK MODE. 
 - Limit output to maximum 3-4 sentences. 
+- Output must ALWAYS start with "Dear Colleague,".
+- Do NOT explain clinical reasoning or guidelines (e.g. do not say "This requires assessment"). State the facts and the ask only.
 - Focus ONLY on the primary reason for referral and red flags. 
 - Do NOT repeat the full history. 
 - Be professional but ruthlessly concise.\n
