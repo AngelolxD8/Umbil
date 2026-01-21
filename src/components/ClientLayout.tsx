@@ -9,6 +9,7 @@ import MobileNav from "@/components/MobileNav";
 import { useUserEmail } from "@/hooks/useUser";
 import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { Analytics } from "@vercel/analytics/react";
+import styles from "./ClientLayout.module.css";
 
 // --- Helper Component for Streak ---
 function GlobalStreakDisplay() {
@@ -18,6 +19,7 @@ function GlobalStreakDisplay() {
   if (loading || !email) return null;
 
   const streakDisplay = currentStreak > 0 ? currentStreak : 0;
+  // NOTE: global-streak is a shared utility class remaining in globals.css
   const className = `global-streak ${hasLoggedToday ? '' : 'faded'}`;
   const title = hasLoggedToday 
     ? "You've captured learning today! Click to view your profile." 
@@ -38,11 +40,11 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <ThemeProvider>
       <div id="root" style={{ display: 'flex', flexDirection: 'column', height: '100dvh', overflow: 'hidden' }}>
-        <header className="header" style={{ flexShrink: 0 }}>
-          <div className="header-left">
+        <header className={styles.header} style={{ flexShrink: 0 }}>
+          <div className={styles.headerLeft}>
             <button
               id="tour-highlight-sidebar-button"
-              className="menu-button"
+              className={styles.menuButton}
               aria-label="Open sidebar menu"
               onClick={() => setIsMobileNavOpen(true)}
             >
@@ -52,15 +54,15 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             </button>
           </div>
 
-          <div className="logo-section">
+          <div className={styles.logoSection}>
             {/* LOGIC CHANGE: If logged in, go to Dashboard. If not, go to Landing Page. */}
-            <Link href={email ? "/dashboard" : "/"} className="logo-link">
-              <h2 className="umbil-logo-text">Umbil</h2>
-              <p className="tagline">Your Medical Lifeline</p>
+            <Link href={email ? "/dashboard" : "/"} className={styles.logoLink}>
+              <h2 className={styles.umbilLogoText}>Umbil</h2>
+              <p className={styles.tagline}>Your Medical Lifeline</p>
             </Link>
           </div>
 
-          <div className="header-right">
+          <div className={styles.headerRight}>
             <GlobalStreakDisplay />
             <AuthButtons />
           </div>

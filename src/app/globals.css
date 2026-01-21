@@ -49,8 +49,6 @@
   }
 }
 
-/* REPLACE THE EXISTING body AND #root BLOCKS WITH THIS */
-
 body {
   font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   background: var(--umbil-bg);
@@ -131,18 +129,6 @@ a {
   padding-bottom: 120px;
 }
 
-.sticky-input-wrapper {
-  position: sticky;
-  bottom: 0;
-  width: 100%;
-  background: var(--umbil-bg);
-  border-top: 1px solid var(--umbil-divider);
-  z-index: 50;
-  padding: 16px 20px 24px 20px;
-  display: flex;
-  justify-content: center;
-}
-
 .message-bubble {
   min-width: 0; 
   word-wrap: break-word;
@@ -204,10 +190,6 @@ a {
     max-width: 100%;
     margin-right: 0;
   }
-
-  .sticky-input-wrapper {
-    padding: 12px;
-  }
 }
 
 .user-message {
@@ -221,97 +203,6 @@ a {
   margin-right: auto;
   position: relative;
   line-height: 1.6;
-}
-
-/* Header */
-.header {
-  position: sticky;
-  top: 0;
-  left: 0;
-  width: 100%;
-  padding: 16px 20px;
-  background: var(--umbil-surface);
-  border-bottom: 1px solid var(--umbil-card-border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  z-index: 100;
-  transition: background-color 0.3s, border-color 0.3s;
-}
-
-.header-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-/* UPDATED LOGO STYLES */
-.logo-section {
-  display: flex;
-  align-items: center;
-}
-
-.logo-link {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1;
-  text-decoration: none;
-}
-
-.umbil-logo-text {
-  font-size: 28px; 
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--umbil-brand-teal);
-  margin-bottom: 2px;
-}
-
-.tagline {
-  font-size: 13px; 
-  font-weight: 500;
-  color: var(--umbil-muted);
-}
-
-.menu-button, .login-button {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  color: var(--umbil-text);
-  font-size: 16px;
-  line-height: 1;
-  border-radius: var(--umbil-radius-sm);
-  transition: background-color 0.2s ease-in-out;
-}
-
-.menu-button:hover, .login-button:hover {
-  background-color: var(--umbil-hover-bg);
-}
-
-.login-link {
-  border: 1px solid var(--umbil-card-border);
-  border-radius: var(--umbil-radius-sm);
-  padding: 8px 12px;
-  font-weight: 500;
-  transition: background-color 0.2s ease-in-out;
-  color: var(--umbil-text);
-}
-
-.login-link:hover {
-  background-color: var(--umbil-hover-bg);
-}
-
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
 }
 
 /* Hero Section */
@@ -353,179 +244,7 @@ a {
   color: var(--umbil-muted);
 }
 
-/* Ask Bar Styles - UPDATED WITH TEAL BORDER & BOXY RADIUS */
-.ask-bar-container-new {
-  width: 100%;
-  background-color: var(--umbil-surface);
-  border: 1px solid rgba(31, 184, 205, 0.3); /* Subtle teal border */
-  border-radius: var(--umbil-radius-sm); /* FIXED: Made boxy */
-  box-shadow: var(--umbil-shadow-sm);
-  display: flex;
-  flex-direction: column;
-  padding: 12px 16px;
-  transition: box-shadow 0.2s, border-color 0.2s;
-}
-
-.ask-bar-container-new:focus-within {
-  box-shadow: 0 0 0 3px rgba(31, 184, 205, 0.15); /* Softer teal glow */
-  border-color: var(--umbil-brand-teal);
-}
-
-.ask-bar-textarea {
-  width: 100%;
-  border: none;
-  background: transparent;
-  font-family: inherit;
-  font-size: 1rem;
-  color: var(--umbil-text);
-  resize: none;
-  outline: none;
-  padding: 0;
-  margin-bottom: 8px;
-  max-height: 200px;
-  min-height: 24px;
-}
-
-.ask-bar-actions {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.action-icon-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 8px;
-  border-radius: var(--umbil-radius-sm); /* FIXED: Use 8px instead of 50% */
-  color: var(--umbil-muted);
-  transition: background-color 0.2s, color 0.2s;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.action-icon-btn:hover {
-  background-color: var(--umbil-hover-bg);
-  color: var(--umbil-text);
-}
-
-/* Specific styling for the Tools button */
-.action-icon-btn[title="Medical Tools"] {
-  border-radius: var(--umbil-radius-sm); 
-  padding: 6px 10px;
-  background-color: var(--umbil-hover-bg);
-  color: var(--umbil-text);
-}
-.action-icon-btn[title="Medical Tools"]:hover {
-  background-color: #e2e8f0; 
-}
-:root .dark .action-icon-btn[title="Medical Tools"]:hover {
-  background-color: #3f3f46;
-}
-
-/* SEND BUTTON - ALWAYS TEAL, BOXY */
-.send-icon-btn {
-  background-color: var(--umbil-brand-teal);
-  color: var(--umbil-surface);
-  border: none;
-  border-radius: var(--umbil-radius-sm); /* FIXED: Made boxy */
-  width: 36px;
-  height: 36px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  cursor: pointer;
-  transition: transform 0.1s, opacity 0.2s;
-}
-
-.send-icon-btn:hover {
-  opacity: 0.9;
-}
-
-.send-icon-btn:disabled {
-  background-color: var(--umbil-brand-teal); /* Keep teal color */
-  opacity: 0.4; /* Fade out instead of gray */
-  cursor: not-allowed;
-}
-
-/* --- Answer Style Dropdown --- */
-.style-dropdown-container {
-  position: relative;
-  z-index: 5; 
-  flex-shrink: 0; 
-}
-
-.style-dropdown-button {
-  background-color: var(--umbil-surface);
-  color: var(--umbil-muted);
-  border: none;
-  border-radius: var(--umbil-radius-sm);
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.style-dropdown-button:hover {
-  background-color: var(--umbil-hover-bg);
-  color: var(--umbil-text);
-}
-
-.style-dropdown-menu {
-  position: absolute;
-  bottom: 100%;
-  left: 0;
-  margin-bottom: 8px;
-  min-width: 200px;
-  background-color: var(--umbil-surface);
-  border-radius: var(--umbil-radius-sm);
-  border: 1px solid var(--umbil-divider);
-  box-shadow: var(--umbil-shadow-lg);
-  z-index: 110;
-  padding: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.style-dropdown-menu button {
-  background: none;
-  border: none;
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 4px;
-  text-align: left;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  color: var(--umbil-text);
-}
-
-.style-dropdown-menu button:hover {
-  background-color: var(--umbil-hover-bg);
-}
-
-.style-dropdown-menu button.active {
-  background-color: var(--umbil-hover-bg);
-  color: var(--umbil-brand-teal);
-}
-
-.style-dropdown-menu button strong {
-  display: block;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.style-dropdown-menu button p {
-  font-size: 0.75rem;
-  color: var(--umbil-muted);
-  margin: 2px 0 0 0;
-}
-
+/* Markdown Content Styles */
 .umbil-message p { margin: 0 0 1rem 0; }
 .umbil-message p:last-child { margin-bottom: 0; }
 .umbil-message ul, .umbil-message ol { margin: 1rem 0 1rem 1.5rem; padding: 0; }
