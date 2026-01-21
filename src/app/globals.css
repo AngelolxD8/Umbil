@@ -4,6 +4,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
 :root {
   /* Simplified Color Palette (Light Mode Default) */
   --umbil-bg: #f7f8fa;
@@ -1355,6 +1356,7 @@ select {
 @tailwind components;
 @tailwind utilities;
 
+/* --- Custom Variables & Theme Settings --- */
 :root {
   --font-geist-sans: "Geist", sans-serif;
   --font-geist-mono: "Geist Mono", monospace;
@@ -1376,7 +1378,7 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Custom Animation for the Social Proof Ticker */
+/* --- Custom Animations --- */
 @keyframes scroll {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }
@@ -1384,5 +1386,15 @@ body {
 
 .animate-scroll {
   animation: scroll 30s linear infinite;
-  /* Ensure parent has overflow-hidden */
+  /* Ensure parent container has overflow-hidden */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
 }
