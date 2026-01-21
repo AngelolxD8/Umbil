@@ -2,6 +2,6 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Umbil – Your Medical Co-Pilot",
-  description: "Clinical intelligence, reflection, and CPD — re-imagined for modern medicine.",
+  title: "Umbil – Clinical Workflow Assistant",
+  description: "Referrals, Safety-netting, and SBARs in seconds. The AI tool for high-pressure clinical shifts.",
 };
