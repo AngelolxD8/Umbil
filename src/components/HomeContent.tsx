@@ -15,7 +15,6 @@ import { useCpdStreaks } from "@/hooks/useCpdStreaks";
 import { v4 as uuidv4 } from 'uuid'; 
 import { useSpeechRecognition } from "@/hooks/useSpeechRecognition";
 import { ToolId, TOOLS_CONFIG } from "@/components/ToolsModal"; 
-import styles from "./HomeContent.module.css";
 
 // --- Dynamic Imports ---
 const ReflectionModal = dynamic(() => import('@/components/ReflectionModal'));
@@ -143,9 +142,9 @@ const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSel
   const handleSelect = (id: ToolId) => { onSelect(id); setIsOpen(false); };
   
   return (
-    <div id="tour-highlight-tools-dropdown" className={styles.styleDropdownContainer} ref={dropdownRef}>
+    <div id="tour-highlight-tools-dropdown" className="style-dropdown-container" ref={dropdownRef}>
       <button 
-        className={styles.actionIconBtn} 
+        className="action-icon-btn" 
         title="Medical Tools"
         onClick={() => setIsOpen(!isOpen)}
       >
@@ -156,7 +155,7 @@ const ToolsDropdown: React.FC<{ onSelect: (toolId: ToolId) => void }> = ({ onSel
       </button>
       
       {isOpen && (
-        <div className={styles.styleDropdownMenu} style={{ minWidth: '180px' }}>
+        <div className="style-dropdown-menu" style={{ minWidth: '180px' }}>
           {TOOLS_CONFIG.map((tool) => (
              <button key={tool.id} onClick={() => handleSelect(tool.id)} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px' }}>
                 <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>{tool.label}</span>
@@ -183,13 +182,13 @@ const AnswerStyleDropdown: React.FC<{ currentStyle: AnswerStyle; onStyleChange: 
   const handleSelect = (style: AnswerStyle) => { onStyleChange(style); setIsOpen(false); };
   
   return (
-    <div id="tour-highlight-style-dropdown" className={styles.styleDropdownContainer} ref={dropdownRef}>
-      <button className={styles.styleDropdownButton} onClick={() => setIsOpen(!isOpen)} title="Change answer style">
+    <div id="tour-highlight-style-dropdown" className="style-dropdown-container" ref={dropdownRef}>
+      <button className="style-dropdown-button" onClick={() => setIsOpen(!isOpen)} title="Change answer style">
         {styleDisplayNames[currentStyle]}
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ opacity: 0.7 }}><path d="M4 6L8 10L12 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
       </button>
       {isOpen && (
-        <div className={styles.styleDropdownMenu}>
+        <div className="style-dropdown-menu">
           <button className={currentStyle === "standard" ? "active" : ""} onClick={() => handleSelect("standard")}><strong>Standard</strong><p>Balanced, concise answer.</p></button>
           <button className={currentStyle === "clinic" ? "active" : ""} onClick={() => handleSelect("clinic")}><strong>Clinic</strong><p>Bullet points, rapid actions.</p></button>
           <button className={currentStyle === "deepDive" ? "active" : ""} onClick={() => handleSelect("deepDive")}><strong>Deep Dive</strong><p>Detailed evidence review.</p></button>
@@ -237,10 +236,10 @@ const SearchInputArea = ({
   }, [q, adjustHeight]);
 
   return (
-    <div id="tour-highlight-askbar" className={styles.askBarContainer}>
+    <div id="tour-highlight-askbar" className="ask-bar-container-new">
       <textarea
         ref={textareaRef}
-        className={styles.askBarTextarea}
+        className="ask-bar-textarea"
         placeholder="Ask Umbil anything..."
         value={isTourOpen ? "What are the red flags for a headache?" : q}
         onChange={(e) => setQ(e.target.value)}
@@ -256,7 +255,7 @@ const SearchInputArea = ({
         rows={1}
       />
       
-      <div className={styles.askBarActions}>
+      <div className="ask-bar-actions">
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           <ToolsDropdown onSelect={onToolSelect} />
         </div>
@@ -265,7 +264,7 @@ const SearchInputArea = ({
           <AnswerStyleDropdown currentStyle={answerStyle} onStyleChange={setAnswerStyle} />
 
           <button 
-            className={`${styles.actionIconBtn} ${isRecording ? "recording" : ""}`}
+            className={`action-icon-btn ${isRecording ? "recording" : ""}`}
             onClick={handleMicClick}
             disabled={loading || isTourOpen}
             title={isRecording ? "Stop Recording" : "Start Dictation"}
@@ -279,7 +278,7 @@ const SearchInputArea = ({
             )}
           </button>
 
-          <button className={styles.sendIconBtn} onClick={isTourOpen ? () => handleTourStepChange(3) : ask} disabled={loading || !q.trim()}>
+          <button className="send-icon-btn" onClick={isTourOpen ? () => handleTourStepChange(3) : ask} disabled={loading || !q.trim()}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
           </button>
         </div>
@@ -755,7 +754,7 @@ export default function HomeContent({ forceStartTour }: HomeContentProps) {
                 <div ref={messagesEndRef} />
               </div>
             </div>
-            <div className={styles.stickyInputWrapper}>
+            <div className="sticky-input-wrapper" style={{ position: 'relative', flexShrink: 0, background: 'var(--umbil-bg)', borderTop: '1px solid var(--umbil-divider)', zIndex: 50, padding: '20px' }}>
               <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%' }}>
                 <SearchInputArea q={q} setQ={setQ} ask={ask} loading={loading} isTourOpen={isTourOpen} isRecording={isRecording} handleMicClick={toggleRecording} answerStyle={answerStyle} setAnswerStyle={setAnswerStyle} onToolSelect={handleToolSelect} handleTourStepChange={handleTourStepChange} />
               </div>
