@@ -1,9 +1,6 @@
 /* src/app/globals.css */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 @import "tailwindcss";
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 :root {
   /* Simplified Color Palette (Light Mode Default) */
@@ -25,7 +22,7 @@
 }
 
 /* --- Dark Mode Variables --- */
-:root .dark {
+.dark {
   --umbil-bg: #121212;
   --umbil-surface: #1e1e1e;
   --umbil-text: #ffffff;
