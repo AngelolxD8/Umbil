@@ -7,10 +7,9 @@ import ClientLayout from "@/components/ClientLayout";
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-// --- SEO METADATA (Updated for Organic Growth Playbook) ---
 export const metadata: Metadata = {
   title: "Umbil | Clinical Workflow Assistant & Referral Writer",
-  description: "The AI co-pilot for high-pressure shifts. Write referrals, generate safety-netting instructions, and draft SBAR handovers instantly. Zero-permission adoption for UK clinicians.",
+  description: "The AI co-pilot for high-pressure shifts. Write referrals, generate safety-netting instructions, and draft SBAR handovers instantly.",
   keywords: [
     "Umbil AI",
     "GP referral writer",
@@ -44,10 +43,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
-        suppressHydrationWarning
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        style={{ backgroundColor: 'var(--umbil-bg)', color: 'var(--umbil-text)' }}
       >
         <ClientLayout>
           {children}
