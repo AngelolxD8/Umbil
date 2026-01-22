@@ -1,3 +1,4 @@
+// src/app/psq/page.tsx
 'use client';
 
 import { useEffect, useState } from 'react';
@@ -5,6 +6,7 @@ import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 import { Plus, Copy, Check, FileText, ChevronRight, Trash2, X } from 'lucide-react';
 import { useUserEmail } from "@/hooks/useUser";
+import styles from './psq.module.css';
 
 export default function PSQDashboard() {
   const [surveys, setSurveys] = useState<any[]>([]);
@@ -144,8 +146,8 @@ export default function PSQDashboard() {
 
       {/* Create Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 animate-in zoom-in-95 duration-200">
+        <div className={`fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4`}>
+            <div className={`bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 ${styles.animateIn} ${styles.zoomIn95} duration-200`}>
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-xl font-bold">Start New Cycle</h3>
                     <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-600">

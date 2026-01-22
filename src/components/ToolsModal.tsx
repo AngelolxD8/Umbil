@@ -6,6 +6,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import Toast from "./Toast";
 import { supabase } from "@/lib/supabase"; // Import Supabase client
+import styles from "./ToolsModal.module.css";
 
 // Export the Type so HomeContent can use it
 export type ToolId = 'referral' | 'safety_netting' | 'discharge_summary' | 'sbar' | 'patient_friendly';
@@ -232,10 +233,10 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
         onClose={() => setToastMessage(null)} 
       />
 
-      <div className="modal-content tools-modal-content">
+      <div className={`modal-content ${styles.content}`}>
         
         {/* Header */}
-        <div className="tools-header">
+        <div className={styles.header}>
           <div style={{display:'flex', alignItems:'center', gap:'12px'}}>
              <div style={{ color: 'var(--umbil-brand-teal)' }}>{activeTool.icon}</div>
              <div>
@@ -261,10 +262,10 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
           </div>
         </div>
 
-        <div className="tools-body">
+        <div className={styles.body}>
           {/* HISTORY VIEW */}
           {showHistory ? (
-             <div className="tools-main" style={{ padding: '24px' }}>
+             <div className={styles.main} style={{ padding: '24px' }}>
                 <h4 className="form-label">Recent Generations</h4>
                 {loadingHistory ? (
                   <div className="flex flex-col gap-3 mt-4">
@@ -305,10 +306,10 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
              </div>
           ) : (
             /* MAIN TOOL VIEW */
-            <div className="tools-main">
+            <div className={styles.main}>
               
               {/* Input Section */}
-              <div className="input-section">
+              <div className={styles.inputSection}>
                 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
@@ -394,7 +395,7 @@ export default function ToolsModal({ isOpen, onClose, initialTool = 'referral' }
               </div>
 
               {/* Output Section */}
-              <div className="output-section" style={{ borderTop: '1px solid var(--umbil-divider)', paddingTop: '20px', marginTop: '20px', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+              <div className={styles.outputSection}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <label className="form-label" style={{marginBottom:0}}>Result</label>
                   
