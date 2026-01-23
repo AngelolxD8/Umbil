@@ -22,28 +22,28 @@ import {
   Search
 } from "lucide-react";
 
-// --- LIVE DEMO DATA (Specific Clinical Scenarios - Extended for Realism) ---
+// --- LIVE DEMO DATA (Short & Punchy) ---
 const DEMO_SCENARIOS = [
   {
     id: "referral",
     label: "Referral",
     icon: <FileText className="w-3 h-3" />,
     input: "54M, dysphagia to solids 6wks. Food sticks mid-chest. 6kg wt loss. Ex-smoker. No haem/melaena. On omeprazole. No scope.",
-    output: "Dear Colleague,\n\nI would be grateful for your urgent assessment of this 54-year-old gentleman with a six-week history of progressive dysphagia to solids. He describes food sticking in the mid-chest area and has reported approximately 6 kg of unintentional weight loss over this period.\n\nHe is an ex-smoker currently taking omeprazole. He denies any haematemesis or melaena.\n\nPhysical examination revealed no masses or lymphadenopathy. His recent FBC was unremarkable.\n\nGiven the red flag symptoms of progressive dysphagia and significant weight loss, I would appreciate your urgent investigation to exclude malignancy."
+    output: "Dear Colleague,\n\nI would be grateful for your assessment of this 54-year-old gentleman with a six-week history of progressive dysphagia to solids. He describes food sticking in the mid-chest and has lost approximately 6 kg unintentionally.\n\nHe is an ex-smoker taking omeprazole. There is no history of haematemesis or melaena.\n\nGiven the red flag symptoms, I would appreciate your urgent investigation."
   },
   {
     id: "sbar",
     label: "SBAR",
     icon: <Activity className="w-3 h-3" />,
     input: "78F on ward. CAP. NEWS 3->6. O2 req 2L->4L. Known COPD. On IV abx. No ABG.",
-    output: "Situation\n78-year-old female admitted with CAP. Her NEWS score has deteriorated from 3 to 6 this evening. Oxygen requirements have increased from 2L to 4L to maintain saturations.\n\nBackground\nShe has a background of COPD. Currently treated with IV antibiotics for pneumonia. DNACPR status is not documented.\n\nAssessment\nShe appears tachypnoeic (RR 28) and more breathless. Chest auscultation reveals coarse crackles and wheeze. I am concerned about worsening sepsis or type 2 respiratory failure.\n\nRecommendation\nUrgent medical review required. I will perform an ABG and repeat the CXR now. Please advise on escalation."
+    output: "Situation\n78-year-old female with CAP. NEWS score increased to 6. Rising oxygen requirements.\n\nBackground\nKnown COPD. On IV antibiotics.\n\nAssessment\nO2 requirement up to 4L. Breathless. No ABG yet.\n\nRecommendation\nUrgent review required. Consider ABG and escalation."
   },
   {
     id: "safetynet",
     label: "Safety Net",
     icon: <Shield className="w-3 h-3" />,
     input: "Chest discomfort. Normal ECG. No red flags. Conservative mgmt.",
-    output: "I have explained that the chest discomfort appears musculoskeletal in nature today, supported by a normal physical examination and ECG.\n\nHowever, I have advised the patient to seek urgent help (A&E/999) if they experience:\n- Severe central chest pain or heaviness lasting >15 minutes.\n- Pain radiating to the jaw, neck, or left arm.\n- Associated shortness of breath, sweating, or nausea.\n- Collapse or loss of consciousness.\n\nPatient to re-present if symptoms persist despite analgesia."
+    output: "Advised to seek urgent help if pain becomes severe, prolonged, or associated with breathlessness, collapse, or radiation to arm or jaw.\nTo re-present if symptoms worsen."
   }
 ];
 
@@ -83,7 +83,7 @@ export default function LandingPage() {
         // Wait 4 seconds to read output before switching
         timeout = setTimeout(() => {
           setActiveScenario((prev) => (prev + 1) % DEMO_SCENARIOS.length);
-        }, 5000); // Longer read time for longer output
+        }, 4000); 
       }
     };
 
@@ -135,7 +135,7 @@ export default function LandingPage() {
                   Try it in Clinic
                   <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
                 </Link>
-                <Link href="/about" className="px-8 py-4 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-semibold rounded-md hover:bg-[var(--umbil-hover-bg)] transition-colors flex items-center gap-2 text-lg">
+                <Link href="/dashboard?tour=true&forceTour=true" className="px-8 py-4 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-semibold rounded-md hover:bg-[var(--umbil-hover-bg)] transition-colors flex items-center gap-2 text-lg">
                   See how it works
                 </Link>
               </div>
@@ -154,15 +154,15 @@ export default function LandingPage() {
               className="relative flex justify-center lg:justify-end"
             >
                {/* Phone Frame */}
-               <div className="relative border-gray-900 bg-gray-900 border-[12px] rounded-[3rem] h-[680px] w-[340px] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
+               <div className="relative border-gray-900 bg-gray-900 border-[12px] rounded-[3rem] h-[640px] w-[320px] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
                  {/* Camera / Speaker Notch */}
                  <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[20px] w-[120px] bg-gray-900 rounded-b-xl z-20"></div>
 
                  {/* Screen Content */}
                  <div className="flex-1 bg-[var(--umbil-surface)] overflow-hidden flex flex-col w-full h-full relative">
                     
-                    {/* Fake Browser Address Bar */}
-                    <div className="bg-[var(--umbil-hover-bg)] p-3 pt-8 pb-3 border-b border-[var(--umbil-card-border)] flex items-center justify-between gap-2 z-10">
+                    {/* Fake Browser Address Bar - Added pt-12 to clear notch */}
+                    <div className="bg-[var(--umbil-hover-bg)] p-3 pt-12 pb-3 border-b border-[var(--umbil-card-border)] flex items-center justify-between gap-2 z-10">
                       <Menu size={16} className="text-[var(--umbil-muted)]" />
                       <div className="flex-1 bg-[var(--umbil-surface)] rounded-full h-8 flex items-center justify-center px-4 shadow-sm border border-[var(--umbil-card-border)]">
                          <Lock size={10} className="text-emerald-500 mr-1.5" />
@@ -195,7 +195,7 @@ export default function LandingPage() {
                       {/* Input Area */}
                       <div className="space-y-2 mb-2">
                         <label className="text-[10px] font-bold text-[var(--umbil-muted)] uppercase tracking-wider">Clinical Notes</label>
-                        <div className="bg-[var(--umbil-hover-bg)] p-3 rounded-lg border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-mono text-xs min-h-[80px] whitespace-pre-wrap leading-relaxed shadow-inner opacity-80">
+                        <div className="bg-[var(--umbil-hover-bg)] p-3 rounded-lg border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-mono text-xs min-h-[100px] whitespace-pre-wrap leading-relaxed shadow-inner opacity-80">
                           {displayedInput}
                           <span className="animate-pulse inline-block w-1.5 h-3 bg-[var(--umbil-brand-teal)] align-middle ml-0.5" />
                         </div>
@@ -270,12 +270,9 @@ export default function LandingPage() {
                   <FileText size={20} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Referral Writer</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6 flex-grow">
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-2 flex-grow">
                   Shorthand → consultant-ready referral in UK GP voice.
                 </p>
-                <Link href="/dashboard?tool=referral" className="btn-secondary w-full justify-center text-xs font-bold py-2.5">
-                  Try it
-                </Link>
               </motion.div>
 
               {/* Feature 2: Safety Net */}
@@ -287,12 +284,9 @@ export default function LandingPage() {
                   <Shield size={20} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Safety Net</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6 flex-grow">
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-2 flex-grow">
                   4 crisp red flags + what to do next.
                 </p>
-                <Link href="/dashboard?tool=safetynet" className="btn-secondary w-full justify-center text-xs font-bold py-2.5">
-                  Try it
-                </Link>
               </motion.div>
 
               {/* Feature 3: SBAR Handover */}
@@ -304,12 +298,9 @@ export default function LandingPage() {
                   <Activity size={20} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">SBAR Handover</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6 flex-grow">
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-2 flex-grow">
                   Messy notes → clean SBAR in seconds.
                 </p>
-                <Link href="/dashboard?tool=sbar" className="btn-secondary w-full justify-center text-xs font-bold py-2.5">
-                  Try it
-                </Link>
               </motion.div>
 
               {/* Feature 4: Patient Translator */}
@@ -321,12 +312,9 @@ export default function LandingPage() {
                   <Languages size={20} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Translator</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6 flex-grow">
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-2 flex-grow">
                   Clinical text → patient-friendly explanation.
                 </p>
-                <Link href="/dashboard?tool=translator" className="btn-secondary w-full justify-center text-xs font-bold py-2.5">
-                  Try it
-                </Link>
               </motion.div>
 
             </div>
@@ -473,7 +461,7 @@ export default function LandingPage() {
             className="max-w-3xl mx-auto"
           >
             <h2 className="text-4xl md:text-5xl font-extrabold text-[var(--umbil-text)] mb-8">Think less. Do more.</h2>
-            <p className="text-xl text-[var(--umbil-text)] opacity-70 mb-10">
+            <p className="text-xl text-[var(--umbil-text)] opacity-70 mb-10 mx-auto">
               Open a tab. Start typing. No installation, no credit card, no permission required.
             </p>
             <Link href="/auth" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all transform hover:scale-105">
