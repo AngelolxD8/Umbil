@@ -7,6 +7,7 @@ import { useState } from "react";
 export default function AdminIngestionPage() {
 	const [text, setText] = useState("");
 	const [source, setSource] = useState("");
+  const [documentType, setDocumentType] = useState("nice");
   const [rewritten, setRewritten] = useState("");
 	const [password, setPassword] = useState("");
 	const [status, setStatus] = useState<string | null>(null);
@@ -32,7 +33,7 @@ export default function AdminIngestionPage() {
 			const response = await fetch("/api/admin/ingestion", {
 				method: "POST",
 				headers: { "Content-Type": "application/json"},
-				body: JSON.stringify({ text, source }),
+				body: JSON.stringify({ text, source, documentType}),
 			});
 
 			const data = await response.json();
@@ -82,6 +83,21 @@ export default function AdminIngestionPage() {
                 onChange={(e) => setSource(e.target.value)}
                 placeholder="e.g., NICE NG80: Asthma (Diagnosis), Page 4-5"
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Choose a type:</label>
+
+              <select 
+              name="document_type" id="type"
+              className="form-dropdown" 
+              value={documentType} 
+              onChange={(e) => setDocumentType(e.target.value)}>
+                <option value="cks">CKS</option>
+                <option value="bnf">BNF</option>
+                <option value="nice">NICE</option>
+                <option value="sign">SIGN</option>
+              </select>
             </div>
 
             <div className="form-group">

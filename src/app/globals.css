@@ -728,6 +728,18 @@ a {
 /* Other form styles */
 .form-group { margin-bottom: 1rem; }
 .form-label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.875rem; color: var(--umbil-muted); }
+.form-dropdown {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  font-size: 14pt;
+  border: 1px solid var(--umbil-card-border);
+  border-radius: var(--umbil-radius-sm);
+  background-color: #fff;
+  transition: border-color .15s ease-in-out, box-shadow .15s ease-in-out, background-color .3s, color .3s;
+  display: block;
+}
 .form-control {
   display: block;
   width: 100%;

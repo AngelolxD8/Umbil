@@ -6,6 +6,7 @@ import { OpenAI } from "openai";
 import { embed, generateText } from "ai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
 import { metadata } from "@/app/head";
+import { chunkMarkdownContent } from "@/lib/markdown_chunker";
 import { Truculenta } from "next/font/google";
 
 const openai = new OpenAI();
@@ -13,10 +14,10 @@ const MODEL_SLUG = "gpt-4.1";
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, source } = await request.json();
+    const { text, source, documentType} = await request.json();
 
     if (!text || !source) {
-      return NextResponse.json({ error: "Missing text or sauce" }, {status: 400});
+      return NextResponse.json({ error: "Missing text or source" }, {status: 400});
     }
 
     // 1. rewrite step
@@ -45,23 +46,43 @@ export async function POST(request: NextRequest) {
 
     const rewrittenContent = originalUmbilContent;
 
-    // 2. chonking
-    const chunks = originalUmbilContent.split("\n\n").filter((c) => c.length > 100);
+    // 2. Markdown-aware chonking
+    const chunks = chunkMarkdownContent(originalUmbilContent, {
+      maxChunkSize: 1000,  // Adjust based on your embedding model
+      minChunkSize: 100,   // Minimum chunk size to keep
+      overlapSize: 100,    // Overlap between chunks for context
+    });
+
 
     // 3. embed & store in supabase
     let chunksProcessed = 0;
 
-    for (const chunk of chunks) {
-      const embedding = await generateEmbedding(chunk);
+    for (const [index, chunk] of chunks.entries()) {
+      const embedding = await generateEmbedding(chunk.content);
       
-      await supabaseService.from("knowledge_base").insert({
-        content: chunk,
-        metadata: {
-          source,
-          type: "umbil_rewrite_original",
-          original_ref: "Based on: " + source
-        },
-        embedding
+      await supabaseService.from("knowledge_base_chunks").insert({
+        content: chunk.content,
+        embedding: embedding,
+        source: source,
+        document_type: documentType,
+        original_ref: `Based on: ${source}`,
+        headers: chunk.metadata.headers,
+        header_level: chunk.metadata.headers.length,
+        chunk_type: chunk.metadata.type,
+        chunk_index: index,
+        char_count: chunk.content.length,
+        
+        // Additional flexible metadata (optional)
+        metadata: {          
+          // Add markdown-specific metadata
+          has_code: chunk.metadata.type === 'code',
+          has_list: chunk.metadata.type === 'list',
+          
+          // You can add custom medical metadata here
+          // medical_topic: extractMedicalTopic(chunk.metadata.headers),
+          // urgency_level: detectUrgency(chunk.content),
+          // target_audience: 'parents',
+        }
       });
       chunksProcessed++;
     }
@@ -70,11 +91,11 @@ export async function POST(request: NextRequest) {
       success: true,
       chunksProcessed,
       rewrittenContent,
-      message: "Contents have been rewritten and stored as Umbil Original."
+      message: "Contents have been rewritten and stored as Umbil Original into the RAG system."
     });
 
   } catch(err: any) {
-    console.error("Ingest Error: ", err);
+    console.error("Ingestion Error: ", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
