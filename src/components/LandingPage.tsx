@@ -16,7 +16,10 @@ import {
   ChevronRight,
   Sparkles,
   Lock,
-  Menu
+  Menu,
+  Languages,
+  MessageSquare,
+  Search
 } from "lucide-react";
 
 // --- LIVE DEMO DATA (Specific Clinical Scenarios) ---
@@ -98,7 +101,7 @@ export default function LandingPage() {
 
       <div className="relative z-10">
         
-        {/* --- HERO SECTION --- */}
+        {/* --- 1. HERO SECTION (Workflow First) --- */}
         <section className="pt-16 pb-24 px-6">
           <div className="container mx-auto max-w-7xl grid lg:grid-cols-2 gap-16 items-center">
             
@@ -122,13 +125,12 @@ export default function LandingPage() {
               </h1>
               
               <p className="text-lg md:text-xl text-[var(--umbil-text)] opacity-80 mb-10 leading-relaxed max-w-lg">
-                Write referrals, generate safety-netting, and draft SBAR handovers in seconds. 
-                Focus on the patient, not the paperwork.
+                Write referrals, generate safety-netting, and draft SBAR handovers in seconds from your own rough notes.
               </p>
 
               <div className="flex flex-wrap gap-4">
                 <Link href="/dashboard" className="px-8 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white font-bold rounded-md shadow-xl shadow-[var(--umbil-brand-teal)]/30 transition-all transform hover:-translate-y-1 flex items-center gap-2 group text-lg">
-                  Try in Clinic Now
+                  Try in Clinic
                   <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
                 </Link>
                 <Link href="/about" className="px-8 py-5 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-semibold rounded-md hover:bg-[var(--umbil-hover-bg)] transition-colors flex items-center gap-2 text-lg">
@@ -152,7 +154,7 @@ export default function LandingPage() {
             >
                {/* Phone Frame */}
                <div className="relative border-gray-900 bg-gray-900 border-[12px] rounded-[3rem] h-[640px] w-[320px] shadow-2xl flex flex-col overflow-hidden">
-                 {/* Camera / Speaker Notch area (Simulated by top border thickness but adding a small bar inside) */}
+                 {/* Camera / Speaker Notch */}
                  <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[20px] w-[120px] bg-gray-900 rounded-b-xl z-20"></div>
 
                  {/* Screen Content */}
@@ -246,126 +248,219 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* --- FEATURES GRID (THE WEDGE) --- */}
+        {/* --- 2. CORE TOOLS (The Wedge) --- */}
         <section className="py-24 px-6 bg-[var(--umbil-hover-bg)]">
           <div className="container mx-auto max-w-6xl">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[var(--umbil-text)] mb-4">The Wedge: Workflow First.</h2>
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[var(--umbil-text)] mb-4">Tools you actually use in clinic.</h2>
               <p className="text-lg text-[var(--umbil-text)] opacity-80 max-w-2xl mx-auto">
-                We don't sell "learning". We sell survival. Use these tools to clear your patient list faster, and let the learning happen in the background.
+                We don&apos;t sell &quot;learning&quot;. We sell survival. Use these tools to clear your patient list faster.
               </p>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-8">
-              {/* Feature 1 */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              
+              {/* Feature 1: Referral Writer */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-8 rounded-lg border border-[var(--umbil-card-border)] shadow-xl shadow-black/5 group relative overflow-hidden"
+                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all"
               >
-                <div className="w-12 h-12 bg-[var(--umbil-brand-teal)]/10 rounded-md flex items-center justify-center text-[var(--umbil-brand-teal)] mb-6 group-hover:scale-110 transition-transform">
-                  <FileText size={24} />
+                <div className="w-10 h-10 bg-[var(--umbil-brand-teal)]/10 rounded-md flex items-center justify-center text-[var(--umbil-brand-teal)] mb-4">
+                  <FileText size={20} />
                 </div>
-                <h3 className="text-xl font-bold text-[var(--umbil-text)] mb-3">Referral Writer</h3>
-                <p className="text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6">
+                <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Referral Writer</h3>
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-4">
                   Paste rough notes. Get a polite, structured letter instantly. The primary entry point for busy GPs.
                 </p>
-                <div className="text-sm font-bold text-[var(--umbil-brand-teal)] flex items-center gap-1">
-                  Try it <ChevronRight size={14} />
+                <div className="text-xs font-bold text-[var(--umbil-brand-teal)] flex items-center gap-1">
+                  Try it <ChevronRight size={12} />
                 </div>
               </motion.div>
 
-              {/* Feature 2 */}
+              {/* Feature 2: Safety Net */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-8 rounded-lg border border-[var(--umbil-card-border)] shadow-xl shadow-black/5 group relative overflow-hidden"
+                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all"
               >
-                <div className="w-12 h-12 bg-rose-50 dark:bg-rose-900/20 rounded-md flex items-center justify-center text-rose-500 mb-6 group-hover:scale-110 transition-transform">
-                  <Shield size={24} />
+                <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/20 rounded-md flex items-center justify-center text-rose-500 mb-4">
+                  <Shield size={20} />
                 </div>
-                <h3 className="text-xl font-bold text-[var(--umbil-text)] mb-3">Safety Net Generator</h3>
-                <p className="text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6">
+                <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Safety Net</h3>
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-4">
                   Generate defensible safety-netting instructions for patients. Reduces medico-legal anxiety instantly.
                 </p>
-                <div className="text-sm font-bold text-rose-500 flex items-center gap-1">
-                  Try it <ChevronRight size={14} />
+                <div className="text-xs font-bold text-rose-500 flex items-center gap-1">
+                  Try it <ChevronRight size={12} />
                 </div>
               </motion.div>
 
-              {/* Feature 3 */}
+              {/* Feature 3: SBAR Handover */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-8 rounded-lg border border-[var(--umbil-card-border)] shadow-xl shadow-black/5 group relative overflow-hidden"
+                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all"
               >
-                <div className="w-12 h-12 bg-emerald-50 dark:bg-emerald-900/20 rounded-md flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-6 group-hover:scale-110 transition-transform">
-                  <Activity size={24} />
+                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 rounded-md flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
+                  <Activity size={20} />
                 </div>
-                <h3 className="text-xl font-bold text-[var(--umbil-text)] mb-3">SBAR Handover</h3>
-                <p className="text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6">
-                  Don't rely on memory at 8pm. Turn complex cases into structured summaries for the night team.
+                <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">SBAR Handover</h3>
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-4">
+                  Don&apos;t rely on memory at 8pm. Turn complex cases into structured summaries for the night team.
                 </p>
-                <div className="text-sm font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  Try it <ChevronRight size={14} />
+                <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                  Try it <ChevronRight size={12} />
                 </div>
               </motion.div>
 
-              {/* Feature 4 - Full Width */}
+              {/* Feature 4: Patient Translator */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="md:col-span-3 bg-slate-900 p-10 rounded-lg shadow-2xl text-white relative overflow-hidden flex flex-col md:flex-row items-center gap-10 border border-slate-800"
+                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all"
               >
-                <div className="relative z-10 flex-1">
-                  <div className="inline-block px-3 py-1 bg-[var(--umbil-brand-teal)]/20 border border-[var(--umbil-brand-teal)]/30 rounded-full text-[var(--umbil-brand-teal)] text-xs font-bold mb-4">
-                    THE MAGICAL BYPRODUCT
-                  </div>
-                  <h3 className="text-3xl font-bold mb-4">You do the work.<br/>We catch the credit.</h3>
-                  <p className="text-slate-400 text-lg leading-relaxed max-w-lg">
-                    While you use Umbil to survive your shift, we automatically log your activity as <strong>Verified CPD</strong>, map it to GMC domains, and draft your reflections.
-                  </p>
+                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-md flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
+                  <Languages size={20} />
                 </div>
-                <div className="relative z-10 w-full md:w-auto bg-white/5 backdrop-blur-md p-6 rounded-lg border border-white/10 max-w-sm">
-                   <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-3">
-                     <div className="w-10 h-10 rounded-full bg-[var(--umbil-brand-teal)] flex items-center justify-center text-slate-900 font-bold">✓</div>
-                     <div>
-                       <div className="text-sm font-bold text-white">CPD Logged</div>
-                       <div className="text-xs text-slate-400">Just now</div>
-                     </div>
-                   </div>
-                   <div className="space-y-2 opacity-50">
-                     <div className="h-2 bg-white rounded w-3/4"></div>
-                     <div className="h-2 bg-white rounded w-1/2"></div>
-                   </div>
-                   <div className="mt-4 text-xs text-[var(--umbil-brand-teal)] font-mono bg-black/30 p-2 rounded">
-                     +1 Clinical Impact Point
-                   </div>
+                <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Translator</h3>
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-4">
+                  Convert complex medical jargon into clear, 6th-grade reading level explanations for patients.
+                </p>
+                <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                  Try it <ChevronRight size={12} />
                 </div>
               </motion.div>
+
             </div>
           </div>
         </section>
 
-        {/* --- SOCIAL PROOF TICKER --- */}
-        <section className="py-12 border-y border-[var(--umbil-card-border)] bg-[var(--umbil-surface)] overflow-hidden">
-          <div className="container mx-auto px-6 mb-8 text-center">
-            <h4 className="text-sm font-bold text-[var(--umbil-text)] opacity-50 uppercase tracking-widest">Used in clinics across the UK</h4>
+        {/* --- 3. GUIDELINE Q&A (Secondary Hook) --- */}
+        <section className="py-20 px-6 border-y border-[var(--umbil-card-border)] bg-[var(--umbil-surface)]">
+          <div className="container mx-auto max-w-4xl text-center">
+            <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">
+              Or just ask a question.
+            </h3>
+            <p className="text-[var(--umbil-text)] opacity-70 mb-8 max-w-xl mx-auto">
+              Ask quick clinical questions and get UK guideline-based summaries (NICE / CKS / SIGN / BNF where available).
+            </p>
+            
+            <div className="flex flex-wrap justify-center gap-3">
+              {[
+                "Red flags for headache?", 
+                "Management of CAP in elderly?", 
+                "DOAC dosing for AF with renal impairment?"
+              ].map((q, i) => (
+                <div key={i} className="flex items-center gap-2 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-card-border)] rounded-full text-sm font-medium text-[var(--umbil-text)] hover:border-[var(--umbil-brand-teal)] transition-colors cursor-default">
+                  <Search size={14} className="text-[var(--umbil-muted)]" />
+                  {q}
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="flex gap-12 animate-scroll whitespace-nowrap px-6">
-            {[
-              "Cleared my 2-hour admin block in 20 mins.",
-              "The SBAR tool saved me during a night shift.",
-              "Finally, a tool that actually understands GP workflow.",
-              "I didn't realize I had 40 hours of CPD logged automatically.",
-              "Safety-netting text generation is a game changer."
-            ].map((quote, i) => (
-              <div key={i} className="text-lg font-medium text-[var(--umbil-text)] opacity-80 flex items-center gap-4">
-                <span className="text-[var(--umbil-brand-teal)] text-2xl">“</span>
-                {quote}
+        </section>
+
+        {/* --- 4. CAPTURE LEARNING (The Quiet By-Product) --- */}
+        <section className="py-24 px-6 bg-[var(--umbil-bg)]">
+          <div className="container mx-auto max-w-5xl">
+            <div className="bg-slate-900 rounded-2xl p-8 md:p-16 text-white overflow-hidden relative shadow-2xl border border-slate-800 flex flex-col md:flex-row items-center gap-12">
+              
+              {/* Content */}
+              <div className="relative z-10 flex-1">
+                <div className="inline-block px-3 py-1 bg-[var(--umbil-brand-teal)]/20 border border-[var(--umbil-brand-teal)]/30 rounded-full text-[var(--umbil-brand-teal)] text-xs font-bold mb-6">
+                  THE QUIET BY-PRODUCT
+                </div>
+                <h3 className="text-3xl md:text-4xl font-extrabold mb-6">Capture learning — <br/>without extra admin.</h3>
+                <p className="text-slate-400 text-lg leading-relaxed mb-8">
+                  While you use Umbil to survive your shift, we automatically log your activity as <strong>Verified CPD</strong>. We map it to GMC domains and draft your reflections for you.
+                </p>
+                <ul className="space-y-3 mb-8">
+                  <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
+                    <CheckCircle2 size={16} className="text-[var(--umbil-brand-teal)]" />
+                    Automatic learning entries from real use
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
+                    <CheckCircle2 size={16} className="text-[var(--umbil-brand-teal)]" />
+                    One-click reflection assistant
+                  </li>
+                  <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
+                    <CheckCircle2 size={16} className="text-[var(--umbil-brand-teal)]" />
+                    Exports to appraisal PDF & SOAR
+                  </li>
+                </ul>
               </div>
-            ))}
+
+              {/* Visual: Card */}
+              <div className="relative z-10 w-full md:w-80 bg-white/5 backdrop-blur-md p-6 rounded-xl border border-white/10 shadow-2xl transform md:rotate-3 transition-transform hover:rotate-0">
+                 <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-4">
+                   <div className="w-10 h-10 rounded-full bg-[var(--umbil-brand-teal)] flex items-center justify-center text-slate-900 font-bold shadow-lg">✓</div>
+                   <div>
+                     <div className="text-sm font-bold text-white">Learning Captured</div>
+                     <div className="text-xs text-slate-400">Just now • Clinical Management</div>
+                   </div>
+                 </div>
+                 <div className="space-y-3 opacity-60">
+                   <div className="h-2 bg-white rounded w-3/4"></div>
+                   <div className="h-2 bg-white rounded w-full"></div>
+                   <div className="h-2 bg-white rounded w-5/6"></div>
+                 </div>
+                 <div className="mt-6 flex gap-2">
+                   <div className="text-[10px] font-bold text-white bg-white/10 px-2 py-1 rounded">Domain 1</div>
+                   <div className="text-[10px] font-bold text-white bg-white/10 px-2 py-1 rounded">Domain 2</div>
+                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* --- 5. PATIENT FEEDBACK (PSQ) --- */}
+        <section className="py-20 px-6 bg-[var(--umbil-hover-bg)]">
+          <div className="container mx-auto max-w-4xl text-center">
+            <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
+              <MessageSquare size={24} />
+            </div>
+            <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">Patient feedback, without the paper chase.</h3>
+            <p className="text-[var(--umbil-text)] opacity-70 mb-8 max-w-xl mx-auto">
+              Run digital PSQ cycles effortlessly. Track progress toward your response target and export a simple report for your appraisal.
+            </p>
+            <div className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/10 px-4 py-2 rounded-full">
+              Coming Soon
+            </div>
+          </div>
+        </section>
+
+        {/* --- 6. TRUST & SAFETY --- */}
+        <section className="py-24 px-6 bg-[var(--umbil-surface)] border-t border-[var(--umbil-card-border)]">
+          <div className="container mx-auto max-w-4xl">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl font-bold text-[var(--umbil-text)] mb-4">Built to be boring. On purpose.</h2>
+              <p className="text-[var(--umbil-text)] opacity-70">
+                We prioritise clinical safety over clever features.
+              </p>
+            </div>
+            
+            <div className="grid md:grid-cols-2 gap-8">
+              {[
+                { title: "No Hallucinated Vitals", desc: "Umbil never invents findings, vital signs, or investigations. If you didn't type it, we won't write it." },
+                { title: "Medication Safety Lock", desc: "We don't generate dosage instructions unless explicitly provided in the context." },
+                { title: "Emergency Flags", desc: "Recognises clear red flags (like Chest Pain + Sweating) and prompts for emergency action instead of writing a letter." },
+                { title: "Context First", desc: "Answers clearly label consensus guidelines vs. general information." }
+              ].map((item, i) => (
+                <div key={i} className="flex gap-4">
+                  <div className="mt-1 min-w-[20px]">
+                    <Lock size={20} className="text-[var(--umbil-muted)]" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-[var(--umbil-text)] text-sm mb-1">{item.title}</h4>
+                    <p className="text-sm text-[var(--umbil-text)] opacity-60 leading-relaxed">
+                      {item.desc}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
         {/* --- FINAL CTA --- */}
-        <section className="py-32 px-6 text-center">
+        <section className="py-32 px-6 text-center bg-[var(--umbil-bg)]">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
