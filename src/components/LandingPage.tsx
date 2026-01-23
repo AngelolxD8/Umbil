@@ -88,32 +88,18 @@ export default function LandingPage() {
   }, [activeScenario]);
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 selection:bg-[#1fb8cd]/20 selection:text-slate-900 overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[var(--umbil-bg)] text-[var(--umbil-text)] selection:bg-[var(--umbil-brand-teal)]/20 selection:text-[var(--umbil-text)] overflow-x-hidden font-sans">
       
-      {/* --- BACKGROUND ELEMENTS (Clean Grid, No Blobs) --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-      <div className="fixed top-0 left-0 right-0 h-32 bg-gradient-to-b from-white to-transparent z-10 pointer-events-none"></div>
+      {/* --- BACKGROUND ELEMENTS --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none bg-[linear-gradient(to_right,rgba(128,128,128,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(128,128,128,0.05)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
+      <div className="fixed top-0 left-0 right-0 h-32 bg-gradient-to-b from-[var(--umbil-surface)] to-transparent z-10 pointer-events-none"></div>
 
       <div className="relative z-10">
         
-        {/* --- NAVBAR --- */}
-        <nav className="flex items-center justify-between px-6 py-6 container mx-auto max-w-7xl">
-          <div className="flex items-center gap-2 font-bold text-xl tracking-tight text-slate-900">
-            <div className="w-8 h-8 bg-[#1fb8cd] rounded-lg flex items-center justify-center text-white shadow-lg shadow-[#1fb8cd]/20">
-              <Zap size={18} fill="currentColor" />
-            </div>
-            Umbil
-          </div>
-          <div className="flex items-center gap-6">
-            <Link href="/auth" className="text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors">Login</Link>
-            <Link href="/auth" className="px-5 py-2.5 bg-slate-900 text-white text-sm font-semibold rounded-full hover:bg-slate-800 transition-all shadow-lg shadow-slate-900/10 hover:shadow-slate-900/20">
-              Get Started
-            </Link>
-          </div>
-        </nav>
+        {/* --- SECONDARY NAVBAR REMOVED --- */}
 
         {/* --- HERO SECTION --- */}
-        <section className="pt-12 pb-24 px-6">
+        <section className="pt-20 pb-24 px-6">
           <div className="container mx-auto max-w-7xl grid lg:grid-cols-2 gap-16 items-center">
             
             {/* Left: Copy */}
@@ -123,37 +109,37 @@ export default function LandingPage() {
               transition={{ duration: 0.6 }}
               className="max-w-2xl"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#ecfeff] border border-[#1fb8cd]/20 text-[#0e7490] text-xs font-bold uppercase tracking-wider mb-8">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--umbil-brand-teal)]/10 border border-[var(--umbil-brand-teal)]/20 text-[var(--umbil-brand-teal)] text-xs font-bold uppercase tracking-wider mb-8">
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#1fb8cd] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[#1fb8cd]"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--umbil-brand-teal)] opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--umbil-brand-teal)]"></span>
                 </span>
                 Zero-Permission Adoption
               </div>
               
-              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-[1.1] mb-6">
-                The Clinical Assistant for <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1fb8cd] to-[#0891b2]">High-Pressure Shifts.</span>
+              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-[var(--umbil-text)] leading-[1.1] mb-6">
+                The Clinical Assistant for <span className="text-[var(--umbil-brand-teal)]">High-Pressure Shifts.</span>
               </h1>
               
-              <p className="text-lg md:text-xl text-slate-600 mb-10 leading-relaxed max-w-lg">
+              <p className="text-lg md:text-xl text-[var(--umbil-muted)] mb-10 leading-relaxed max-w-lg">
                 Write referrals, generate safety-netting, and draft SBAR handovers in seconds. 
                 Focus on the patient, not the paperwork.
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Link href="/dashboard" className="px-8 py-4 bg-[#1fb8cd] hover:bg-[#15aabf] text-white font-bold rounded-xl shadow-xl shadow-[#1fb8cd]/30 hover:shadow-[#1fb8cd]/40 transition-all transform hover:-translate-y-1 flex items-center gap-2 group">
+                <Link href="/dashboard" className="px-8 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white font-bold rounded-md shadow-xl shadow-[var(--umbil-brand-teal)]/30 transition-all transform hover:-translate-y-1 flex items-center gap-2 group text-lg">
                   Try in Clinic Now
-                  <ArrowRight className="group-hover:translate-x-1 transition-transform" size={18} />
+                  <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
                 </Link>
-                <Link href="/about" className="px-8 py-4 bg-white border border-slate-200 text-slate-700 font-semibold rounded-xl hover:bg-slate-50 transition-colors flex items-center gap-2">
+                <Link href="/about" className="px-8 py-5 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-semibold rounded-md hover:bg-[var(--umbil-hover-bg)] transition-colors flex items-center gap-2 text-lg">
                   See how it works
                 </Link>
               </div>
 
-              <div className="mt-10 flex items-center gap-4 text-sm text-slate-500 font-medium">
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[#1fb8cd]" size={16} /> NHS-Secure</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[#1fb8cd]" size={16} /> No installation</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[#1fb8cd]" size={16} /> Free tier</span>
+              <div className="mt-10 flex items-center gap-4 text-sm text-[var(--umbil-muted)] font-medium">
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[var(--umbil-brand-teal)]" size={16} /> NHS-Secure</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[var(--umbil-brand-teal)]" size={16} /> No installation</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[var(--umbil-brand-teal)]" size={16} /> Free tier</span>
               </div>
             </motion.div>
 
@@ -170,10 +156,10 @@ export default function LandingPage() {
                   <button
                     key={scenario.id}
                     onClick={() => setActiveScenario(idx)}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
+                    className={`flex items-center gap-2 px-4 py-3 rounded-md text-sm font-medium transition-all whitespace-nowrap ${
                       activeScenario === idx 
-                        ? 'bg-slate-900 text-white shadow-lg' 
-                        : 'bg-white text-slate-600 hover:bg-slate-50 border border-slate-200'
+                        ? 'bg-[var(--umbil-text)] text-[var(--umbil-surface)] shadow-lg' 
+                        : 'bg-[var(--umbil-surface)] text-[var(--umbil-muted)] hover:bg-[var(--umbil-hover-bg)] border border-[var(--umbil-card-border)]'
                     }`}
                   >
                     {scenario.icon}
@@ -183,13 +169,13 @@ export default function LandingPage() {
               </div>
 
               {/* Window Frame (Clean Box) */}
-              <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl shadow-slate-200/50 overflow-hidden min-h-[500px] flex flex-col">
+              <div className="bg-[var(--umbil-surface)] rounded-lg border border-[var(--umbil-card-border)] shadow-2xl shadow-black/5 overflow-hidden min-h-[500px] flex flex-col">
                 {/* Window Header */}
-                <div className="bg-slate-50 px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+                <div className="bg-[var(--umbil-hover-bg)] px-4 py-3 border-b border-[var(--umbil-card-border)] flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-rose-400" />
                   <div className="w-3 h-3 rounded-full bg-amber-400" />
                   <div className="w-3 h-3 rounded-full bg-emerald-400" />
-                  <div className="ml-4 px-3 py-1 bg-white rounded-md text-[10px] font-mono text-slate-400 border border-slate-100">
+                  <div className="ml-4 px-3 py-1 bg-[var(--umbil-surface)] rounded-md text-[10px] font-mono text-[var(--umbil-muted)] border border-[var(--umbil-card-border)]">
                     umbil-clinical-engine.ai
                   </div>
                 </div>
@@ -199,23 +185,23 @@ export default function LandingPage() {
                   
                   {/* Input Simulation */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Clinician Input (Rough Notes)</label>
-                    <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 text-slate-700 font-mono text-sm min-h-[120px] whitespace-pre-wrap leading-relaxed">
+                    <label className="text-xs font-bold text-[var(--umbil-muted)] uppercase tracking-wider">Clinician Input (Rough Notes)</label>
+                    <div className="bg-[var(--umbil-hover-bg)] p-4 rounded-md border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-mono text-sm min-h-[120px] whitespace-pre-wrap leading-relaxed">
                       {displayedInput}
-                      <span className="animate-pulse inline-block w-2 h-4 bg-[#1fb8cd] align-middle ml-1" />
+                      <span className="animate-pulse inline-block w-2 h-4 bg-[var(--umbil-brand-teal)] align-middle ml-1" />
                     </div>
                   </div>
 
                   {/* Arrow */}
-                  <div className="flex justify-center text-slate-300">
+                  <div className="flex justify-center text-[var(--umbil-muted)]">
                     <motion.div animate={{ y: [0, 5, 0] }} transition={{ repeat: Infinity, duration: 2 }}>
-                       <ArrowRight className="rotate-90 text-[#1fb8cd]" />
+                       <ArrowRight className="rotate-90 text-[var(--umbil-brand-teal)]" />
                     </motion.div>
                   </div>
 
                   {/* Output Simulation */}
                   <div className="space-y-2 flex-1 relative flex flex-col">
-                     <label className="text-xs font-bold text-[#1fb8cd] uppercase tracking-wider flex items-center gap-1">
+                     <label className="text-xs font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider flex items-center gap-1">
                        <Sparkles size={12} />
                        Umbil Output
                      </label>
@@ -226,7 +212,7 @@ export default function LandingPage() {
                            initial={{ opacity: 0, filter: "blur(4px)" }}
                            animate={{ opacity: 1, filter: "blur(0px)" }}
                            exit={{ opacity: 0 }}
-                           className="bg-[#ecfeff] p-5 rounded-xl border border-[#1fb8cd]/20 text-slate-800 text-sm leading-relaxed whitespace-pre-wrap font-medium flex-1 shadow-inner"
+                           className="bg-[var(--umbil-brand-teal)]/5 p-5 rounded-md border border-[var(--umbil-brand-teal)]/20 text-[var(--umbil-text)] text-sm leading-relaxed whitespace-pre-wrap font-medium flex-1 shadow-inner"
                          >
                            {DEMO_SCENARIOS[activeScenario].output}
                          </motion.div>
@@ -234,11 +220,11 @@ export default function LandingPage() {
                      </AnimatePresence>
                      
                      {isTyping && (
-                       <div className="absolute inset-0 top-6 flex items-center justify-center bg-white/50 backdrop-blur-[1px]">
+                       <div className="absolute inset-0 top-6 flex items-center justify-center bg-[var(--umbil-surface)]/50 backdrop-blur-[1px]">
                          <div className="flex gap-1">
-                           <span className="w-2 h-2 bg-[#1fb8cd] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                           <span className="w-2 h-2 bg-[#1fb8cd] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                           <span className="w-2 h-2 bg-[#1fb8cd] rounded-full animate-bounce"></span>
+                           <span className="w-2 h-2 bg-[var(--umbil-brand-teal)] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                           <span className="w-2 h-2 bg-[var(--umbil-brand-teal)] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                           <span className="w-2 h-2 bg-[var(--umbil-brand-teal)] rounded-full animate-bounce"></span>
                          </div>
                        </div>
                      )}
@@ -251,11 +237,11 @@ export default function LandingPage() {
         </section>
 
         {/* --- FEATURES GRID (THE WEDGE) --- */}
-        <section className="py-24 px-6 bg-slate-50">
+        <section className="py-24 px-6 bg-[var(--umbil-hover-bg)]">
           <div className="container mx-auto max-w-6xl">
             <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">The Wedge: Workflow First.</h2>
-              <p className="text-lg text-slate-600 max-w-2xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-extrabold text-[var(--umbil-text)] mb-4">The Wedge: Workflow First.</h2>
+              <p className="text-lg text-[var(--umbil-muted)] max-w-2xl mx-auto">
                 We don't sell "learning". We sell survival. Use these tools to clear your patient list faster, and let the learning happen in the background.
               </p>
             </div>
@@ -264,16 +250,16 @@ export default function LandingPage() {
               {/* Feature 1 */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/30 group relative overflow-hidden"
+                className="bg-[var(--umbil-surface)] p-8 rounded-lg border border-[var(--umbil-card-border)] shadow-xl shadow-black/5 group relative overflow-hidden"
               >
-                <div className="w-12 h-12 bg-[#ecfeff] rounded-xl flex items-center justify-center text-[#0891b2] mb-6 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 bg-[var(--umbil-brand-teal)]/10 rounded-md flex items-center justify-center text-[var(--umbil-brand-teal)] mb-6 group-hover:scale-110 transition-transform">
                   <FileText size={24} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">Referral Writer</h3>
-                <p className="text-slate-600 leading-relaxed mb-6">
+                <h3 className="text-xl font-bold text-[var(--umbil-text)] mb-3">Referral Writer</h3>
+                <p className="text-[var(--umbil-muted)] leading-relaxed mb-6">
                   Paste rough notes. Get a polite, structured letter instantly. The primary entry point for busy GPs.
                 </p>
-                <div className="text-sm font-bold text-[#0891b2] flex items-center gap-1">
+                <div className="text-sm font-bold text-[var(--umbil-brand-teal)] flex items-center gap-1">
                   Try it <ChevronRight size={14} />
                 </div>
               </motion.div>
@@ -281,13 +267,13 @@ export default function LandingPage() {
               {/* Feature 2 */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/30 group relative overflow-hidden"
+                className="bg-[var(--umbil-surface)] p-8 rounded-lg border border-[var(--umbil-card-border)] shadow-xl shadow-black/5 group relative overflow-hidden"
               >
-                <div className="w-12 h-12 bg-rose-50 rounded-xl flex items-center justify-center text-rose-500 mb-6 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 bg-rose-50 rounded-md flex items-center justify-center text-rose-500 mb-6 group-hover:scale-110 transition-transform">
                   <Shield size={24} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">Safety Net Generator</h3>
-                <p className="text-slate-600 leading-relaxed mb-6">
+                <h3 className="text-xl font-bold text-[var(--umbil-text)] mb-3">Safety Net Generator</h3>
+                <p className="text-[var(--umbil-muted)] leading-relaxed mb-6">
                   Generate defensible safety-netting instructions for patients. Reduces medico-legal anxiety instantly.
                 </p>
                 <div className="text-sm font-bold text-rose-500 flex items-center gap-1">
@@ -298,13 +284,13 @@ export default function LandingPage() {
               {/* Feature 3 */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-white p-8 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/30 group relative overflow-hidden"
+                className="bg-[var(--umbil-surface)] p-8 rounded-lg border border-[var(--umbil-card-border)] shadow-xl shadow-black/5 group relative overflow-hidden"
               >
-                <div className="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 mb-6 group-hover:scale-110 transition-transform">
+                <div className="w-12 h-12 bg-emerald-50 rounded-md flex items-center justify-center text-emerald-600 mb-6 group-hover:scale-110 transition-transform">
                   <Activity size={24} />
                 </div>
-                <h3 className="text-xl font-bold text-slate-900 mb-3">SBAR Handover</h3>
-                <p className="text-slate-600 leading-relaxed mb-6">
+                <h3 className="text-xl font-bold text-[var(--umbil-text)] mb-3">SBAR Handover</h3>
+                <p className="text-[var(--umbil-muted)] leading-relaxed mb-6">
                   Don't rely on memory at 8pm. Turn complex cases into structured summaries for the night team.
                 </p>
                 <div className="text-sm font-bold text-emerald-600 flex items-center gap-1">
@@ -315,10 +301,10 @@ export default function LandingPage() {
               {/* Feature 4 - Full Width */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="md:col-span-3 bg-slate-900 p-10 rounded-2xl shadow-2xl text-white relative overflow-hidden flex flex-col md:flex-row items-center gap-10 border border-slate-800"
+                className="md:col-span-3 bg-slate-900 p-10 rounded-lg shadow-2xl text-white relative overflow-hidden flex flex-col md:flex-row items-center gap-10 border border-slate-800"
               >
                 <div className="relative z-10 flex-1">
-                  <div className="inline-block px-3 py-1 bg-[#1fb8cd]/20 border border-[#1fb8cd]/30 rounded-full text-[#1fb8cd] text-xs font-bold mb-4">
+                  <div className="inline-block px-3 py-1 bg-[var(--umbil-brand-teal)]/20 border border-[var(--umbil-brand-teal)]/30 rounded-full text-[var(--umbil-brand-teal)] text-xs font-bold mb-4">
                     THE MAGICAL BYPRODUCT
                   </div>
                   <h3 className="text-3xl font-bold mb-4">You do the work.<br/>We catch the credit.</h3>
@@ -326,9 +312,9 @@ export default function LandingPage() {
                     While you use Umbil to survive your shift, we automatically log your activity as <strong>Verified CPD</strong>, map it to GMC domains, and draft your reflections.
                   </p>
                 </div>
-                <div className="relative z-10 w-full md:w-auto bg-white/5 backdrop-blur-md p-6 rounded-xl border border-white/10 max-w-sm">
+                <div className="relative z-10 w-full md:w-auto bg-white/5 backdrop-blur-md p-6 rounded-lg border border-white/10 max-w-sm">
                    <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-3">
-                     <div className="w-10 h-10 rounded-full bg-[#1fb8cd] flex items-center justify-center text-slate-900 font-bold">✓</div>
+                     <div className="w-10 h-10 rounded-full bg-[var(--umbil-brand-teal)] flex items-center justify-center text-slate-900 font-bold">✓</div>
                      <div>
                        <div className="text-sm font-bold text-white">CPD Logged</div>
                        <div className="text-xs text-slate-400">Just now</div>
@@ -338,7 +324,7 @@ export default function LandingPage() {
                      <div className="h-2 bg-white rounded w-3/4"></div>
                      <div className="h-2 bg-white rounded w-1/2"></div>
                    </div>
-                   <div className="mt-4 text-xs text-[#1fb8cd] font-mono bg-black/30 p-2 rounded">
+                   <div className="mt-4 text-xs text-[var(--umbil-brand-teal)] font-mono bg-black/30 p-2 rounded">
                      +1 Clinical Impact Point
                    </div>
                 </div>
@@ -348,9 +334,9 @@ export default function LandingPage() {
         </section>
 
         {/* --- SOCIAL PROOF TICKER --- */}
-        <section className="py-12 border-y border-slate-200 bg-white overflow-hidden">
+        <section className="py-12 border-y border-[var(--umbil-card-border)] bg-[var(--umbil-surface)] overflow-hidden">
           <div className="container mx-auto px-6 mb-8 text-center">
-            <h4 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Used in clinics across the UK</h4>
+            <h4 className="text-sm font-bold text-[var(--umbil-muted)] uppercase tracking-widest">Used in clinics across the UK</h4>
           </div>
           <div className="flex gap-12 animate-scroll whitespace-nowrap px-6">
             {[
@@ -360,8 +346,8 @@ export default function LandingPage() {
               "I didn't realize I had 40 hours of CPD logged automatically.",
               "Safety-netting text generation is a game changer."
             ].map((quote, i) => (
-              <div key={i} className="text-lg font-medium text-slate-600 flex items-center gap-4">
-                <span className="text-[#1fb8cd] text-2xl">“</span>
+              <div key={i} className="text-lg font-medium text-[var(--umbil-muted)] flex items-center gap-4">
+                <span className="text-[var(--umbil-brand-teal)] text-2xl">“</span>
                 {quote}
               </div>
             ))}
@@ -376,11 +362,11 @@ export default function LandingPage() {
             transition={{ duration: 0.5 }}
             className="max-w-3xl mx-auto"
           >
-            <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-8">Think less. Do more.</h2>
-            <p className="text-xl text-slate-600 mb-10">
+            <h2 className="text-4xl md:text-5xl font-extrabold text-[var(--umbil-text)] mb-8">Think less. Do more.</h2>
+            <p className="text-xl text-[var(--umbil-muted)] mb-10">
               Open a tab. Start typing. No installation, no credit card, no permission required.
             </p>
-            <Link href="/auth" className="px-10 py-5 bg-[#1fb8cd] hover:bg-[#15aabf] text-white text-lg font-bold rounded-xl shadow-2xl shadow-[#1fb8cd]/30 inline-flex items-center gap-3 transition-all">
+            <Link href="/auth" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all">
               Start Free Now <ArrowRight />
             </Link>
           </motion.div>
@@ -390,7 +376,7 @@ export default function LandingPage() {
         <footer className="bg-slate-900 text-slate-400 py-16 px-6">
           <div className="container mx-auto max-w-7xl flex flex-col md:flex-row justify-between items-center gap-8">
              <div className="flex items-center gap-2 font-bold text-white text-xl">
-               <Zap size={20} className="text-[#1fb8cd]" fill="currentColor" /> Umbil
+               <Zap size={20} className="text-[var(--umbil-brand-teal)]" fill="currentColor" /> Umbil
              </div>
              <div className="flex gap-8 text-sm font-medium">
                <Link href="/auth" className="hover:text-white transition-colors">Login</Link>
