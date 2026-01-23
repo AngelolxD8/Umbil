@@ -252,7 +252,7 @@ export default function LandingPage() {
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-extrabold text-[var(--umbil-text)] mb-4">Tools you actually use in clinic.</h2>
               <p className="text-lg text-[var(--umbil-text)] opacity-80 max-w-2xl mx-auto">
-                We don&apos;t sell &quot;learning&quot;. We sell survival. Use these tools to clear your patient list faster.
+                It&apos;s not just &quot;learning&quot;. It&apos;s survival. Use these tools to clear your patient list faster.
               </p>
             </div>
 
@@ -461,7 +461,7 @@ export default function LandingPage() {
             <p className="text-xl text-[var(--umbil-text)] opacity-70 mb-10 mx-auto">
               Open a tab. Start typing. No installation, no credit card, no permission required.
             </p>
-            <Link href="/auth" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all transform hover:scale-105">
+            <Link href="/dashboard" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all transform hover:scale-105">
               Start Free Now <ArrowRight />
             </Link>
           </motion.div>
@@ -469,17 +469,9 @@ export default function LandingPage() {
 
         {/* --- FOOTER --- */}
         <footer className="bg-slate-900 text-slate-400 py-16 px-6">
-          <div className="container mx-auto max-w-7xl flex flex-col md:flex-row justify-between items-center gap-8">
-             <div className="flex items-center gap-2 font-bold text-white text-xl">
-               <Zap size={20} className="text-[var(--umbil-brand-teal)]" fill="currentColor" /> Umbil
-             </div>
-             <div className="flex gap-8 text-sm font-medium">
-               <Link href="/auth" className="hover:text-white transition-colors">Login</Link>
-               <Link href="/about" className="hover:text-white transition-colors">About</Link>
-               <Link href="/privacy" className="hover:text-white transition-colors">Privacy</Link>
-             </div>
+          <div className="container mx-auto max-w-7xl flex flex-col items-center gap-8">
              <div className="text-sm opacity-50">
-               © {new Date().getFullYear()} Umbil. Built for the NHS.
+               © {new Date().getFullYear()} Umbil. Built for Doctors by Doctors.
              </div>
           </div>
         </footer>
