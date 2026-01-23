@@ -1,4 +1,3 @@
-// src/components/LandingPage.tsx
 "use client";
 
 import Link from "next/link";
@@ -325,7 +324,7 @@ export default function LandingPage() {
             <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">
               Or just ask a question.
             </h3>
-            <p className="text-[var(--umbil-text)] opacity-70 mb-4 max-w-xl mx-auto">
+            <p className="text-[var(--umbil-text)] opacity-70 mb-4 max-w-xl mx-auto text-center">
               Ask quick clinical questions and get summaries based on UK sources (NICE/CKS/SIGN/BNF where available).
             </p>
             
@@ -408,7 +407,7 @@ export default function LandingPage() {
               <MessageSquare size={24} />
             </div>
             <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">Patient feedback, without the paper chase.</h3>
-            <p className="text-[var(--umbil-text)] opacity-70 mb-8 max-w-xl mx-auto">
+            <p className="text-[var(--umbil-text)] opacity-70 mb-8 max-w-xl mx-auto text-center">
               Run digital PSQ cycles. Track progress. Export for appraisal.
             </p>
             <Link href="/psq" className="inline-flex items-center gap-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-6 py-3 rounded-full shadow-lg shadow-indigo-500/20">
