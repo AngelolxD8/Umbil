@@ -22,28 +22,28 @@ import {
   Search
 } from "lucide-react";
 
-// --- LIVE DEMO DATA (Specific Clinical Scenarios) ---
+// --- LIVE DEMO DATA (Specific Clinical Scenarios - Extended for Realism) ---
 const DEMO_SCENARIOS = [
   {
     id: "referral",
     label: "Referral",
     icon: <FileText className="w-3 h-3" />,
     input: "54M, dysphagia to solids 6wks. Food sticks mid-chest. 6kg wt loss. Ex-smoker. No haem/melaena. On omeprazole. No scope.",
-    output: "Dear Colleague,\n\nI would be grateful for your assessment of this 54-year-old gentleman with a six-week history of progressive dysphagia to solids. He describes food sticking in the mid-chest and has lost approximately 6 kg unintentionally.\n\nHe is an ex-smoker taking omeprazole. There is no history of haematemesis or melaena.\n\nGiven the red flag symptoms, I would appreciate your urgent investigation."
+    output: "Dear Colleague,\n\nI would be grateful for your urgent assessment of this 54-year-old gentleman with a six-week history of progressive dysphagia to solids. He describes food sticking in the mid-chest area and has reported approximately 6 kg of unintentional weight loss over this period.\n\nHe is an ex-smoker currently taking omeprazole. He denies any haematemesis or melaena.\n\nPhysical examination revealed no masses or lymphadenopathy. His recent FBC was unremarkable.\n\nGiven the red flag symptoms of progressive dysphagia and significant weight loss, I would appreciate your urgent investigation to exclude malignancy."
   },
   {
     id: "sbar",
     label: "SBAR",
     icon: <Activity className="w-3 h-3" />,
     input: "78F on ward. CAP. NEWS 3->6. O2 req 2L->4L. Known COPD. On IV abx. No ABG.",
-    output: "Situation\n78-year-old female with CAP. NEWS score increased to 6. Rising oxygen requirements.\n\nBackground\nKnown COPD. On IV antibiotics.\n\nAssessment\nO2 requirement up to 4L. Breathless. No ABG yet.\n\nRecommendation\nUrgent review required. Consider ABG and escalation."
+    output: "Situation\n78-year-old female admitted with CAP. Her NEWS score has deteriorated from 3 to 6 this evening. Oxygen requirements have increased from 2L to 4L to maintain saturations.\n\nBackground\nShe has a background of COPD. Currently treated with IV antibiotics for pneumonia. DNACPR status is not documented.\n\nAssessment\nShe appears tachypnoeic (RR 28) and more breathless. Chest auscultation reveals coarse crackles and wheeze. I am concerned about worsening sepsis or type 2 respiratory failure.\n\nRecommendation\nUrgent medical review required. I will perform an ABG and repeat the CXR now. Please advise on escalation."
   },
   {
     id: "safetynet",
     label: "Safety Net",
     icon: <Shield className="w-3 h-3" />,
     input: "Chest discomfort. Normal ECG. No red flags. Conservative mgmt.",
-    output: "Advised to seek urgent help if pain becomes severe, prolonged, or associated with breathlessness, collapse, or radiation to arm or jaw.\nTo re-present if symptoms worsen."
+    output: "I have explained that the chest discomfort appears musculoskeletal in nature today, supported by a normal physical examination and ECG.\n\nHowever, I have advised the patient to seek urgent help (A&E/999) if they experience:\n- Severe central chest pain or heaviness lasting >15 minutes.\n- Pain radiating to the jaw, neck, or left arm.\n- Associated shortness of breath, sweating, or nausea.\n- Collapse or loss of consciousness.\n\nPatient to re-present if symptoms persist despite analgesia."
   }
 ];
 
@@ -83,7 +83,7 @@ export default function LandingPage() {
         // Wait 4 seconds to read output before switching
         timeout = setTimeout(() => {
           setActiveScenario((prev) => (prev + 1) % DEMO_SCENARIOS.length);
-        }, 4000); 
+        }, 5000); // Longer read time for longer output
       }
     };
 
@@ -102,7 +102,7 @@ export default function LandingPage() {
       <div className="relative z-10">
         
         {/* --- 1. HERO SECTION (Workflow First) --- */}
-        <section className="pt-16 pb-24 px-6">
+        <section className="pt-20 pb-32 px-6">
           <div className="container mx-auto max-w-7xl grid lg:grid-cols-2 gap-16 items-center">
             
             {/* Left: Copy */}
@@ -112,12 +112,14 @@ export default function LandingPage() {
               transition={{ duration: 0.6 }}
               className="max-w-2xl"
             >
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--umbil-brand-teal)]/10 border border-[var(--umbil-brand-teal)]/20 text-[var(--umbil-brand-teal)] text-xs font-bold uppercase tracking-wider mb-8">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[var(--umbil-brand-teal)] opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-[var(--umbil-brand-teal)]"></span>
-                </span>
-                Zero-Permission Adoption
+              {/* Credibility Chips - Safer & Specific */}
+              <div className="flex flex-wrap gap-2 mb-8">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
+                  Runs in your browser
+                </div>
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
+                  No install required
+                </div>
               </div>
               
               <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-[var(--umbil-text)] leading-[1.1] mb-6">
@@ -125,23 +127,22 @@ export default function LandingPage() {
               </h1>
               
               <p className="text-lg md:text-xl text-[var(--umbil-text)] opacity-80 mb-10 leading-relaxed max-w-lg">
-                Write referrals, generate safety-netting, and draft SBAR handovers in seconds from your own rough notes.
+                Paste rough notes. Get a calm, consultant-ready document in seconds.
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Link href="/dashboard" className="px-8 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white font-bold rounded-md shadow-xl shadow-[var(--umbil-brand-teal)]/30 transition-all transform hover:-translate-y-1 flex items-center gap-2 group text-lg">
-                  Try in Clinic
+                <Link href="/dashboard" className="px-8 py-4 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white font-bold rounded-md shadow-xl shadow-[var(--umbil-brand-teal)]/20 transition-all transform hover:-translate-y-1 flex items-center gap-2 group text-lg">
+                  Try it in Clinic
                   <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
                 </Link>
-                <Link href="/about" className="px-8 py-5 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-semibold rounded-md hover:bg-[var(--umbil-hover-bg)] transition-colors flex items-center gap-2 text-lg">
+                <Link href="/about" className="px-8 py-4 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-semibold rounded-md hover:bg-[var(--umbil-hover-bg)] transition-colors flex items-center gap-2 text-lg">
                   See how it works
                 </Link>
               </div>
 
-              <div className="mt-10 flex items-center gap-4 text-sm text-[var(--umbil-text)] opacity-70 font-medium">
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[var(--umbil-brand-teal)]" size={16} /> NHS-Secure</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[var(--umbil-brand-teal)]" size={16} /> No installation</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 className="text-[var(--umbil-brand-teal)]" size={16} /> Free tier</span>
+              <div className="mt-10 flex items-center gap-4 text-sm text-[var(--umbil-text)] opacity-60 font-medium">
+                <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> Built for UK workflow</span>
+                <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> Zero IT permissions</span>
               </div>
             </motion.div>
 
@@ -153,7 +154,7 @@ export default function LandingPage() {
               className="relative flex justify-center lg:justify-end"
             >
                {/* Phone Frame */}
-               <div className="relative border-gray-900 bg-gray-900 border-[12px] rounded-[3rem] h-[640px] w-[320px] shadow-2xl flex flex-col overflow-hidden">
+               <div className="relative border-gray-900 bg-gray-900 border-[12px] rounded-[3rem] h-[680px] w-[340px] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
                  {/* Camera / Speaker Notch */}
                  <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[20px] w-[120px] bg-gray-900 rounded-b-xl z-20"></div>
 
@@ -173,7 +174,7 @@ export default function LandingPage() {
                     {/* App Interface Inside Phone */}
                     <div className="flex-1 overflow-y-auto p-4 flex flex-col">
                       
-                      {/* Mobile Tabs */}
+                      {/* Mobile Tabs - Snapping Active State */}
                       <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide no-scrollbar -mx-2 px-2">
                         {DEMO_SCENARIOS.map((scenario, idx) => (
                           <button
@@ -181,8 +182,8 @@ export default function LandingPage() {
                             onClick={() => setActiveScenario(idx)}
                             className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
                               activeScenario === idx 
-                                ? 'bg-[var(--umbil-text)] text-[var(--umbil-surface)] shadow-md' 
-                                : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-text)] border border-[var(--umbil-card-border)] opacity-70'
+                                ? 'bg-[var(--umbil-text)] text-[var(--umbil-surface)] ring-2 ring-[var(--umbil-brand-teal)] shadow-md translate-y-[-1px]' 
+                                : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-text)] border border-[var(--umbil-card-border)] opacity-60 hover:opacity-100'
                             }`}
                           >
                             {scenario.icon}
@@ -194,7 +195,7 @@ export default function LandingPage() {
                       {/* Input Area */}
                       <div className="space-y-2 mb-2">
                         <label className="text-[10px] font-bold text-[var(--umbil-muted)] uppercase tracking-wider">Clinical Notes</label>
-                        <div className="bg-[var(--umbil-hover-bg)] p-3 rounded-lg border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-mono text-xs min-h-[100px] whitespace-pre-wrap leading-relaxed shadow-inner">
+                        <div className="bg-[var(--umbil-hover-bg)] p-3 rounded-lg border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-mono text-xs min-h-[80px] whitespace-pre-wrap leading-relaxed shadow-inner opacity-80">
                           {displayedInput}
                           <span className="animate-pulse inline-block w-1.5 h-3 bg-[var(--umbil-brand-teal)] align-middle ml-0.5" />
                         </div>
@@ -249,7 +250,7 @@ export default function LandingPage() {
         </section>
 
         {/* --- 2. CORE TOOLS (The Wedge) --- */}
-        <section className="py-24 px-6 bg-[var(--umbil-hover-bg)]">
+        <section className="py-32 px-6 bg-[var(--umbil-hover-bg)] border-y border-[var(--umbil-card-border)]">
           <div className="container mx-auto max-w-6xl">
             <div className="text-center mb-16">
               <h2 className="text-3xl md:text-4xl font-extrabold text-[var(--umbil-text)] mb-4">Tools you actually use in clinic.</h2>
@@ -263,69 +264,69 @@ export default function LandingPage() {
               {/* Feature 1: Referral Writer */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all"
+                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all flex flex-col"
               >
                 <div className="w-10 h-10 bg-[var(--umbil-brand-teal)]/10 rounded-md flex items-center justify-center text-[var(--umbil-brand-teal)] mb-4">
                   <FileText size={20} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Referral Writer</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-4">
-                  Paste rough notes. Get a polite, structured letter instantly. The primary entry point for busy GPs.
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6 flex-grow">
+                  Shorthand → consultant-ready referral in UK GP voice.
                 </p>
-                <div className="text-xs font-bold text-[var(--umbil-brand-teal)] flex items-center gap-1">
-                  Try it <ChevronRight size={12} />
-                </div>
+                <Link href="/dashboard?tool=referral" className="btn-secondary w-full justify-center text-xs font-bold py-2.5">
+                  Try it
+                </Link>
               </motion.div>
 
               {/* Feature 2: Safety Net */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all"
+                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all flex flex-col"
               >
                 <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/20 rounded-md flex items-center justify-center text-rose-500 mb-4">
                   <Shield size={20} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Safety Net</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-4">
-                  Generate defensible safety-netting instructions for patients. Reduces medico-legal anxiety instantly.
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6 flex-grow">
+                  4 crisp red flags + what to do next.
                 </p>
-                <div className="text-xs font-bold text-rose-500 flex items-center gap-1">
-                  Try it <ChevronRight size={12} />
-                </div>
+                <Link href="/dashboard?tool=safetynet" className="btn-secondary w-full justify-center text-xs font-bold py-2.5">
+                  Try it
+                </Link>
               </motion.div>
 
               {/* Feature 3: SBAR Handover */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all"
+                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all flex flex-col"
               >
                 <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 rounded-md flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
                   <Activity size={20} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">SBAR Handover</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-4">
-                  Don&apos;t rely on memory at 8pm. Turn complex cases into structured summaries for the night team.
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6 flex-grow">
+                  Messy notes → clean SBAR in seconds.
                 </p>
-                <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                  Try it <ChevronRight size={12} />
-                </div>
+                <Link href="/dashboard?tool=sbar" className="btn-secondary w-full justify-center text-xs font-bold py-2.5">
+                  Try it
+                </Link>
               </motion.div>
 
               {/* Feature 4: Patient Translator */}
               <motion.div 
                 whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all"
+                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all flex flex-col"
               >
                 <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-md flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
                   <Languages size={20} />
                 </div>
                 <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Translator</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-4">
-                  Convert complex medical jargon into clear, 6th-grade reading level explanations for patients.
+                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-6 flex-grow">
+                  Clinical text → patient-friendly explanation.
                 </p>
-                <div className="text-xs font-bold text-blue-600 dark:text-blue-400 flex items-center gap-1">
-                  Try it <ChevronRight size={12} />
-                </div>
+                <Link href="/dashboard?tool=translator" className="btn-secondary w-full justify-center text-xs font-bold py-2.5">
+                  Try it
+                </Link>
               </motion.div>
 
             </div>
@@ -333,32 +334,36 @@ export default function LandingPage() {
         </section>
 
         {/* --- 3. GUIDELINE Q&A (Secondary Hook) --- */}
-        <section className="py-20 px-6 border-y border-[var(--umbil-card-border)] bg-[var(--umbil-surface)]">
+        <section className="py-24 px-6 bg-[var(--umbil-surface)]">
           <div className="container mx-auto max-w-4xl text-center">
             <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">
               Or just ask a question.
             </h3>
-            <p className="text-[var(--umbil-text)] opacity-70 mb-8 max-w-xl mx-auto">
-              Ask quick clinical questions and get UK guideline-based summaries (NICE / CKS / SIGN / BNF where available).
+            <p className="text-[var(--umbil-text)] opacity-70 mb-4 max-w-xl mx-auto">
+              Ask quick clinical questions and get summaries based on UK sources (NICE/CKS/SIGN/BNF where available).
             </p>
             
-            <div className="flex flex-wrap justify-center gap-3">
+            <div className="flex flex-wrap justify-center gap-3 mb-8">
               {[
                 "Red flags for headache?", 
                 "Management of CAP in elderly?", 
                 "DOAC dosing for AF with renal impairment?"
               ].map((q, i) => (
-                <div key={i} className="flex items-center gap-2 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-card-border)] rounded-full text-sm font-medium text-[var(--umbil-text)] hover:border-[var(--umbil-brand-teal)] transition-colors cursor-default">
+                <div key={i} className="flex items-center gap-2 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-card-border)] rounded-full text-sm font-medium text-[var(--umbil-text)] hover:border-[var(--umbil-brand-teal)] transition-colors cursor-default shadow-sm">
                   <Search size={14} className="text-[var(--umbil-muted)]" />
                   {q}
                 </div>
               ))}
             </div>
+            
+            <p className="text-xs text-[var(--umbil-muted)] uppercase tracking-wider font-semibold">
+              Always verifies context • Links to sources
+            </p>
           </div>
         </section>
 
         {/* --- 4. CAPTURE LEARNING (The Quiet By-Product) --- */}
-        <section className="py-24 px-6 bg-[var(--umbil-bg)]">
+        <section className="py-32 px-6 bg-[var(--umbil-bg)] border-t border-[var(--umbil-card-border)]">
           <div className="container mx-auto max-w-5xl">
             <div className="bg-slate-900 rounded-2xl p-8 md:p-16 text-white overflow-hidden relative shadow-2xl border border-slate-800 flex flex-col md:flex-row items-center gap-12">
               
@@ -367,14 +372,14 @@ export default function LandingPage() {
                 <div className="inline-block px-3 py-1 bg-[var(--umbil-brand-teal)]/20 border border-[var(--umbil-brand-teal)]/30 rounded-full text-[var(--umbil-brand-teal)] text-xs font-bold mb-6">
                   THE QUIET BY-PRODUCT
                 </div>
-                <h3 className="text-3xl md:text-4xl font-extrabold mb-6">Capture learning — <br/>without extra admin.</h3>
+                <h3 className="text-3xl md:text-4xl font-extrabold mb-6">Capture Learning.</h3>
                 <p className="text-slate-400 text-lg leading-relaxed mb-8">
-                  While you use Umbil to survive your shift, we automatically log your activity as <strong>Verified CPD</strong>. We map it to GMC domains and draft your reflections for you.
+                  Umbil can turn real clinical work into structured learning entries when you choose. No more midnight admin panic before your appraisal.
                 </p>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
                     <CheckCircle2 size={16} className="text-[var(--umbil-brand-teal)]" />
-                    Automatic learning entries from real use
+                    Log learning from real cases
                   </li>
                   <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
                     <CheckCircle2 size={16} className="text-[var(--umbil-brand-teal)]" />
@@ -411,7 +416,7 @@ export default function LandingPage() {
         </section>
 
         {/* --- 5. PATIENT FEEDBACK (PSQ) --- */}
-        <section className="py-20 px-6 bg-[var(--umbil-hover-bg)]">
+        <section className="py-24 px-6 bg-[var(--umbil-hover-bg)]">
           <div className="container mx-auto max-w-4xl text-center">
             <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
               <MessageSquare size={24} />
@@ -420,36 +425,36 @@ export default function LandingPage() {
             <p className="text-[var(--umbil-text)] opacity-70 mb-8 max-w-xl mx-auto">
               Run digital PSQ cycles effortlessly. Track progress toward your response target and export a simple report for your appraisal.
             </p>
-            <div className="inline-flex items-center gap-2 text-sm font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/10 px-4 py-2 rounded-full">
-              Coming Soon
-            </div>
+            <Link href="/auth?intent=waitlist" className="inline-flex items-center gap-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-6 py-3 rounded-full shadow-lg shadow-indigo-500/20">
+              Join PSQ Waitlist
+            </Link>
           </div>
         </section>
 
         {/* --- 6. TRUST & SAFETY --- */}
-        <section className="py-24 px-6 bg-[var(--umbil-surface)] border-t border-[var(--umbil-card-border)]">
+        <section className="py-32 px-6 bg-[var(--umbil-surface)] border-t border-[var(--umbil-card-border)]">
           <div className="container mx-auto max-w-4xl">
-            <div className="text-center mb-12">
+            <div className="text-center mb-16">
               <h2 className="text-3xl font-bold text-[var(--umbil-text)] mb-4">Built to be boring. On purpose.</h2>
               <p className="text-[var(--umbil-text)] opacity-70">
                 We prioritise clinical safety over clever features.
               </p>
             </div>
             
-            <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-10">
               {[
-                { title: "No Hallucinated Vitals", desc: "Umbil never invents findings, vital signs, or investigations. If you didn't type it, we won't write it." },
-                { title: "Medication Safety Lock", desc: "We don't generate dosage instructions unless explicitly provided in the context." },
-                { title: "Emergency Flags", desc: "Recognises clear red flags (like Chest Pain + Sweating) and prompts for emergency action instead of writing a letter." },
-                { title: "Context First", desc: "Answers clearly label consensus guidelines vs. general information." }
+                { title: "No Hallucinated Vitals", desc: "Never invents observations, results, or clinical findings. If you didn't type it, we won't write it." },
+                { title: "Medication Safety Lock", desc: "No dosing instructions unless explicitly provided in your notes context." },
+                { title: "Emergency Flags", desc: "Recognises clear red flags (like Chest Pain + Sweating) and prompts for emergency action instead of drafting paperwork." },
+                { title: "Context First", desc: "Prioritises retrieved context from guidelines and labels consensus vs. general information." }
               ].map((item, i) => (
-                <div key={i} className="flex gap-4">
-                  <div className="mt-1 min-w-[20px]">
-                    <Lock size={20} className="text-[var(--umbil-muted)]" />
+                <div key={i} className="flex gap-5">
+                  <div className="mt-1 min-w-[24px]">
+                    <Lock size={24} className="text-[var(--umbil-muted)]" />
                   </div>
                   <div>
-                    <h4 className="font-bold text-[var(--umbil-text)] text-sm mb-1">{item.title}</h4>
-                    <p className="text-sm text-[var(--umbil-text)] opacity-60 leading-relaxed">
+                    <h4 className="font-bold text-[var(--umbil-text)] text-base mb-2">{item.title}</h4>
+                    <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed">
                       {item.desc}
                     </p>
                   </div>
@@ -460,7 +465,7 @@ export default function LandingPage() {
         </section>
 
         {/* --- FINAL CTA --- */}
-        <section className="py-32 px-6 text-center bg-[var(--umbil-bg)]">
+        <section className="py-40 px-6 text-center bg-[var(--umbil-bg)] border-t border-[var(--umbil-card-border)]">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -471,7 +476,7 @@ export default function LandingPage() {
             <p className="text-xl text-[var(--umbil-text)] opacity-70 mb-10">
               Open a tab. Start typing. No installation, no credit card, no permission required.
             </p>
-            <Link href="/auth" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all">
+            <Link href="/auth" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all transform hover:scale-105">
               Start Free Now <ArrowRight />
             </Link>
           </motion.div>
