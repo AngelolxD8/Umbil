@@ -131,7 +131,7 @@ export default function LandingPage() {
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Link href="/dashboard" className="px-8 py-4 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white font-bold rounded-md shadow-xl shadow-[var(--umbil-brand-teal)]/20 transition-all transform hover:-translate-y-1 flex items-center gap-2 group text-lg">
+                <Link href="/dashboard" className="px-8 py-4 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white font-bold rounded-md shadow-xl shadow-[var(--umbil-brand-teal)]/20 transition-all transform hover:-translate-y-1 flex items-center gap-2 group text-lg">
                   Try it in Clinic
                   <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
                 </Link>
@@ -153,16 +153,14 @@ export default function LandingPage() {
               transition={{ duration: 0.8, delay: 0.2 }}
               className="relative flex justify-center lg:justify-end"
             >
-               {/* Phone Frame */}
-               <div className="relative border-gray-900 bg-gray-900 border-[12px] rounded-[3rem] h-[640px] w-[320px] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
-                 {/* Camera / Speaker Notch */}
-                 <div className="absolute top-0 left-1/2 -translate-x-1/2 h-[20px] w-[120px] bg-gray-900 rounded-b-xl z-20"></div>
-
+               {/* Phone Frame - Notch Removed for cleaner look */}
+               <div className="relative border-gray-900 bg-gray-900 border-[12px] rounded-[2.5rem] h-[640px] w-[320px] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
+                 
                  {/* Screen Content */}
                  <div className="flex-1 bg-[var(--umbil-surface)] overflow-hidden flex flex-col w-full h-full relative">
                     
-                    {/* Fake Browser Address Bar - Added pt-12 to clear notch */}
-                    <div className="bg-[var(--umbil-hover-bg)] p-3 pt-12 pb-3 border-b border-[var(--umbil-card-border)] flex items-center justify-between gap-2 z-10">
+                    {/* Fake Browser Address Bar - Adjusted padding since notch is gone */}
+                    <div className="bg-[var(--umbil-hover-bg)] p-3 pt-3 pb-3 border-b border-[var(--umbil-card-border)] flex items-center justify-between gap-2 z-10">
                       <Menu size={16} className="text-[var(--umbil-muted)]" />
                       <div className="flex-1 bg-[var(--umbil-surface)] rounded-full h-8 flex items-center justify-center px-4 shadow-sm border border-[var(--umbil-card-border)]">
                          <Lock size={10} className="text-emerald-500 mr-1.5" />
@@ -345,7 +343,7 @@ export default function LandingPage() {
             </div>
             
             <p className="text-xs text-[var(--umbil-muted)] uppercase tracking-wider font-semibold">
-              Always verifies context • Links to sources
+              Uses UK sources where available • Links to references
             </p>
           </div>
         </section>
@@ -357,12 +355,12 @@ export default function LandingPage() {
               
               {/* Content */}
               <div className="relative z-10 flex-1">
-                <div className="inline-block px-3 py-1 bg-[var(--umbil-brand-teal)]/20 border border-[var(--umbil-brand-teal)]/30 rounded-full text-[var(--umbil-brand-teal)] text-xs font-bold mb-6">
+                <div className="inline-block px-3 py-1 bg-[var(--umbil-brand-teal)]/20 border border-[var(--umbil-brand-teal)]/30 rounded-full text-[var(--umbil-brand-teal)] text-xs font-bold mb-8 pl-3">
                   THE QUIET BY-PRODUCT
                 </div>
-                <h3 className="text-3xl md:text-4xl font-extrabold mb-6">Capture Learning.</h3>
+                <h3 className="text-3xl md:text-4xl font-extrabold mb-6">Capture Learning</h3>
                 <p className="text-slate-400 text-lg leading-relaxed mb-8">
-                  Umbil can turn real clinical work into structured learning entries when you choose. No more midnight admin panic before your appraisal.
+                  Turn clinical work into structured learning entries instantly. End the midnight appraisal panic.
                 </p>
                 <ul className="space-y-3 mb-8">
                   <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
@@ -411,10 +409,10 @@ export default function LandingPage() {
             </div>
             <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">Patient feedback, without the paper chase.</h3>
             <p className="text-[var(--umbil-text)] opacity-70 mb-8 max-w-xl mx-auto">
-              Run digital PSQ cycles effortlessly. Track progress toward your response target and export a simple report for your appraisal.
+              Run digital PSQ cycles. Track progress. Export for appraisal.
             </p>
-            <Link href="/auth?intent=waitlist" className="inline-flex items-center gap-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-6 py-3 rounded-full shadow-lg shadow-indigo-500/20">
-              Join PSQ Waitlist
+            <Link href="/psq" className="inline-flex items-center gap-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-6 py-3 rounded-full shadow-lg shadow-indigo-500/20">
+              Start a PSQ Cycle
             </Link>
           </div>
         </section>
@@ -436,7 +434,7 @@ export default function LandingPage() {
                 { title: "Emergency Flags", desc: "Recognises clear red flags (like Chest Pain + Sweating) and prompts for emergency action instead of drafting paperwork." },
                 { title: "Context First", desc: "Prioritises retrieved context from guidelines and labels consensus vs. general information." }
               ].map((item, i) => (
-                <div key={i} className="flex gap-5">
+                <div key={i} className="flex gap-5 items-start">
                   <div className="mt-1 min-w-[24px]">
                     <Lock size={24} className="text-[var(--umbil-muted)]" />
                   </div>
@@ -464,7 +462,7 @@ export default function LandingPage() {
             <p className="text-xl text-[var(--umbil-text)] opacity-70 mb-10 mx-auto">
               Open a tab. Start typing. No installation, no credit card, no permission required.
             </p>
-            <Link href="/auth" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all transform hover:scale-105">
+            <Link href="/auth" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all transform hover:scale-105">
               Start Free Now <ArrowRight />
             </Link>
           </motion.div>

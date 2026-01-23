@@ -78,7 +78,7 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
             flex: 1, 
             display: 'flex', 
             flexDirection: 'column', 
-            overflow: 'hidden', 
+            overflowY: 'auto', 
             position: 'relative',
             backgroundColor: 'var(--umbil-bg)' 
           }}
