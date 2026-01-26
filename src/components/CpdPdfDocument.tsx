@@ -2,7 +2,9 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { CPDEntry } from "@/lib/store";
 
-// Helper to deduce domain (Shared logic)
+// --- HELPERS ---
+
+// Deduce Domain
 export const getDomain = (tags: string[] | undefined) => {
   const t = (tags || []).join(" ").toLowerCase();
   if (t.includes("safety") || t.includes("quality")) return "Safety & Quality";
@@ -11,112 +13,139 @@ export const getDomain = (tags: string[] | undefined) => {
   return "Knowledge, Skills & Performance";
 };
 
-// Helper to render **bold** markdown text
-const renderMarkdownText = (text: string) => {
+// Parse **Bold** Syntax
+const parseBold = (text: string) => {
   if (!text) return "";
-  // Split by **text**, capturing the text inside
   const parts = text.split(/\*\*(.*?)\*\*/g);
-  
   return parts.map((part, index) => {
-    // Odd indices match the captured group (text inside **), so make them bold
     if (index % 2 === 1) {
       return <Text key={index} style={{ fontFamily: 'Helvetica-Bold' }}>{part}</Text>;
     }
-    // Even indices are the text outside/between the bold markers
-    return part;
+    return <Text key={index}>{part}</Text>;
   });
 };
 
-// Styles for a professional Medical Portfolio look
+// Render Table Block
+const renderTable = (lines: string[]) => {
+  // Remove separation lines (e.g. |---| or |:---|)
+  const contentRows = lines.filter(line => !/^[|\s-:]+$/.test(line.replace(/\|/g, '').trim()));
+  
+  return (
+    <View style={styles.table}>
+      {contentRows.map((row, rowIndex) => {
+        // Split by pipe and remove empty start/end if present
+        const cells = row.split('|').filter((_, idx, arr) => 
+            // Keep inner cells, remove first/last if empty (common in MD tables like | a | b |)
+            !(idx === 0 && _.trim() === '') && !(idx === arr.length - 1 && _.trim() === '')
+        );
+
+        const isHeader = rowIndex === 0;
+
+        return (
+          <View key={rowIndex} style={[styles.tableRow, isHeader && styles.tableHeaderRow]}>
+            {cells.map((cell, cellIndex) => (
+              <View key={cellIndex} style={styles.tableCell}>
+                <Text style={[styles.tableCellText, isHeader && styles.tableHeaderText]}>
+                  {parseBold(cell.trim())}
+                </Text>
+              </View>
+            ))}
+          </View>
+        );
+      })}
+    </View>
+  );
+};
+
+// Main Markdown Parser (Headings, Tables, Paragraphs)
+const renderMarkdown = (text: string) => {
+  if (!text) return null;
+  const lines = text.split('\n');
+  const elements: React.ReactNode[] = [];
+  let tableBuffer: string[] = [];
+
+  const flushTable = () => {
+    if (tableBuffer.length > 0) {
+      elements.push(renderTable(tableBuffer));
+      tableBuffer = [];
+    }
+  };
+
+  lines.forEach((line, index) => {
+    const trimmed = line.trim();
+
+    // 1. Table Detection (Line starts with |)
+    if (trimmed.startsWith('|')) {
+      tableBuffer.push(trimmed);
+      return; 
+    } else {
+      flushTable(); // End of table block
+    }
+
+    if (!trimmed) return; // Skip empty lines
+
+    // 2. Headings
+    if (trimmed.startsWith('### ')) {
+      elements.push(<Text key={index} style={styles.h3}>{parseBold(trimmed.replace('### ', ''))}</Text>);
+    } else if (trimmed.startsWith('## ')) {
+      elements.push(<Text key={index} style={styles.h2}>{parseBold(trimmed.replace('## ', ''))}</Text>);
+    } else if (trimmed.startsWith('# ')) {
+      elements.push(<Text key={index} style={styles.h1}>{parseBold(trimmed.replace('# ', ''))}</Text>);
+    } 
+    // 3. List Items (Basic Bullet)
+    else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+       elements.push(
+         <View key={index} style={{ flexDirection: 'row', marginBottom: 2 }}>
+           <Text style={{ width: 10, fontSize: 11 }}>•</Text>
+           <Text style={styles.content}>{parseBold(trimmed.substring(2))}</Text>
+         </View>
+       );
+    }
+    // 4. Standard Paragraph
+    else {
+      elements.push(<Text key={index} style={styles.content}>{parseBold(trimmed)}</Text>);
+    }
+  });
+
+  flushTable(); // Flush if table was last
+  return elements;
+};
+
+// --- STYLES ---
 const styles = StyleSheet.create({
-  page: {
-    padding: 40,
-    fontFamily: 'Helvetica',
-    fontSize: 11,
-    lineHeight: 1.5,
-    color: '#334155'
-  },
-  header: {
-    marginBottom: 20,
-    borderBottom: '2px solid #0e7490',
-    paddingBottom: 10,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-end'
-  },
-  brand: {
-    fontSize: 10,
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-    letterSpacing: 1
-  },
-  date: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#0e7490'
-  },
-  titleSection: {
-    marginBottom: 20
-  },
-  label: {
-    fontSize: 8,
-    color: '#64748b',
-    textTransform: 'uppercase',
-    fontWeight: 'bold',
-    marginBottom: 4
-  },
-  question: {
-    fontSize: 16,
-    fontFamily: 'Helvetica-Bold',
-    color: '#0f172a',
-    marginBottom: 8
-  },
-  metaRow: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    gap: 20,
-    borderTop: '1px solid #e2e8f0',
-    borderBottom: '1px solid #e2e8f0',
-    paddingVertical: 8
-  },
-  metaItem: {
-    flexDirection: 'column'
-  },
-  metaValue: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    color: '#0f172a'
-  },
-  section: {
-    marginBottom: 15
-  },
-  content: {
-    fontSize: 11,
-    textAlign: 'justify',
-    color: '#334155'
-  },
-  reflectionBox: {
-    marginTop: 20,
-    padding: 15,
-    backgroundColor: '#f0fdf4',
-    borderLeft: '3px solid #16a34a',
-    borderRadius: 4
-  },
-  reflectionText: {
-    fontStyle: 'italic',
-    color: '#14532d'
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 30,
-    left: 40,
-    right: 40,
-    textAlign: 'center',
-    fontSize: 8,
-    color: '#cbd5e1',
-    borderTop: '1px solid #f1f5f9',
-    paddingTop: 10
-  }
+  page: { padding: 40, fontFamily: 'Helvetica', fontSize: 11, lineHeight: 1.5, color: '#334155' },
+  header: { marginBottom: 20, borderBottom: '2px solid #0e7490', paddingBottom: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  brand: { fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 },
+  date: { fontSize: 12, fontWeight: 'bold', color: '#0e7490' },
+  titleSection: { marginBottom: 20 },
+  label: { fontSize: 8, color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: 4 },
+  question: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#0f172a', marginBottom: 8 },
+  
+  // Meta Grid
+  metaRow: { flexDirection: 'row', marginBottom: 20, gap: 20, borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', paddingVertical: 8 },
+  metaItem: { flexDirection: 'column' },
+  metaValue: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#0f172a' },
+
+  // Content Styles
+  section: { marginBottom: 15 },
+  content: { fontSize: 11, textAlign: 'justify', color: '#334155', marginBottom: 6 },
+  h1: { fontSize: 14, fontFamily: 'Helvetica-Bold', marginTop: 10, marginBottom: 6, color: '#0f172a' },
+  h2: { fontSize: 13, fontFamily: 'Helvetica-Bold', marginTop: 8, marginBottom: 5, color: '#1e293b' },
+  h3: { fontSize: 11, fontFamily: 'Helvetica-Bold', marginTop: 6, marginBottom: 4, textTransform: 'uppercase', color: '#475569' },
+
+  // Table Styles
+  table: { display: 'flex', width: 'auto', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 4, marginTop: 10, marginBottom: 10 },
+  tableRow: { margin: 'auto', flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  tableHeaderRow: { backgroundColor: '#f1f5f9' },
+  tableCell: { margin: 'auto', padding: 5, flex: 1 },
+  tableCellText: { fontSize: 9 },
+  tableHeaderText: { fontFamily: 'Helvetica-Bold', color: '#334155' },
+
+  // Reflection Box
+  reflectionBox: { marginTop: 20, padding: 15, backgroundColor: '#f0fdf4', borderLeft: '3px solid #16a34a', borderRadius: 4 },
+  reflectionText: { fontStyle: 'italic', color: '#14532d' },
+  
+  footer: { position: 'absolute', bottom: 30, left: 40, right: 40, textAlign: 'center', fontSize: 8, color: '#cbd5e1', borderTop: '1px solid #f1f5f9', paddingTop: 10 }
 });
 
 interface CpdPdfProps {
@@ -127,9 +156,7 @@ export const CpdPdfDocument = ({ entry }: CpdPdfProps) => {
   const domain = getDomain(entry.tags);
   const duration = entry.duration || 10;
   const credits = (duration / 60).toFixed(2);
-  const dateStr = new Date(entry.timestamp).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'long', year: 'numeric'
-  });
+  const dateStr = new Date(entry.timestamp).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 
   return (
     <Document>
@@ -166,18 +193,14 @@ export const CpdPdfDocument = ({ entry }: CpdPdfProps) => {
         {/* Content */}
         <View style={styles.section}>
           <Text style={styles.label}>Description & Outcome</Text>
-          <Text style={styles.content}>
-            {renderMarkdownText(entry.answer)}
-          </Text>
+          <View>{renderMarkdown(entry.answer)}</View>
         </View>
 
         {/* Reflection */}
         {entry.reflection && (
           <View style={styles.reflectionBox}>
             <Text style={{...styles.label, color: '#166534', marginBottom: 5}}>Reflection</Text>
-            <Text style={styles.reflectionText}>
-              {renderMarkdownText(entry.reflection)}
-            </Text>
+            <View>{renderMarkdown(entry.reflection)}</View>
           </View>
         )}
 
