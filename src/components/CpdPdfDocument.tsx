@@ -42,10 +42,21 @@ const renderTable = (lines: string[]) => {
         const isHeader = rowIndex === 0;
 
         return (
-          <View key={rowIndex} style={[styles.tableRow, isHeader && styles.tableHeaderRow]}>
+          <View 
+            key={rowIndex} 
+            style={[
+              styles.tableRow, 
+              isHeader ? styles.tableHeaderRow : {} // Fixed: use ternary instead of &&
+            ]}
+          >
             {cells.map((cell, cellIndex) => (
               <View key={cellIndex} style={styles.tableCell}>
-                <Text style={[styles.tableCellText, isHeader && styles.tableHeaderText]}>
+                <Text 
+                  style={[
+                    styles.tableCellText, 
+                    isHeader ? styles.tableHeaderText : {} // Fixed: use ternary instead of &&
+                  ]}
+                >
                   {parseBold(cell.trim())}
                 </Text>
               </View>
