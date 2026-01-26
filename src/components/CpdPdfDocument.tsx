@@ -27,15 +27,12 @@ const parseBold = (text: string) => {
 
 // Render Table Block
 const renderTable = (lines: string[]) => {
-  // Remove separation lines (e.g. |---| or |:---|)
   const contentRows = lines.filter(line => !/^[|\s-:]+$/.test(line.replace(/\|/g, '').trim()));
   
   return (
     <View style={styles.table}>
       {contentRows.map((row, rowIndex) => {
-        // Split by pipe and remove empty start/end if present
         const cells = row.split('|').filter((_, idx, arr) => 
-            // Keep inner cells, remove first/last if empty (common in MD tables like | a | b |)
             !(idx === 0 && _.trim() === '') && !(idx === arr.length - 1 && _.trim() === '')
         );
 
@@ -46,7 +43,7 @@ const renderTable = (lines: string[]) => {
             key={rowIndex} 
             style={[
               styles.tableRow, 
-              isHeader ? styles.tableHeaderRow : {} // Fixed: use ternary instead of &&
+              isHeader ? styles.tableHeaderRow : {}
             ]}
           >
             {cells.map((cell, cellIndex) => (
@@ -54,7 +51,7 @@ const renderTable = (lines: string[]) => {
                 <Text 
                   style={[
                     styles.tableCellText, 
-                    isHeader ? styles.tableHeaderText : {} // Fixed: use ternary instead of &&
+                    isHeader ? styles.tableHeaderText : {}
                   ]}
                 >
                   {parseBold(cell.trim())}
@@ -68,7 +65,7 @@ const renderTable = (lines: string[]) => {
   );
 };
 
-// Main Markdown Parser (Headings, Tables, Paragraphs)
+// Main Markdown Parser
 const renderMarkdown = (text: string) => {
   if (!text) return null;
   const lines = text.split('\n');
@@ -85,17 +82,15 @@ const renderMarkdown = (text: string) => {
   lines.forEach((line, index) => {
     const trimmed = line.trim();
 
-    // 1. Table Detection (Line starts with |)
     if (trimmed.startsWith('|')) {
       tableBuffer.push(trimmed);
       return; 
     } else {
-      flushTable(); // End of table block
+      flushTable();
     }
 
-    if (!trimmed) return; // Skip empty lines
+    if (!trimmed) return;
 
-    // 2. Headings
     if (trimmed.startsWith('### ')) {
       elements.push(<Text key={index} style={styles.h3}>{parseBold(trimmed.replace('### ', ''))}</Text>);
     } else if (trimmed.startsWith('## ')) {
@@ -103,7 +98,6 @@ const renderMarkdown = (text: string) => {
     } else if (trimmed.startsWith('# ')) {
       elements.push(<Text key={index} style={styles.h1}>{parseBold(trimmed.replace('# ', ''))}</Text>);
     } 
-    // 3. List Items (Basic Bullet)
     else if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
        elements.push(
          <View key={index} style={{ flexDirection: 'row', marginBottom: 2 }}>
@@ -112,13 +106,12 @@ const renderMarkdown = (text: string) => {
          </View>
        );
     }
-    // 4. Standard Paragraph
     else {
       elements.push(<Text key={index} style={styles.content}>{parseBold(trimmed)}</Text>);
     }
   });
 
-  flushTable(); // Flush if table was last
+  flushTable();
   return elements;
 };
 
@@ -132,27 +125,24 @@ const styles = StyleSheet.create({
   label: { fontSize: 8, color: '#64748b', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: 4 },
   question: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#0f172a', marginBottom: 8 },
   
-  // Meta Grid
   metaRow: { flexDirection: 'row', marginBottom: 20, gap: 20, borderTop: '1px solid #e2e8f0', borderBottom: '1px solid #e2e8f0', paddingVertical: 8 },
   metaItem: { flexDirection: 'column' },
   metaValue: { fontSize: 10, fontFamily: 'Helvetica-Bold', color: '#0f172a' },
 
-  // Content Styles
   section: { marginBottom: 15 },
   content: { fontSize: 11, textAlign: 'justify', color: '#334155', marginBottom: 6 },
   h1: { fontSize: 14, fontFamily: 'Helvetica-Bold', marginTop: 10, marginBottom: 6, color: '#0f172a' },
   h2: { fontSize: 13, fontFamily: 'Helvetica-Bold', marginTop: 8, marginBottom: 5, color: '#1e293b' },
   h3: { fontSize: 11, fontFamily: 'Helvetica-Bold', marginTop: 6, marginBottom: 4, textTransform: 'uppercase', color: '#475569' },
 
-  // Table Styles
-  table: { display: 'flex', width: 'auto', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 4, marginTop: 10, marginBottom: 10 },
-  tableRow: { margin: 'auto', flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
+  // Updated Table Styles for Fix
+  table: { display: 'flex', width: '100%', borderStyle: 'solid', borderWidth: 1, borderColor: '#cbd5e1', borderRadius: 4, marginTop: 10, marginBottom: 10 },
+  tableRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', minHeight: 25, alignItems: 'center' },
   tableHeaderRow: { backgroundColor: '#f1f5f9' },
-  tableCell: { margin: 'auto', padding: 5, flex: 1 },
-  tableCellText: { fontSize: 9 },
+  tableCell: { padding: 8, flex: 1, flexGrow: 1, flexBasis: 0 },
+  tableCellText: { fontSize: 9, flexWrap: 'wrap' },
   tableHeaderText: { fontFamily: 'Helvetica-Bold', color: '#334155' },
 
-  // Reflection Box
   reflectionBox: { marginTop: 20, padding: 15, backgroundColor: '#f0fdf4', borderLeft: '3px solid #16a34a', borderRadius: 4 },
   reflectionText: { fontStyle: 'italic', color: '#14532d' },
   
@@ -172,20 +162,16 @@ export const CpdPdfDocument = ({ entry }: CpdPdfProps) => {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
-        
-        {/* Header */}
         <View style={styles.header}>
           <Text style={styles.date}>{dateStr}</Text>
           <Text style={styles.brand}>Umbil Learning Log</Text>
         </View>
 
-        {/* Title */}
         <View style={styles.titleSection}>
           <Text style={styles.label}>Learning Activity</Text>
           <Text style={styles.question}>{entry.question}</Text>
         </View>
 
-        {/* Meta Data */}
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
             <Text style={styles.label}>GMC Domain</Text>
@@ -201,13 +187,11 @@ export const CpdPdfDocument = ({ entry }: CpdPdfProps) => {
           </View>
         </View>
 
-        {/* Content */}
         <View style={styles.section}>
           <Text style={styles.label}>Description & Outcome</Text>
           <View>{renderMarkdown(entry.answer)}</View>
         </View>
 
-        {/* Reflection */}
         {entry.reflection && (
           <View style={styles.reflectionBox}>
             <Text style={{...styles.label, color: '#166534', marginBottom: 5}}>Reflection</Text>
@@ -215,11 +199,9 @@ export const CpdPdfDocument = ({ entry }: CpdPdfProps) => {
           </View>
         )}
 
-        {/* Footer */}
         <View style={styles.footer}>
           <Text>Generated by Umbil • Verified Learning Entry • {entry.id}</Text>
         </View>
-
       </Page>
     </Document>
   );
