@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Font } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import { CPDEntry } from "@/lib/store";
 
 // Helper to deduce domain (Shared logic)
@@ -9,6 +9,22 @@ export const getDomain = (tags: string[] | undefined) => {
   if (t.includes("communication") || t.includes("teamwork")) return "Communication, Partnership & Teamwork";
   if (t.includes("trust")) return "Maintaining Trust";
   return "Knowledge, Skills & Performance";
+};
+
+// Helper to render **bold** markdown text
+const renderMarkdownText = (text: string) => {
+  if (!text) return "";
+  // Split by **text**, capturing the text inside
+  const parts = text.split(/\*\*(.*?)\*\*/g);
+  
+  return parts.map((part, index) => {
+    // Odd indices match the captured group (text inside **), so make them bold
+    if (index % 2 === 1) {
+      return <Text key={index} style={{ fontFamily: 'Helvetica-Bold' }}>{part}</Text>;
+    }
+    // Even indices are the text outside/between the bold markers
+    return part;
+  });
 };
 
 // Styles for a professional Medical Portfolio look
@@ -150,14 +166,18 @@ export const CpdPdfDocument = ({ entry }: CpdPdfProps) => {
         {/* Content */}
         <View style={styles.section}>
           <Text style={styles.label}>Description & Outcome</Text>
-          <Text style={styles.content}>{entry.answer}</Text>
+          <Text style={styles.content}>
+            {renderMarkdownText(entry.answer)}
+          </Text>
         </View>
 
         {/* Reflection */}
         {entry.reflection && (
           <View style={styles.reflectionBox}>
             <Text style={{...styles.label, color: '#166534', marginBottom: 5}}>Reflection</Text>
-            <Text style={styles.reflectionText}>{entry.reflection}</Text>
+            <Text style={styles.reflectionText}>
+              {renderMarkdownText(entry.reflection)}
+            </Text>
           </View>
         )}
 
