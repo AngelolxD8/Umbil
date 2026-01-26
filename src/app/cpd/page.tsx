@@ -7,7 +7,10 @@ import { useUserEmail } from "@/hooks/useUser";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { renderToStaticMarkup } from "react-dom/server";
-import cpdStyles from './cpd.module.css'
+import cpdStyles from './cpd.module.css';
+import { pdf } from '@react-pdf/renderer';
+import { CpdPdfDocument } from "@/components/CpdPdfDocument";
+import JSZip from "jszip";
 
 const PAGE_SIZE = 10;
 const DEFAULT_DURATION = 10; // 10 Minutes
@@ -72,6 +75,10 @@ function CPDInner() {
   const [currentPage, setCurrentPage] = useState(0);
   const [allTags, setAllTags] = useState<string[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  
+  // NEW: Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -115,7 +122,6 @@ function CPDInner() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    // UPDATED: Filename
     a.download = `Umbil_Learning_Log_Export_${new Date().toISOString().split('T')[0]}.csv`;
     document.body.appendChild(a);
     a.click();
@@ -123,160 +129,85 @@ function CPDInner() {
     URL.revokeObjectURL(url);
   };
 
-  // --- PRINT / PDF GENERATOR (PRO VERSION) ---
-  const printCPD = () => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-        alert("Please allow popups to print your learning log.");
-        return;
+  // --- NEW: Single PDF Download ---
+  const downloadSinglePDF = async (entry: CPDEntry) => {
+    if (!entry.id) return;
+    try {
+        const blob = await pdf(<CpdPdfDocument entry={entry} />).toBlob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const dateStr = new Date(entry.timestamp).toISOString().split('T')[0];
+        a.download = `CPD_Entry_${dateStr}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    } catch (err) {
+        console.error("PDF Generation Error", err);
+        alert("Failed to generate PDF. Please try again.");
     }
+  };
 
-    // 1. Group Entries by Domain
-    const groupedData: Record<string, CPDEntry[]> = {
-        "Knowledge, Skills & Performance": [],
-        "Safety & Quality": [],
-        "Communication, Partnership & Teamwork": [],
-        "Maintaining Trust": []
-    };
-
-    filteredEntries.forEach(e => {
-        const t = (e.tags || []).join(" ").toLowerCase();
-        let d = "Knowledge, Skills & Performance";
-        if (t.includes("safety") || t.includes("quality")) d = "Safety & Quality";
-        else if (t.includes("communication") || t.includes("teamwork")) d = "Communication, Partnership & Teamwork";
-        else if (t.includes("trust")) d = "Maintaining Trust";
-        groupedData[d].push(e);
-    });
-
-    // 2. Generate HTML sections
-    let domainSectionsHtml = "";
-    let totalCredits = 0;
-
-    Object.entries(groupedData).forEach(([domain, entries]) => {
-        if (entries.length === 0) return;
+  // --- NEW: Bulk Zip Download ---
+  const downloadSelectedZip = async () => {
+    if (selectedIds.size === 0) return;
+    setIsExporting(true);
+    try {
+        const zip = new JSZip();
+        const selectedEntries = allEntries.filter(e => e.id && selectedIds.has(e.id));
         
-        let sectionCredits = 0;
-        entries.forEach(e => {
-             const mins = e.duration || DEFAULT_DURATION;
-             sectionCredits += (mins / 60);
-        });
-        totalCredits += sectionCredits;
-
-        domainSectionsHtml += `
-            <div class="domain-header">
-                <h2>${domain}</h2>
-                <div class="domain-meta">${entries.length} Activities • ${sectionCredits.toFixed(2)} Credits</div>
-            </div>
-        `;
-
-        entries.forEach(e => {
-            const answerHtml = renderToStaticMarkup(<ReactMarkdown remarkPlugins={[remarkGfm]}>{e.answer || ""}</ReactMarkdown>);
-            const reflectionHtml = e.reflection ? renderToStaticMarkup(<ReactMarkdown remarkPlugins={[remarkGfm]}>{e.reflection}</ReactMarkdown>) : "";
-            
-            const mins = e.duration || DEFAULT_DURATION;
-            const entryCredits = mins / 60;
-
-            domainSectionsHtml += `
-                <div class="entry">
-                    <div class="entry-meta">
-                        <span class="date">${new Date(e.timestamp).toLocaleDateString()}</span>
-                        <span class="credit-tag">${entryCredits.toFixed(2)} Credits (${mins}m)</span>
-                    </div>
-                    <div class="question">${e.question}</div>
-                    <div class="answer markdown-body">${answerHtml}</div>
-                    ${reflectionHtml ? `<div class="reflection"><div class="reflection-label">Reflection</div>${reflectionHtml}</div>` : ''}
-                </div>
-            `;
-        });
-    });
-
-    // 3. Build Full HTML Document
-    const htmlContent = `
-      <html>
-        <head>
-          <title>Medical Appraisal Portfolio - ${new Date().toLocaleDateString()}</title>
-          <style>
-            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
-            body { font-family: 'Inter', sans-serif; padding: 40px; color: #1e293b; max-width: 900px; margin: 0 auto; line-height: 1.6; }
-            
-            /* Header */
-            .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
-            h1 { color: #0f172a; margin: 0; font-size: 24px; }
-            .subtitle { color: #64748b; font-size: 14px; margin-top: 5px; }
-
-            /* Dashboard Summary */
-            .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 40px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
-            .stat-box { text-align: center; }
-            .stat-val { display: block; font-size: 28px; font-weight: 700; color: #0e7490; }
-            .stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
-
-            /* Domain Sections */
-            .domain-header { margin-top: 40px; margin-bottom: 20px; border-bottom: 2px solid #0e7490; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: baseline; }
-            .domain-header h2 { font-size: 18px; color: #0e7490; margin: 0; }
-            .domain-meta { font-size: 12px; color: #64748b; font-weight: 600; }
-
-            /* Entry Card */
-            .entry { margin-bottom: 25px; page-break-inside: avoid; border: 1px solid #cbd5e1; padding: 20px; border-radius: 8px; background: white; }
-            .entry-meta { display: flex; justify-content: space-between; margin-bottom: 12px; border-bottom: 1px solid #f1f5f9; padding-bottom: 8px; }
-            .date { font-weight: 600; font-size: 13px; color: #64748b; }
-            .credit-tag { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; border: 1px solid #bae6fd; }
-            .question { font-weight: 700; font-size: 16px; margin-bottom: 10px; color: #0f172a; }
-            
-            /* Markdown Styles */
-            .markdown-body { font-size: 14px; color: #334155; }
-            .markdown-body table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; }
-            .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 6px 10px; text-align: left; }
-            .markdown-body th { background-color: #f1f5f9; font-weight: 600; }
-            
-            /* Reflection */
-            .reflection { background: #f0fdf4; border-left: 3px solid #16a34a; padding: 12px 15px; border-radius: 0 4px 4px 0; margin-top: 15px; }
-            .reflection-label { font-weight: 700; color: #166534; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
-            .reflection p { margin: 0; font-style: italic; color: #14532d; font-size: 14px; }
-
-            .print-btn { display: none; } /* Hide in print */
-            @media print { 
-                body { padding: 0; } 
-                .no-print { display: none; }
-                .entry { box-shadow: none; border: 1px solid #94a3b8; }
-                .dashboard { border: 1px solid #94a3b8; }
-                /* Force background colors */
-                .credit-tag, .reflection, .dashboard, .markdown-body th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        // Generate a PDF for each selected entry
+        for (const entry of selectedEntries) {
+            const blob = await pdf(<CpdPdfDocument entry={entry} />).toBlob();
+            const dateStr = new Date(entry.timestamp).toISOString().split('T')[0];
+            // Handle duplicate dates in filename
+            let fileName = `CPD_${dateStr}.pdf`;
+            let counter = 1;
+            while (zip.file(fileName)) {
+                fileName = `CPD_${dateStr}_(${counter}).pdf`;
+                counter++;
             }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-             <h1>Annual Appraisal Portfolio</h1>
-             <div class="subtitle">Learning Log • Generated by Umbil</div>
-          </div>
-          
-          <div class="dashboard">
-             <div class="stat-box">
-                <span class="stat-val">${filteredEntries.length}</span>
-                <span class="stat-label">Total Activities</span>
-             </div>
-             <div class="stat-box">
-                <span class="stat-val">${totalCredits.toFixed(2)}</span>
-                <span class="stat-label">Total Credits (Hours)</span>
-             </div>
-          </div>
+            zip.file(fileName, blob);
+        }
 
-          <div class="no-print" style="text-align: center; margin-bottom: 30px; background: #fff7ed; padding: 10px; border: 1px solid #ffedd5; border-radius: 6px; color: #c2410c; font-size: 14px;">
-             ℹ️ <strong>Tip:</strong> This PDF is grouped by GMC Domain for easy upload to SOAR, FourteenFish, or Clarity. 
-             <br/>Press Cmd+P / Ctrl+P to save.
-          </div>
+        const zipContent = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(zipContent);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `Umbil_Portfolio_Bundle_${new Date().toISOString().split('T')[0]}.zip`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        
+        // Clear selection after success? Optional.
+        // setSelectedIds(new Set()); 
+    } catch (err) {
+        console.error("Zip Generation Error", err);
+        alert("Failed to create export bundle.");
+    } finally {
+        setIsExporting(false);
+    }
+  };
 
-          ${domainSectionsHtml}
-          
-          <script>
-            window.onload = function() { setTimeout(() => window.print(), 500); }
-          </script>
-        </body>
-      </html>
-    `;
+  const toggleSelection = (id: string) => {
+    const newSet = new Set(selectedIds);
+    if (newSet.has(id)) newSet.delete(id);
+    else newSet.add(id);
+    setSelectedIds(newSet);
+  };
 
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+  const toggleSelectAllPage = () => {
+      const newSet = new Set(selectedIds);
+      const allSelected = paginatedList.every(e => e.id && newSet.has(e.id));
+      
+      paginatedList.forEach(e => {
+          if (!e.id) return;
+          if (allSelected) newSet.delete(e.id);
+          else newSet.add(e.id);
+      });
+      setSelectedIds(newSet);
   };
 
   const handleDelete = async (id: string) => {
@@ -285,17 +216,19 @@ function CPDInner() {
     await deleteCPD(id);
     setAllEntries(prev => prev.filter(item => item.id !== id));
     setDeletingId(null);
+    // Remove from selection if deleted
+    if (selectedIds.has(id)) {
+        const newSet = new Set(selectedIds);
+        newSet.delete(id);
+        setSelectedIds(newSet);
+    }
   };
 
   const handleUpdateDuration = async (id: string, minutesStr: string) => {
     const mins = parseInt(minutesStr);
-    
-    // Update local state
     setAllEntries(prev => prev.map(item => 
         item.id === id ? { ...item, duration: mins } : item
     ));
-
-    // Persist to DB
     await updateCPD(id, { duration: mins });
   };
 
@@ -306,7 +239,6 @@ function CPDInner() {
           <h2>My Learning Log</h2>
           {totalCount > 0 && (
             <div style={{ display: 'flex', gap: '10px' }}>
-              <button className="btn btn--outline" onClick={printCPD}>Export Learning Log</button>
               <button className="btn btn--outline" onClick={downloadCSV}>📥 Download CSV</button>
             </div>
           )}
@@ -321,25 +253,73 @@ function CPDInner() {
           </select>
         </div>
 
+        {/* BULK ACTIONS BAR */}
+        {selectedIds.size > 0 && (
+            <div style={{ 
+                position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', 
+                backgroundColor: '#1e293b', color: 'white', padding: '12px 24px', 
+                borderRadius: '50px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                display: 'flex', gap: '16px', alignItems: 'center', zIndex: 100 
+            }}>
+                <span style={{ fontWeight: 600 }}>{selectedIds.size} selected</span>
+                <button 
+                    onClick={downloadSelectedZip} 
+                    disabled={isExporting}
+                    className="btn"
+                    style={{ backgroundColor: '#0e7490', color: 'white', border: 'none', padding: '6px 16px', fontSize: '0.9rem' }}
+                >
+                    {isExporting ? 'Bundling...' : 'Download Selected (Zip)'}
+                </button>
+                <button 
+                    onClick={() => setSelectedIds(new Set())}
+                    style={{ background: 'transparent', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1.2rem' }}
+                >
+                    &times;
+                </button>
+            </div>
+        )}
+
+        {/* SELECT ALL CHECKBOX */}
+        {totalCount > 0 && (
+            <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                 <input 
+                    type="checkbox" 
+                    checked={paginatedList.length > 0 && paginatedList.every(e => e.id && selectedIds.has(e.id))}
+                    onChange={toggleSelectAllPage}
+                    style={{ width: 16, height: 16, cursor: 'pointer' }}
+                 />
+                 <span style={{ fontSize: '0.9rem', color: '#64748b' }}>Select all on page</span>
+            </div>
+        )}
+
         {/* Entries List */}
         <div className={cpdStyles.cpdEntries}>
           {loading && <p>Loading entries...</p>}
           {!loading && paginatedList.map((e, idx) => {
-             // Calculate current minutes for this entry (default 10 if null)
              const currentMinutes = e.duration || DEFAULT_DURATION;
+             const isSelected = e.id ? selectedIds.has(e.id) : false;
              
              return (
-              <div key={e.id || idx} className={cpdStyles.cpdCard}>
+              <div key={e.id || idx} className={cpdStyles.cpdCard} style={isSelected ? { border: '1px solid #0e7490', backgroundColor: '#ecfeff' } : {}}>
                 <div className={cpdStyles.card__body}>
                   <div style={{ marginBottom: 16, borderBottom: '1px solid var(--umbil-divider)', paddingBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                         {/* CHECKBOX */}
+                         {e.id && (
+                             <input 
+                                type="checkbox" 
+                                checked={isSelected} 
+                                onChange={() => toggleSelection(e.id!)}
+                                style={{ width: 18, height: 18, cursor: 'pointer', marginRight: 8, accentColor: '#0e7490' }}
+                             />
+                         )}
+
                          <div>
                             <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>{new Date(e.timestamp).toLocaleString()}</div>
                          </div>
                          
                          {/* TIME SELECTOR */}
                          <div className={cpdStyles.timeSelectorWrapper}>
-                            {/* SVG Clock Replacement */}
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--umbil-teal)' }}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                             <select 
                                 className={cpdStyles.timeSelect}
@@ -359,11 +339,21 @@ function CPDInner() {
                     </div>
 
                     {e.id && (
-                        // UPDATED: Tooltip
-                        <button title="Delete entry" disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
-                          {/* SVG Trash Replacement */}
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                        </button>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            {/* PDF EXPORT BTN */}
+                            <button 
+                                title="Export as PDF" 
+                                className={cpdStyles.btnDelete} // Reusing delete button style for sizing, but custom color below
+                                style={{ color: '#0e7490', borderColor: '#cffafe', backgroundColor: '#ecfeff' }}
+                                onClick={() => downloadSinglePDF(e)}
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+                            </button>
+
+                            <button title="Delete entry" disabled={deletingId === e.id} className={cpdStyles.btnDelete} onClick={() => handleDelete(e.id!)}>
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                            </button>
+                        </div>
                     )}
                   </div>
 
