@@ -1,3 +1,4 @@
+// src/app/cpd/page.tsx
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -12,12 +13,24 @@ import { CpdPdfDocument } from "@/components/CpdPdfDocument";
 import JSZip from "jszip";
 
 const PAGE_SIZE = 10;
-const DEFAULT_DURATION = 10;
+const DEFAULT_DURATION = 10; // 10 Minutes
+
+// Helper for cleaning text for file names
+const slugify = (text: string) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '_')           // Replace spaces with _
+    .replace(/[^\w-]+/g, '')       // Remove all non-word chars
+    .replace(/--+/g, '_')           // Replace multiple - with single _
+    .substring(0, 50);              // Limit length
+};
 
 function cleanForCSV(text: string): string {
   if (!text) return "";
   let clean = text;
-  clean = clean.replace(/^\|?[\s-]+\|[\s-]+\|?$/gm, "");
+  clean = clean.replace(/^\|?[\s-]+\|[\s-]+\|?$/gm, ""); 
   clean = clean.replace(/\|/g, " - "); 
   clean = clean.replace(/\*\*/g, ""); 
   clean = clean.replace(/__/g, "");
@@ -146,7 +159,6 @@ function CPDInner() {
 
     let domainSectionsHtml = "";
     let totalCredits = 0;
-    let totalMinutes = 0;
 
     Object.entries(groupedData).forEach(([domain, entries]) => {
         if (entries.length === 0) return;
@@ -154,7 +166,6 @@ function CPDInner() {
         let sectionCredits = 0;
         entries.forEach(e => {
              const mins = e.duration || DEFAULT_DURATION;
-             totalMinutes += mins;
              sectionCredits += (mins / 60);
         });
         totalCredits += sectionCredits;
@@ -187,8 +198,6 @@ function CPDInner() {
         });
     });
 
-    const totalHours = (totalMinutes / 60).toFixed(2);
-
     const htmlContent = `
       <html>
         <head>
@@ -199,7 +208,7 @@ function CPDInner() {
             .header { border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; margin-bottom: 30px; }
             h1 { color: #0f172a; margin: 0; font-size: 24px; }
             .subtitle { color: #64748b; font-size: 14px; margin-top: 5px; }
-            .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 40px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
+            .dashboard { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-bottom: 40px; background: #f8fafc; padding: 20px; border-radius: 12px; border: 1px solid #e2e8f0; }
             .stat-box { text-align: center; }
             .stat-val { display: block; font-size: 28px; font-weight: 700; color: #0e7490; }
             .stat-label { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 600; letter-spacing: 0.05em; }
@@ -212,12 +221,13 @@ function CPDInner() {
             .credit-tag { background: #e0f2fe; color: #0369a1; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; border: 1px solid #bae6fd; }
             .question { font-weight: 700; font-size: 16px; margin-bottom: 10px; color: #0f172a; }
             .markdown-body { font-size: 14px; color: #334155; }
-            .markdown-body table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; table-layout: auto; }
-            .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; overflow-wrap: break-word; }
+            .markdown-body table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13px; table-layout: fixed; }
+            .markdown-body th, .markdown-body td { border: 1px solid #cbd5e1; padding: 8px 10px; text-align: left; word-break: break-word; }
             .markdown-body th { background-color: #f1f5f9; font-weight: 600; }
             .reflection { background: #f0fdf4; border-left: 3px solid #16a34a; padding: 12px 15px; border-radius: 0 4px 4px 0; margin-top: 15px; }
             .reflection-label { font-weight: 700; color: #166534; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
             .reflection p { margin: 0; font-style: italic; color: #14532d; font-size: 14px; }
+            .print-btn { display: none; }
             @media print { 
                 body { padding: 0; } 
                 .no-print { display: none; }
@@ -239,12 +249,8 @@ function CPDInner() {
                 <span class="stat-label">Total Activities</span>
              </div>
              <div class="stat-box">
-                <span class="stat-val">${totalHours}</span>
-                <span class="stat-label">Total Hours</span>
-             </div>
-             <div class="stat-box">
                 <span class="stat-val">${totalCredits.toFixed(2)}</span>
-                <span class="stat-label">Total Credits</span>
+                <span class="stat-label">Total Hours</span>
              </div>
           </div>
 
@@ -274,7 +280,8 @@ function CPDInner() {
         const a = document.createElement("a");
         a.href = url;
         const dateStr = new Date(entry.timestamp).toISOString().split('T')[0];
-        a.download = `CPD_Entry_${dateStr}.pdf`;
+        const titleSlug = slugify(entry.question || "Entry");
+        a.download = `${dateStr}_${titleSlug}.pdf`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -295,10 +302,12 @@ function CPDInner() {
         for (const entry of selectedEntries) {
             const blob = await pdf(<CpdPdfDocument entry={entry} />).toBlob();
             const dateStr = new Date(entry.timestamp).toISOString().split('T')[0];
-            let fileName = `CPD_${dateStr}.pdf`;
+            const titleSlug = slugify(entry.question || "Entry");
+            
+            let fileName = `${dateStr}_${titleSlug}.pdf`;
             let counter = 1;
             while (zip.file(fileName)) {
-                fileName = `CPD_${dateStr}_(${counter}).pdf`;
+                fileName = `${dateStr}_${titleSlug}_v${counter}.pdf`;
                 counter++;
             }
             zip.file(fileName, blob);
@@ -374,6 +383,7 @@ function CPDInner() {
           )}
         </div>
 
+        {/* Filters */}
         <div className="filters" style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
           <input className="form-control" placeholder="Search..." value={q} onChange={(e) => setQ(e.target.value)} />
           <select className="form-control" value={tag} onChange={(e) => setTag(e.target.value)}>
@@ -382,6 +392,7 @@ function CPDInner() {
           </select>
         </div>
 
+        {/* Bulk Actions Bar */}
         {selectedIds.size > 0 && (
             <div style={{ 
                 position: 'fixed', bottom: 20, left: '50%', transform: 'translateX(-50%)', 
@@ -407,6 +418,7 @@ function CPDInner() {
             </div>
         )}
 
+        {/* Select All Checkbox */}
         {totalCount > 0 && (
             <div style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
                  <input 
@@ -438,6 +450,7 @@ function CPDInner() {
                                 style={{ width: 18, height: 18, cursor: 'pointer', marginRight: 8, accentColor: '#0e7490' }}
                              />
                          )}
+
                          <div>
                             <div style={{ fontSize: '0.875rem', color: 'var(--umbil-muted)' }}>{new Date(e.timestamp).toLocaleString()}</div>
                          </div>
@@ -503,6 +516,7 @@ function CPDInner() {
           })}
         </div>
         
+        {/* Pagination Controls */}
         {totalPages > 1 && (
             <div className="pagination-controls" style={{ display: 'flex', justifyContent: 'space-between', marginTop: 24 }}>
                 <button className="btn btn--outline" onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage === 0}>Previous</button>
