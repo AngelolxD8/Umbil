@@ -103,7 +103,7 @@ export default function LandingPage() {
       <div className="relative z-10">
         
         {/* --- 1. HERO SECTION --- */}
-        <section className="pt-40 pb-32 lg:pt-48 lg:pb-40 px-6">
+        <section className="pt-48 pb-40 lg:pt-60 lg:pb-52 px-6">
           <div className="container mx-auto max-w-7xl grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
             
             {/* Left: Copy */}
@@ -257,7 +257,7 @@ export default function LandingPage() {
         </section>
 
         {/* --- 2. NEW: PRODUCT SHOWCASE (Space & Visuals) --- */}
-        <section className="py-32 px-6 overflow-hidden">
+        <section className="py-48 px-6 overflow-hidden">
           <div className="container mx-auto max-w-6xl">
             <motion.div 
                initial={{ opacity: 0, y: 40 }}
@@ -266,9 +266,9 @@ export default function LandingPage() {
                transition={{ duration: 0.8 }}
                className="relative"
             >
-              <div className="text-center mb-16">
+              <div className="text-center mb-20">
                  <h2 className="text-lg font-semibold text-[var(--umbil-brand-teal)] tracking-wide uppercase">The Complete Platform</h2>
-                 <p className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mt-2">Everything you need. Nothing you don't.</p>
+                 <p className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mt-4">Everything you need. Nothing you don't.</p>
               </div>
 
               {/* Tilted Perspective Container */}
@@ -306,7 +306,7 @@ export default function LandingPage() {
         </section>
 
         {/* --- 3. CORE TOOLS (The Wedge) --- */}
-        <section className="py-40 px-6 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-white/5 backdrop-blur-sm">
+        <section className="py-52 px-6 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-white/5 backdrop-blur-sm">
           <div className="container mx-auto max-w-6xl">
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               
@@ -371,7 +371,7 @@ export default function LandingPage() {
         </section>
 
         {/* --- 4. GUIDELINE Q&A --- */}
-        <section className="py-40 px-6">
+        <section className="py-52 px-6">
           <div className="container mx-auto max-w-4xl text-center">
             <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
               Or just ask a question.
@@ -396,7 +396,7 @@ export default function LandingPage() {
         </section>
 
         {/* --- 5. CAPTURE LEARNING --- */}
-        <section className="py-40 px-6 relative overflow-hidden">
+        <section className="py-52 px-6 relative overflow-hidden">
           {/* Decorative background blob */}
           <div className="absolute right-0 top-1/4 w-[800px] h-[800px] bg-indigo-100 dark:bg-indigo-900/10 rounded-full blur-[120px] -z-10"></div>
 
@@ -457,7 +457,7 @@ export default function LandingPage() {
         </section>
 
         {/* --- 6. TRUST & SAFETY --- */}
-        <section className="py-40 px-6 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0B1120]">
+        <section className="py-52 px-6 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0B1120]">
           <div className="container mx-auto max-w-5xl">
             <div className="text-center mb-20">
               <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">Built to be boring. On purpose.</h2>
@@ -490,18 +490,18 @@ export default function LandingPage() {
         </section>
 
         {/* --- FINAL CTA --- */}
-        <section className="py-40 px-6 text-center bg-white dark:bg-gradient-to-b dark:from-[#0B1120] dark:to-slate-900 border-t border-slate-200 dark:border-white/5">
+        <section className="py-64 px-6 text-center bg-white dark:bg-gradient-to-b dark:from-[#0B1120] dark:to-slate-900 border-t border-slate-200 dark:border-white/5">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
-            className="max-w-3xl mx-auto"
+            className="max-w-4xl mx-auto flex flex-col items-center justify-center"
           >
-            <p className="text-2xl md:text-3xl text-slate-700 dark:text-slate-300 mb-12 mx-auto max-w-2xl font-light">
+            <p className="text-2xl md:text-3xl text-slate-700 dark:text-slate-300 mb-12 font-light text-center">
               Open a tab. Start typing. No installation required.
             </p>
-            <Link href="/dashboard" className="px-12 py-6 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-xl font-bold rounded-xl shadow-[0_0_50px_-10px_rgba(20,184,166,0.4)] inline-flex items-center gap-3 transition-all transform hover:scale-105">
-              Start Free Now <ArrowRight />
+            <Link href="/dashboard" className="px-16 py-8 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-2xl font-bold rounded-2xl shadow-[0_0_60px_-15px_rgba(20,184,166,0.5)] inline-flex items-center gap-3 transition-all transform hover:scale-105 hover:-translate-y-1">
+              Start Free Now <ArrowRight size={28} />
             </Link>
           </motion.div>
         </section>
