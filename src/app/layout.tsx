@@ -9,8 +9,9 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 // --- SEO METADATA (Updated for Organic Growth Playbook) ---
 export const metadata: Metadata = {
+  metadataBase: new URL("https://umbil.co.uk"),
   title: "Umbil | Clinical Workflow Assistant & Referral Writer",
-  description: "The AI co-pilot for high-pressure shifts. Write referrals, generate safety-netting instructions, and draft SBAR handovers instantly. Zero-permission adoption for UK clinicians.",
+  description: "Clinical workflow optimisation tool",
   keywords: [
     "Umbil AI",
     "GP referral writer",
@@ -26,16 +27,25 @@ export const metadata: Metadata = {
   ],
   openGraph: {
     title: "Umbil | Clinical Workflow Assistant",
-    description: "Write referrals and handovers in seconds. The survival tool for busy shifts.",
+    description: "Clinical workflow optimisation tool",
     url: "https://umbil.co.uk",
     siteName: "Umbil",
     locale: "en_GB",
     type: "website",
+    images: [
+      {
+        url: "/umbil_logo.png.png",
+        width: 1200,
+        height: 630,
+        alt: "Umbil Clinical Workflow Tool",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Umbil - The Clinical Workflow Assistant",
-    description: "Referrals, Safety-Netting, and Handovers done in seconds.",
+    description: "Clinical workflow optimisation tool",
+    images: ["/umbil_logo.png.png"],
   },
   verification: {
     google: "Cq148L5NeSJqEJnPluhkDGCJhazxBkdFt5H3VrXqvI4",
