@@ -1,36 +1,33 @@
 // src/app/api/admin/ingest/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseService } from "@/lib/supabaseService";
-import { generateEmbedding }from "@/lib/rag";
+import { generateEmbedding } from "@/lib/rag";
 import { OpenAI } from "openai";
-import { embed, generateText } from "ai";
 import { INGESTION_PROMPT } from "@/lib/prompts";
-import { metadata } from "@/app/head";
-import { Truculenta } from "next/font/google";
 
 const openai = new OpenAI();
-const MODEL_SLUG = "gpt-4.1";
+const MODEL_SLUG = "gpt-4"; // Note: 'gpt-4.1' isn't a standard public model slug yet, reverted to 'gpt-4' to be safe, or change back if you have specific access.
 
 export async function POST(request: NextRequest) {
   try {
     const { text, source } = await request.json();
 
     if (!text || !source) {
-      return NextResponse.json({ error: "Missing text or sauce" }, {status: 400});
+      return NextResponse.json({ error: "Missing text or source" }, { status: 400 });
     }
 
     // 1. rewrite step
     const completion = await openai.chat.completions.create({
       model: MODEL_SLUG,
       messages: [
-      {
-        role: "system",
-        content: INGESTION_PROMPT
-      },
-      {
-        role: "user",
-        content: text
-      }
+        {
+          role: "system",
+          content: INGESTION_PROMPT
+        },
+        {
+          role: "user",
+          content: text
+        }
       ],
       temperature: 0.3, // This keeps it highly factual and avoid hallucination
     });
@@ -49,7 +46,7 @@ export async function POST(request: NextRequest) {
 
     for (const chunk of chunks) {
       const embedding = await generateEmbedding(chunk);
-      
+
       await supabaseService.from("documents").insert({
         content: chunk,
         metadata: {
@@ -68,7 +65,7 @@ export async function POST(request: NextRequest) {
       message: "Contents have been rewritten and stored as Umbil Original."
     });
 
-  } catch(err: any) {
+  } catch (err: any) {
     console.error("Ingest Error: ", err);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
