@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 /* 1. Theme (Variables, Fonts, Animations) */
-/* The Google Fonts import is inside theme.css, or strictly at the top here */
 @import "./styles/theme.css";
 
 /* 2. Layout (Body, Header, Sidebar, Hero) */
@@ -17,4 +16,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Any leftover styles that you kept in this file MUST go below this point */
+/* Custom Utilities for Landing Page */
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+      display: none;
+  }
+  .scrollbar-hide {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+  }
+}

@@ -1,17 +1,23 @@
-// src/app/layout.tsx
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ClientLayout from "@/components/ClientLayout";
+
+// 1. Load the new "Sleek" font (Inter)
+const inter = Inter({ 
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+});
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 
-// --- SEO METADATA (Updated for Organic Growth Playbook) ---
+// --- SEO METADATA ---
 export const metadata: Metadata = {
   metadataBase: new URL("https://umbil.co.uk"),
   title: "Umbil | Clinical Workflow Assistant & Referral Writer",
-  description: "Clinical workflow optimisation tool",
+  description: "Clinical workflow optimisation tool. Paste rough notes, get consultant-ready documents.",
   keywords: [
     "Umbil AI",
     "GP referral writer",
@@ -20,10 +26,6 @@ export const metadata: Metadata = {
     "medical scribe UK",
     "clinical decision support",
     "GMC reflection generator",
-    "medical handover tool",
-    "trainee doctor toolkit",
-    "primary care admin automation",
-    "Umbil CPD"
   ],
   openGraph: {
     title: "Umbil | Clinical Workflow Assistant",
@@ -54,10 +56,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="scroll-smooth">
       <body
         suppressHydrationWarning
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        // 2. Apply the Inter font variable first
+        className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-slate-950 text-slate-100 selection:bg-teal-500/30 selection:text-teal-50`}
       >
         <ClientLayout>
           {children}

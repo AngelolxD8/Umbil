@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useUserEmail } from "@/hooks/useUser";
@@ -11,36 +12,35 @@ import {
   Shield, 
   Activity, 
   CheckCircle2, 
-  Zap, 
-  ChevronRight,
   Sparkles,
   Lock,
   Menu,
   Languages,
   MessageSquare,
-  Search
+  Search,
+  Zap
 } from "lucide-react";
 
-// --- LIVE DEMO DATA (Short & Punchy) ---
+// --- LIVE DEMO DATA ---
 const DEMO_SCENARIOS = [
   {
     id: "referral",
     label: "Referral",
-    icon: <FileText className="w-3 h-3" />,
+    icon: <FileText className="w-3.5 h-3.5" />,
     input: "54M, dysphagia to solids 6wks. Food sticks mid-chest. 6kg wt loss. Ex-smoker. No haem/melaena. On omeprazole. No scope.",
     output: "Dear Colleague,\n\nI would be grateful for your assessment of this 54-year-old gentleman with a six-week history of progressive dysphagia to solids. He describes food sticking in the mid-chest and has lost approximately 6 kg unintentionally.\n\nHe is an ex-smoker taking omeprazole. There is no history of haematemesis or melaena.\n\nGiven the red flag symptoms, I would appreciate your urgent investigation."
   },
   {
     id: "sbar",
     label: "SBAR",
-    icon: <Activity className="w-3 h-3" />,
+    icon: <Activity className="w-3.5 h-3.5" />,
     input: "78F on ward. CAP. NEWS 3->6. O2 req 2L->4L. Known COPD. On IV abx. No ABG.",
     output: "Situation\n78-year-old female with CAP. NEWS score increased to 6. Rising oxygen requirements.\n\nBackground\nKnown COPD. On IV antibiotics.\n\nAssessment\nO2 requirement up to 4L. Breathless. No ABG yet.\n\nRecommendation\nUrgent review required. Consider ABG and escalation."
   },
   {
     id: "safetynet",
     label: "Safety Net",
-    icon: <Shield className="w-3 h-3" />,
+    icon: <Shield className="w-3.5 h-3.5" />,
     input: "Chest discomfort. Normal ECG. No red flags. Conservative mgmt.",
     output: "Advised to seek urgent help if pain becomes severe, prolonged, or associated with breathlessness, collapse, or radiation to arm or jaw.\nTo re-present if symptoms worsen."
   }
@@ -75,242 +75,298 @@ export default function LandingPage() {
       if (charIndex < currentScenario.input.length) {
         setDisplayedInput(currentScenario.input.slice(0, charIndex + 1));
         charIndex++;
-        // Faster typing speed (10-25ms)
-        timeout = setTimeout(typeChar, 10 + Math.random() * 15); 
+        // Natural typing speed variation
+        timeout = setTimeout(typeChar, 10 + Math.random() * 20); 
       } else {
         setIsTyping(false);
-        // Wait 4 seconds to read output before switching
+        // Wait longer to read output before switching
         timeout = setTimeout(() => {
           setActiveScenario((prev) => (prev + 1) % DEMO_SCENARIOS.length);
-        }, 4000); 
+        }, 5000); 
       }
     };
 
-    timeout = setTimeout(typeChar, 300);
+    timeout = setTimeout(typeChar, 500);
 
     return () => clearTimeout(timeout);
   }, [activeScenario]);
 
   return (
-    <div className="min-h-screen bg-[var(--umbil-bg)] text-[var(--umbil-text)] selection:bg-[var(--umbil-brand-teal)]/20 selection:text-[var(--umbil-text)] overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[#0B1120] text-slate-100 overflow-x-hidden font-sans selection:bg-teal-500/30 selection:text-teal-50">
       
-      {/* --- BACKGROUND ELEMENTS --- */}
-      <div className="fixed inset-0 z-0 pointer-events-none bg-[linear-gradient(to_right,rgba(128,128,128,0.05)_1px,transparent_1px),linear-gradient(to_bottom,rgba(128,128,128,0.05)_1px,transparent_1px)] bg-[size:24px_24px]"></div>
-      <div className="fixed top-0 left-0 right-0 h-32 bg-gradient-to-b from-[var(--umbil-surface)] to-transparent z-10 pointer-events-none"></div>
+      {/* --- MODERN BACKGROUND --- */}
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        {/* Subtle Gradient Mesh */}
+        <div className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] bg-teal-900/20 rounded-full blur-[120px] opacity-40 mix-blend-screen animate-pulse" style={{ animationDuration: '8s' }}></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-900/20 rounded-full blur-[100px] opacity-30 mix-blend-screen"></div>
+        {/* Grid Overlay */}
+        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_80%_80%_at_50%_50%,#000_20%,transparent_100%)]"></div>
+      </div>
 
       <div className="relative z-10">
         
-        {/* --- 1. HERO SECTION (Workflow First) --- */}
-        <section className="pt-20 pb-32 px-6">
-          <div className="container mx-auto max-w-7xl grid lg:grid-cols-2 gap-16 items-center">
+        {/* --- 1. HERO SECTION --- */}
+        <section className="pt-32 pb-24 lg:pt-40 lg:pb-32 px-6">
+          <div className="container mx-auto max-w-7xl grid lg:grid-cols-2 gap-16 lg:gap-24 items-center">
             
             {/* Left: Copy */}
             <motion.div 
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               className="max-w-2xl"
             >
-              {/* Credibility Chips - Safer & Specific */}
-              <div className="flex flex-wrap gap-2 mb-8">
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
-                  Runs in your browser
+              {/* Credibility Chips */}
+              <div className="flex flex-wrap gap-3 mb-8">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-300 text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
+                  <span className="w-2 h-2 rounded-full bg-teal-500 animate-pulse"></span>
+                  Live in Browser
                 </div>
-                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-bold uppercase tracking-wider">
-                  No install required
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-800/50 border border-slate-700/50 text-slate-300 text-xs font-bold uppercase tracking-wider backdrop-blur-sm">
+                  No Install Needed
                 </div>
               </div>
               
-              <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight text-[var(--umbil-text)] leading-[1.1] mb-6">
-                The Clinical Assistant for <span className="text-[var(--umbil-brand-teal)]">High-Pressure Shifts.</span>
+              <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight text-white leading-[1.05] mb-8">
+                Your Clinical <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-emerald-400">Memory Engine.</span>
               </h1>
               
-              <p className="text-lg md:text-xl text-[var(--umbil-text)] opacity-80 mb-10 leading-relaxed max-w-lg">
-                Paste rough notes. Get a calm, consultant-ready document in seconds.
+              <p className="text-xl text-slate-400 mb-10 leading-relaxed max-w-lg font-light">
+                Paste rough notes. Get calm, consultant-ready documents instantly. The fastest way to clear your patient list.
               </p>
 
               <div className="flex flex-wrap gap-4">
-                <Link href="/dashboard" className="px-8 py-4 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white font-bold rounded-md shadow-xl shadow-[var(--umbil-brand-teal)]/20 transition-all transform hover:-translate-y-1 flex items-center gap-2 group text-lg">
+                <Link href="/dashboard" className="px-8 py-4 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold rounded-xl shadow-[0_0_40px_-10px_rgba(20,184,166,0.5)] transition-all transform hover:-translate-y-1 flex items-center gap-2 group text-lg">
                   Try it in Clinic
                   <ArrowRight className="group-hover:translate-x-1 transition-transform" size={20} />
                 </Link>
-                <Link href="/dashboard?tour=true&forceTour=true" className="px-8 py-4 bg-[var(--umbil-surface)] border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-semibold rounded-md hover:bg-[var(--umbil-hover-bg)] transition-colors flex items-center gap-2 text-lg">
+                <Link href="/dashboard?tour=true&forceTour=true" className="px-8 py-4 bg-slate-900 border border-slate-700 text-slate-200 font-semibold rounded-xl hover:bg-slate-800 transition-colors flex items-center gap-2 text-lg">
                   See how it works
                 </Link>
               </div>
 
-              <div className="mt-10 flex items-center gap-4 text-sm text-[var(--umbil-text)] opacity-60 font-medium">
-                <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> Built for UK workflow</span>
-                <span className="flex items-center gap-1.5"><CheckCircle2 size={16} /> Zero IT permissions</span>
+              <div className="mt-12 flex items-center gap-6 text-sm text-slate-500 font-medium">
+                <span className="flex items-center gap-2"><CheckCircle2 size={18} className="text-teal-500" /> Built for UK workflow</span>
+                <span className="flex items-center gap-2"><CheckCircle2 size={18} className="text-teal-500" /> Zero IT permissions</span>
               </div>
             </motion.div>
 
-            {/* Right: Live Interactive Demo (Mobile Frame) */}
+            {/* Right: Modern Sleek Demo (The "Phone" Refined) */}
             <motion.div 
-              initial={{ opacity: 0, y: 40 }}
-              animate={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.2 }}
               className="relative flex justify-center lg:justify-end"
             >
-               {/* Phone Frame - Notch Removed for cleaner look */}
-               <div className="relative border-gray-900 bg-gray-900 border-[12px] rounded-[2.5rem] h-[640px] w-[320px] shadow-2xl flex flex-col overflow-hidden ring-1 ring-white/10">
+               {/* Glass Device Frame - Sleeker, thinner borders */}
+               <div className="relative bg-slate-950 rounded-[2.5rem] w-full max-w-[360px] h-[680px] shadow-2xl ring-1 ring-white/10 flex flex-col overflow-hidden border-[6px] border-slate-800/80 backdrop-blur-xl">
                  
-                 {/* Screen Content */}
-                 <div className="flex-1 bg-[var(--umbil-surface)] overflow-hidden flex flex-col w-full h-full relative">
+                 {/* Top Status Bar Area */}
+                 <div className="px-6 py-4 flex items-center justify-between border-b border-white/5 bg-white/5 backdrop-blur-md z-10">
+                    <div className="text-[10px] font-bold text-slate-500 tracking-widest">UMBIL AI</div>
+                    <div className="flex gap-1.5">
+                      <div className="w-2 h-2 rounded-full bg-red-500/20"></div>
+                      <div className="w-2 h-2 rounded-full bg-yellow-500/20"></div>
+                      <div className="w-2 h-2 rounded-full bg-green-500/20"></div>
+                    </div>
+                 </div>
+
+                 {/* App Interface */}
+                 <div className="flex-1 overflow-y-auto p-5 flex flex-col bg-gradient-to-b from-slate-900 to-slate-950">
                     
-                    {/* Fake Browser Address Bar - Adjusted padding since notch is gone */}
-                    <div className="bg-[var(--umbil-hover-bg)] p-3 pt-3 pb-3 border-b border-[var(--umbil-card-border)] flex items-center justify-between gap-2 z-10">
-                      <Menu size={16} className="text-[var(--umbil-muted)]" />
-                      <div className="flex-1 bg-[var(--umbil-surface)] rounded-full h-8 flex items-center justify-center px-4 shadow-sm border border-[var(--umbil-card-border)]">
-                         <Lock size={10} className="text-emerald-500 mr-1.5" />
-                         <span className="text-xs font-medium text-[var(--umbil-text)]">umbil.co.uk</span>
-                      </div>
-                      <div className="w-4" /> {/* Spacer */}
+                    {/* Mode Selector */}
+                    <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide -mx-2 px-2">
+                      {DEMO_SCENARIOS.map((scenario, idx) => (
+                        <button
+                          key={scenario.id}
+                          onClick={() => setActiveScenario(idx)}
+                          className={`flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 border ${
+                            activeScenario === idx 
+                              ? 'bg-teal-500/10 border-teal-500/50 text-teal-400 shadow-[0_0_15px_-5px_rgba(20,184,166,0.3)]' 
+                              : 'bg-slate-800/50 border-slate-700 text-slate-400 hover:bg-slate-800'
+                          }`}
+                        >
+                          {scenario.icon}
+                          {scenario.label}
+                        </button>
+                      ))}
                     </div>
 
-                    {/* App Interface Inside Phone */}
-                    <div className="flex-1 overflow-y-auto p-4 flex flex-col">
-                      
-                      {/* Mobile Tabs - Snapping Active State */}
-                      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide no-scrollbar -mx-2 px-2">
-                        {DEMO_SCENARIOS.map((scenario, idx) => (
-                          <button
-                            key={scenario.id}
-                            onClick={() => setActiveScenario(idx)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-bold transition-all whitespace-nowrap flex-shrink-0 ${
-                              activeScenario === idx 
-                                ? 'bg-[var(--umbil-text)] text-[var(--umbil-surface)] ring-2 ring-[var(--umbil-brand-teal)] shadow-md translate-y-[-1px]' 
-                                : 'bg-[var(--umbil-hover-bg)] text-[var(--umbil-text)] border border-[var(--umbil-card-border)] opacity-60 hover:opacity-100'
-                            }`}
-                          >
-                            {scenario.icon}
-                            {scenario.label}
-                          </button>
-                        ))}
+                    {/* Input Area - IMPROVED FONT & LOOK */}
+                    <div className="space-y-2 mb-4 group">
+                      <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-between">
+                        Raw Notes
+                        <span className="text-teal-500/50 text-[9px]">Paste anywhere</span>
+                      </label>
+                      <div className="bg-slate-800/30 p-4 rounded-xl border border-slate-700/50 text-slate-200 text-sm leading-relaxed shadow-inner min-h-[120px] transition-colors group-hover:border-slate-600/50 font-sans">
+                        {displayedInput}
+                        <span className="animate-pulse inline-block w-0.5 h-4 bg-teal-400 align-middle ml-0.5" />
                       </div>
+                    </div>
 
-                      {/* Input Area */}
-                      <div className="space-y-2 mb-2">
-                        <label className="text-[10px] font-bold text-[var(--umbil-muted)] uppercase tracking-wider">Clinical Notes</label>
-                        <div className="bg-[var(--umbil-hover-bg)] p-3 rounded-lg border border-[var(--umbil-card-border)] text-[var(--umbil-text)] font-mono text-xs min-h-[100px] whitespace-pre-wrap leading-relaxed shadow-inner opacity-80">
-                          {displayedInput}
-                          <span className="animate-pulse inline-block w-1.5 h-3 bg-[var(--umbil-brand-teal)] align-middle ml-0.5" />
-                        </div>
-                      </div>
-
-                      {/* Direction Arrow */}
-                      <div className="flex justify-center my-1">
-                        <ArrowRight className="rotate-90 text-[var(--umbil-brand-teal)]" size={16} />
-                      </div>
-
-                      {/* Output Area */}
-                      <div className="space-y-2 flex-1 flex flex-col min-h-0">
-                         <label className="text-[10px] font-bold text-[var(--umbil-brand-teal)] uppercase tracking-wider flex items-center gap-1">
-                           <Sparkles size={10} />
-                           Result
-                         </label>
-                         <div className="relative flex-1 rounded-lg overflow-hidden border border-[var(--umbil-brand-teal)]/20 bg-[var(--umbil-brand-teal)]/5">
-                            <AnimatePresence mode="wait">
-                              {!isTyping && (
-                                <motion.div 
-                                  key={activeScenario}
-                                  initial={{ opacity: 0 }}
-                                  animate={{ opacity: 1 }}
-                                  exit={{ opacity: 0 }}
-                                  className="absolute inset-0 p-3 overflow-y-auto text-[var(--umbil-text)] text-xs leading-relaxed whitespace-pre-wrap font-medium"
-                                >
-                                  {DEMO_SCENARIOS[activeScenario].output}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                            
-                            {isTyping && (
-                              <div className="absolute inset-0 flex items-center justify-center bg-[var(--umbil-surface)]/50 backdrop-blur-[1px]">
-                                <div className="flex gap-1">
-                                  <span className="w-1.5 h-1.5 bg-[var(--umbil-brand-teal)] rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                  <span className="w-1.5 h-1.5 bg-[var(--umbil-brand-teal)] rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                  <span className="w-1.5 h-1.5 bg-[var(--umbil-brand-teal)] rounded-full animate-bounce"></span>
-                                </div>
-                              </div>
-                            )}
+                    {/* Processing Indicator */}
+                    <div className="flex justify-center my-2">
+                      <div className={`transition-all duration-500 ${isTyping ? 'opacity-100 scale-100' : 'opacity-30 scale-90'}`}>
+                         <div className="w-8 h-8 rounded-full bg-teal-500/10 flex items-center justify-center">
+                            <ArrowRight className="text-teal-500 rotate-90" size={14} />
                          </div>
                       </div>
-
                     </div>
-                    
-                    {/* Bottom Home Indicator */}
-                    <div className="h-1 w-1/3 bg-gray-300 dark:bg-gray-600 rounded-full mx-auto mb-2" />
+
+                    {/* Output Area - Sleek Result */}
+                    <div className="space-y-2 flex-1 flex flex-col min-h-0">
+                       <label className="text-[10px] font-bold text-teal-400 uppercase tracking-wider flex items-center gap-1.5">
+                         <Sparkles size={12} />
+                         Formatted Output
+                       </label>
+                       <div className="relative flex-1 rounded-xl overflow-hidden border border-teal-500/20 bg-gradient-to-br from-teal-950/30 to-slate-900/50 shadow-lg">
+                          <AnimatePresence mode="wait">
+                            {!isTyping && (
+                              <motion.div 
+                                key={activeScenario}
+                                initial={{ opacity: 0, filter: 'blur(4px)' }}
+                                animate={{ opacity: 1, filter: 'blur(0px)' }}
+                                exit={{ opacity: 0 }}
+                                className="absolute inset-0 p-4 overflow-y-auto text-slate-300 text-xs leading-relaxed whitespace-pre-wrap font-medium"
+                              >
+                                {DEMO_SCENARIOS[activeScenario].output}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                          
+                          {/* Typing Loading State */}
+                          {isTyping && (
+                            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900/50 backdrop-blur-sm gap-3">
+                              <div className="flex gap-1.5">
+                                <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
+                                <span className="w-2 h-2 bg-teal-500 rounded-full animate-bounce"></span>
+                              </div>
+                              <span className="text-[10px] text-teal-500/70 font-medium uppercase tracking-widest">Generating</span>
+                            </div>
+                          )}
+                       </div>
+                    </div>
+
+                    {/* Bottom Nav Hint */}
+                    <div className="mt-4 pt-4 border-t border-white/5 flex justify-around text-slate-600">
+                       <div className="w-8 h-1 rounded-full bg-slate-700/50"></div>
+                    </div>
+
                  </div>
                </div>
             </motion.div>
           </div>
         </section>
 
-        {/* --- 2. CORE TOOLS (The Wedge) --- */}
-        <section className="py-32 px-6 bg-[var(--umbil-hover-bg)] border-y border-[var(--umbil-card-border)]">
+        {/* --- 2. NEW: PRODUCT SHOWCASE (Space & Visuals) --- */}
+        <section className="py-20 px-6 overflow-hidden">
           <div className="container mx-auto max-w-6xl">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl md:text-4xl font-extrabold text-[var(--umbil-text)] mb-4">Tools you actually use in clinic.</h2>
-              <p className="text-lg text-[var(--umbil-text)] opacity-80 max-w-2xl mx-auto">
-                It&apos;s not just &quot;learning&quot;. It&apos;s survival. Use these tools to clear your patient list faster.
-              </p>
-            </div>
+            <motion.div 
+               initial={{ opacity: 0, y: 40 }}
+               whileInView={{ opacity: 1, y: 0 }}
+               viewport={{ once: true }}
+               transition={{ duration: 0.8 }}
+               className="relative"
+            >
+              <div className="text-center mb-12">
+                 <h2 className="text-lg font-semibold text-teal-400 tracking-wide uppercase">The Complete Platform</h2>
+                 <p className="text-3xl md:text-4xl font-bold text-white mt-2">Everything you need. Nothing you don't.</p>
+              </div>
 
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {/* Tilted Perspective Container */}
+              <div className="relative group perspective-[2000px]">
+                 {/* Glow behind image */}
+                 <div className="absolute -inset-1 bg-gradient-to-r from-teal-500 to-indigo-500 rounded-xl blur-2xl opacity-20 group-hover:opacity-30 transition duration-1000"></div>
+                 
+                 {/* Main Dashboard Image */}
+                 <div className="relative bg-slate-900 rounded-xl border border-slate-700/50 shadow-2xl overflow-hidden transform transition-transform duration-700 group-hover:rotate-x-2 group-hover:scale-[1.01]">
+                    <Image 
+                      src="/dashboard-preview-1.png" 
+                      alt="Umbil Dashboard Interface" 
+                      width={1400} 
+                      height={900}
+                      className="w-full h-auto object-cover"
+                    />
+                    
+                    {/* Overlay Gradient for depth */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent pointer-events-none"></div>
+                 </div>
+
+                 {/* Floating Mobile Image (Parallax) */}
+                 <div className="hidden lg:block absolute -bottom-10 -right-10 w-[240px] rounded-[2rem] border-[4px] border-slate-800 bg-slate-900 shadow-2xl transform rotate-[-6deg] translate-y-10 group-hover:translate-y-6 transition duration-700">
+                    <Image 
+                      src="/dashboard-preview-2.png" 
+                      alt="Umbil Mobile Interface" 
+                      width={300} 
+                      height={600}
+                      className="w-full h-auto rounded-[1.8rem]"
+                    />
+                 </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* --- 3. CORE TOOLS (The Wedge) --- */}
+        <section className="py-32 px-6 bg-slate-900/30 border-y border-white/5 backdrop-blur-sm">
+          <div className="container mx-auto max-w-6xl">
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               
               {/* Feature 1: Referral Writer */}
               <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all flex flex-col"
+                whileHover={{ y: -8 }}
+                className="bg-slate-900/50 p-8 rounded-2xl border border-white/5 hover:border-teal-500/30 shadow-lg hover:shadow-teal-900/20 transition-all group"
               >
-                <div className="w-10 h-10 bg-[var(--umbil-brand-teal)]/10 rounded-md flex items-center justify-center text-[var(--umbil-brand-teal)] mb-4">
-                  <FileText size={20} />
+                <div className="w-12 h-12 bg-teal-500/10 rounded-xl flex items-center justify-center text-teal-400 mb-6 group-hover:scale-110 transition-transform">
+                  <FileText size={24} />
                 </div>
-                <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Referral Writer</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-2 flex-grow">
-                  Shorthand → consultant-ready referral in UK GP voice.
+                <h3 className="text-xl font-bold text-white mb-3">Referral Writer</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Turn shorthand notes into consultant-ready letters in your own voice.
                 </p>
               </motion.div>
 
               {/* Feature 2: Safety Net */}
               <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all flex flex-col"
+                whileHover={{ y: -8 }}
+                className="bg-slate-900/50 p-8 rounded-2xl border border-white/5 hover:border-rose-500/30 shadow-lg hover:shadow-rose-900/20 transition-all group"
               >
-                <div className="w-10 h-10 bg-rose-50 dark:bg-rose-900/20 rounded-md flex items-center justify-center text-rose-500 mb-4">
-                  <Shield size={20} />
+                <div className="w-12 h-12 bg-rose-500/10 rounded-xl flex items-center justify-center text-rose-400 mb-6 group-hover:scale-110 transition-transform">
+                  <Shield size={24} />
                 </div>
-                <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Safety Net</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-2 flex-grow">
-                  4 crisp red flags + what to do next.
+                <h3 className="text-xl font-bold text-white mb-3">Safety Net</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Generates 4 crisp red flags and specific advice for the patient.
                 </p>
               </motion.div>
 
               {/* Feature 3: SBAR Handover */}
               <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all flex flex-col"
+                whileHover={{ y: -8 }}
+                className="bg-slate-900/50 p-8 rounded-2xl border border-white/5 hover:border-emerald-500/30 shadow-lg hover:shadow-emerald-900/20 transition-all group"
               >
-                <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 rounded-md flex items-center justify-center text-emerald-600 dark:text-emerald-400 mb-4">
-                  <Activity size={20} />
+                <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center text-emerald-400 mb-6 group-hover:scale-110 transition-transform">
+                  <Activity size={24} />
                 </div>
-                <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">SBAR Handover</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-2 flex-grow">
-                  Messy notes → clean SBAR in seconds.
+                <h3 className="text-xl font-bold text-white mb-3">SBAR Handover</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Instantly structure messy ward notes into a clear SBAR for referrals.
                 </p>
               </motion.div>
 
               {/* Feature 4: Patient Translator */}
               <motion.div 
-                whileHover={{ y: -5 }}
-                className="bg-[var(--umbil-surface)] p-6 rounded-lg border border-[var(--umbil-card-border)] shadow-sm hover:shadow-xl transition-all flex flex-col"
+                whileHover={{ y: -8 }}
+                className="bg-slate-900/50 p-8 rounded-2xl border border-white/5 hover:border-blue-500/30 shadow-lg hover:shadow-blue-900/20 transition-all group"
               >
-                <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 rounded-md flex items-center justify-center text-blue-600 dark:text-blue-400 mb-4">
-                  <Languages size={20} />
+                <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center text-blue-400 mb-6 group-hover:scale-110 transition-transform">
+                  <Languages size={24} />
                 </div>
-                <h3 className="text-lg font-bold text-[var(--umbil-text)] mb-2">Translator</h3>
-                <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed mb-2 flex-grow">
-                  Clinical text → patient-friendly explanation.
+                <h3 className="text-xl font-bold text-white mb-3">Translator</h3>
+                <p className="text-slate-400 text-sm leading-relaxed">
+                  Convert complex medical jargon into simple, patient-friendly language.
                 </p>
               </motion.div>
 
@@ -318,128 +374,116 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* --- 3. GUIDELINE Q&A (Secondary Hook) --- */}
-        <section className="py-24 px-6 bg-[var(--umbil-surface)]">
+        {/* --- 4. GUIDELINE Q&A --- */}
+        <section className="py-32 px-6">
           <div className="container mx-auto max-w-4xl text-center">
-            <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">
+            <h3 className="text-3xl font-bold text-white mb-6">
               Or just ask a question.
             </h3>
-            <p className="text-[var(--umbil-text)] opacity-70 mb-4 max-w-xl mx-auto text-center">
-              Ask quick clinical questions and get summaries based on UK sources (NICE/CKS/SIGN/BNF where available).
+            <p className="text-xl text-slate-400 mb-10 max-w-2xl mx-auto">
+              Get summaries based on UK sources (NICE/CKS/SIGN/BNF).
             </p>
             
-            <div className="flex flex-wrap justify-center gap-3 mb-8">
+            <div className="flex flex-wrap justify-center gap-4 mb-12">
               {[
                 "Red flags for headache?", 
                 "Management of CAP in elderly?", 
                 "DOAC dosing for AF with renal impairment?"
               ].map((q, i) => (
-                <div key={i} className="flex items-center gap-2 px-4 py-3 bg-[var(--umbil-hover-bg)] border border-[var(--umbil-card-border)] rounded-full text-sm font-medium text-[var(--umbil-text)] hover:border-[var(--umbil-brand-teal)] transition-colors cursor-default shadow-sm">
-                  <Search size={14} className="text-[var(--umbil-muted)]" />
+                <div key={i} className="flex items-center gap-3 px-6 py-4 bg-slate-800/40 border border-slate-700/50 rounded-full text-base font-medium text-slate-200 hover:border-teal-500/50 hover:bg-slate-800 transition-all cursor-default shadow-lg">
+                  <Search size={16} className="text-teal-500" />
                   {q}
                 </div>
               ))}
             </div>
-            
-            <p className="text-xs text-[var(--umbil-muted)] uppercase tracking-wider font-semibold">
-              Uses UK sources where available • Links to references
-            </p>
           </div>
         </section>
 
-        {/* --- 4. CAPTURE LEARNING (The Quiet By-Product) --- */}
-        <section className="py-32 px-6 bg-[var(--umbil-bg)] border-t border-[var(--umbil-card-border)]">
-          <div className="container mx-auto max-w-5xl">
-            <div className="bg-slate-900 rounded-2xl p-8 md:p-16 text-white overflow-hidden relative shadow-2xl border border-slate-800 flex flex-col md:flex-row items-center gap-12">
+        {/* --- 5. CAPTURE LEARNING --- */}
+        <section className="py-24 px-6 relative overflow-hidden">
+          {/* Decorative background blob */}
+          <div className="absolute right-0 top-1/4 w-[800px] h-[800px] bg-indigo-900/10 rounded-full blur-[120px] -z-10"></div>
+
+          <div className="container mx-auto max-w-6xl">
+            <div className="bg-slate-900/80 backdrop-blur-md rounded-3xl p-8 md:p-20 text-white overflow-hidden relative shadow-2xl border border-slate-800 flex flex-col md:flex-row items-center gap-16">
               
               {/* Content */}
               <div className="relative z-10 flex-1">
-                <div className="inline-block px-3 py-1 bg-[var(--umbil-brand-teal)]/20 border border-[var(--umbil-brand-teal)]/30 rounded-full text-[var(--umbil-brand-teal)] text-xs font-bold mb-8 pl-3">
-                  THE QUIET BY-PRODUCT
+                <div className="inline-block px-4 py-1.5 bg-teal-500/10 border border-teal-500/20 rounded-full text-teal-400 text-xs font-bold mb-8 tracking-wide">
+                  AUTOMATED CPD
                 </div>
-                <h3 className="text-3xl md:text-4xl font-extrabold mb-6">Capture Learning</h3>
-                <p className="text-slate-400 text-lg leading-relaxed mb-8">
-                  Turn clinical work into structured learning entries instantly. End the midnight appraisal panic.
+                <h3 className="text-4xl md:text-5xl font-extrabold mb-6 leading-tight">Capture Learning <br/>Without Trying.</h3>
+                <p className="text-slate-400 text-lg leading-relaxed mb-10">
+                  Turn clinical work into structured learning entries instantly. End the midnight appraisal panic forever.
                 </p>
-                <ul className="space-y-3 mb-8">
-                  <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
-                    <CheckCircle2 size={16} className="text-[var(--umbil-brand-teal)]" />
+                <ul className="space-y-4 mb-8">
+                  <li className="flex items-center gap-4 text-base font-medium text-slate-300">
+                    <div className="w-6 h-6 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-400"><CheckCircle2 size={14} /></div>
                     Log learning from real cases
                   </li>
-                  <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
-                    <CheckCircle2 size={16} className="text-[var(--umbil-brand-teal)]" />
+                  <li className="flex items-center gap-4 text-base font-medium text-slate-300">
+                    <div className="w-6 h-6 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-400"><CheckCircle2 size={14} /></div>
                     One-click reflection assistant
                   </li>
-                  <li className="flex items-center gap-3 text-sm font-medium text-slate-300">
-                    <CheckCircle2 size={16} className="text-[var(--umbil-brand-teal)]" />
+                  <li className="flex items-center gap-4 text-base font-medium text-slate-300">
+                    <div className="w-6 h-6 rounded-full bg-teal-500/20 flex items-center justify-center text-teal-400"><CheckCircle2 size={14} /></div>
                     Exports to appraisal PDF & SOAR
                   </li>
                 </ul>
               </div>
 
-              {/* Visual: Card */}
-              <div className="relative z-10 w-full md:w-80 bg-white/5 backdrop-blur-md p-6 rounded-xl border border-white/10 shadow-2xl transform md:rotate-3 transition-transform hover:rotate-0">
-                 <div className="flex items-center gap-3 mb-4 border-b border-white/10 pb-4">
-                   <div className="w-10 h-10 rounded-full bg-[var(--umbil-brand-teal)] flex items-center justify-center text-slate-900 font-bold shadow-lg">✓</div>
+              {/* Visual: Floating Card */}
+              <div className="relative z-10 w-full md:w-[380px] bg-gradient-to-br from-slate-800 to-slate-900 p-8 rounded-2xl border border-slate-700/50 shadow-2xl transform md:rotate-3 transition-transform hover:rotate-0 group">
+                 <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <FileText size={100} />
+                 </div>
+                 <div className="flex items-center gap-4 mb-6 border-b border-white/5 pb-6">
+                   <div className="w-12 h-12 rounded-full bg-teal-500 flex items-center justify-center text-slate-900 font-bold shadow-lg shadow-teal-500/20">
+                     <CheckCircle2 size={24} />
+                   </div>
                    <div>
-                     <div className="text-sm font-bold text-white">Learning Captured</div>
+                     <div className="text-base font-bold text-white">Learning Captured</div>
                      <div className="text-xs text-slate-400">Just now • Clinical Management</div>
                    </div>
                  </div>
-                 <div className="space-y-3 opacity-60">
-                   <div className="h-2 bg-white rounded w-3/4"></div>
-                   <div className="h-2 bg-white rounded w-full"></div>
-                   <div className="h-2 bg-white rounded w-5/6"></div>
+                 <div className="space-y-4 opacity-50">
+                   <div className="h-2 bg-slate-400 rounded w-3/4"></div>
+                   <div className="h-2 bg-slate-400 rounded w-full"></div>
+                   <div className="h-2 bg-slate-400 rounded w-5/6"></div>
                  </div>
-                 <div className="mt-6 flex gap-2">
-                   <div className="text-[10px] font-bold text-white bg-white/10 px-2 py-1 rounded">Domain 1</div>
-                   <div className="text-[10px] font-bold text-white bg-white/10 px-2 py-1 rounded">Domain 2</div>
+                 <div className="mt-8 flex gap-2">
+                   <div className="text-[10px] font-bold text-slate-300 bg-white/5 border border-white/5 px-3 py-1.5 rounded-full">Domain 1</div>
+                   <div className="text-[10px] font-bold text-slate-300 bg-white/5 border border-white/5 px-3 py-1.5 rounded-full">Domain 2</div>
                  </div>
               </div>
             </div>
           </div>
         </section>
 
-        {/* --- 5. PATIENT FEEDBACK (PSQ) --- */}
-        <section className="py-24 px-6 bg-[var(--umbil-hover-bg)]">
-          <div className="container mx-auto max-w-4xl text-center">
-            <div className="w-12 h-12 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6">
-              <MessageSquare size={24} />
-            </div>
-            <h3 className="text-2xl font-bold text-[var(--umbil-text)] mb-4">Patient feedback, without the paper chase.</h3>
-            <p className="text-[var(--umbil-text)] opacity-70 mb-8 max-w-xl mx-auto text-center">
-              Run digital PSQ cycles. Track progress. Export for appraisal.
-            </p>
-            <Link href="/psq" className="inline-flex items-center gap-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-6 py-3 rounded-full shadow-lg shadow-indigo-500/20">
-              Start a PSQ Cycle
-            </Link>
-          </div>
-        </section>
-
         {/* --- 6. TRUST & SAFETY --- */}
-        <section className="py-32 px-6 bg-[var(--umbil-surface)] border-t border-[var(--umbil-card-border)]">
-          <div className="container mx-auto max-w-4xl">
-            <div className="text-center mb-16">
-              <h2 className="text-3xl font-bold text-[var(--umbil-text)] mb-4">Built to be boring. On purpose.</h2>
-              <p className="text-[var(--umbil-text)] opacity-70">
+        <section className="py-32 px-6 border-t border-white/5 bg-[#0B1120]">
+          <div className="container mx-auto max-w-5xl">
+            <div className="text-center mb-20">
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Built to be boring. On purpose.</h2>
+              <p className="text-lg text-slate-400">
                 We prioritise clinical safety over clever features.
               </p>
             </div>
             
-            <div className="grid md:grid-cols-2 gap-10">
+            <div className="grid md:grid-cols-2 gap-x-16 gap-y-12">
               {[
                 { title: "No Hallucinated Vitals", desc: "Never invents observations, results, or clinical findings. If you didn't type it, we won't write it." },
                 { title: "Medication Safety Lock", desc: "No dosing instructions unless explicitly provided in your notes context." },
-                { title: "Emergency Flags", desc: "Recognises clear red flags (like Chest Pain + Sweating) and prompts for emergency action instead of drafting paperwork." },
+                { title: "Emergency Flags", desc: "Recognises clear red flags (like Chest Pain + Sweating) and prompts for emergency action." },
                 { title: "Context First", desc: "Prioritises retrieved context from guidelines and labels consensus vs. general information." }
               ].map((item, i) => (
-                <div key={i} className="flex gap-5 items-start">
-                  <div className="mt-1 min-w-[24px]">
-                    <Lock size={24} className="text-[var(--umbil-muted)]" />
+                <div key={i} className="flex gap-6 items-start">
+                  <div className="mt-1 min-w-[32px] w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-slate-400 border border-slate-700">
+                    <Lock size={14} />
                   </div>
                   <div>
-                    <h4 className="font-bold text-[var(--umbil-text)] text-base mb-2">{item.title}</h4>
-                    <p className="text-sm text-[var(--umbil-text)] opacity-70 leading-relaxed">
+                    <h4 className="font-bold text-white text-lg mb-2">{item.title}</h4>
+                    <p className="text-slate-400 text-sm leading-relaxed">
                       {item.desc}
                     </p>
                   </div>
@@ -450,27 +494,27 @@ export default function LandingPage() {
         </section>
 
         {/* --- FINAL CTA --- */}
-        <section className="py-40 px-6 text-center bg-[var(--umbil-bg)] border-t border-[var(--umbil-card-border)]">
+        <section className="py-40 px-6 text-center bg-gradient-to-b from-[#0B1120] to-slate-900 border-t border-white/5">
           <motion.div 
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5 }}
             className="max-w-3xl mx-auto"
           >
-            <h2 className="text-4xl md:text-5xl font-extrabold text-[var(--umbil-text)] mb-8">Think less. Do more.</h2>
-            <p className="text-xl text-[var(--umbil-text)] opacity-70 mb-10 mx-auto">
+            <h2 className="text-5xl md:text-6xl font-extrabold text-white mb-8 tracking-tight">Think less. Do more.</h2>
+            <p className="text-xl text-slate-400 mb-12 mx-auto max-w-2xl">
               Open a tab. Start typing. No installation, no credit card, no permission required.
             </p>
-            <Link href="/dashboard" className="px-10 py-5 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-lg font-bold rounded-md shadow-2xl shadow-[var(--umbil-brand-teal)]/30 inline-flex items-center gap-3 transition-all transform hover:scale-105">
+            <Link href="/dashboard" className="px-12 py-6 bg-teal-500 hover:bg-teal-400 text-slate-950 text-xl font-bold rounded-xl shadow-[0_0_50px_-10px_rgba(20,184,166,0.4)] inline-flex items-center gap-3 transition-all transform hover:scale-105">
               Start Free Now <ArrowRight />
             </Link>
           </motion.div>
         </section>
 
         {/* --- FOOTER --- */}
-        <footer className="bg-slate-900 text-slate-400 py-16 px-6">
+        <footer className="bg-slate-950 text-slate-500 py-16 px-6 border-t border-white/5">
           <div className="container mx-auto max-w-7xl flex flex-col items-center gap-8">
-             <div className="text-sm opacity-50">
+             <div className="text-sm opacity-50 font-medium">
                © {new Date().getFullYear()} Umbil. Built for Doctors by Doctors.
              </div>
           </div>
