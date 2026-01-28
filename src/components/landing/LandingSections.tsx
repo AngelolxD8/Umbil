@@ -15,7 +15,8 @@ import {
 
 export function ProductShowcase() {
   return (
-    <section className="py-48 px-6 overflow-hidden">
+    // Removed massive py-48 padding to allow LandingPage to control spacing
+    <section className="px-6 overflow-hidden">
       <div className="container mx-auto max-w-6xl">
         <motion.div 
            initial={{ opacity: 0, y: 40 }}
@@ -24,13 +25,10 @@ export function ProductShowcase() {
            transition={{ duration: 0.8 }}
            className="relative"
         >
-          <div className="text-center mb-20">
-             <h2 className="text-lg font-semibold text-[var(--umbil-brand-teal)] tracking-wide uppercase">The modern clinician’s workspace</h2>
-             <p className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mt-4">Clinical tools. Without the clutter</p>
-          </div>
+          {/* Removed the Header Text block here as it now lives in the Hero section */}
 
           {/* Tilted Perspective Container */}
-          <div className="relative group perspective-[2000px]">
+          <div className="relative group perspective-[2000px] mt-10">
              {/* Glow behind image */}
              <div className="absolute -inset-1 bg-gradient-to-r from-[var(--umbil-brand-teal)] to-indigo-500 rounded-xl blur-2xl opacity-10 dark:opacity-20 group-hover:opacity-20 dark:group-hover:opacity-30 transition duration-1000"></div>
              
@@ -87,7 +85,7 @@ export function ProductShowcase() {
 
 export function CoreTools() {
   return (
-    <section className="py-52 px-6 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-white/5 backdrop-blur-sm">
+    <section className="py-10 px-6 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-white/5 backdrop-blur-sm">
       <div className="container mx-auto max-w-6xl">
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           
@@ -139,7 +137,7 @@ export function CoreTools() {
 
 export function CaptureLearning() {
   return (
-    <section className="py-52 px-6 relative overflow-hidden">
+    <section className="py-10 px-6 relative overflow-hidden">
       {/* Decorative background blob */}
       <div className="absolute right-0 top-1/4 w-[800px] h-[800px] bg-indigo-100 dark:bg-indigo-900/10 rounded-full blur-[120px] -z-10"></div>
 
@@ -213,7 +211,7 @@ export function FinalCTA() {
         <p className="text-2xl md:text-3xl text-slate-700 dark:text-slate-300 mb-12 font-light text-center">
           Open a tab. Start typing. No installation required.
         </p>
-        <Link href="/dashboard" className="px-16 py-8 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-2xl font-bold rounded-2xl shadow-[0_0_60px_-15px_rgba(20,184,166,0.5)] inline-flex items-center gap-3 transition-all transform hover:scale-105 hover:-translate-y-1">
+        <Link href="/dashboard" className="px-12 py-6 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-2xl font-bold rounded-md shadow-[0_0_60px_-15px_rgba(20,184,166,0.5)] inline-flex items-center gap-3 transition-all transform hover:scale-105 hover:-translate-y-1">
           Start Free Now <ArrowRight size={28} />
         </Link>
       </motion.div>
