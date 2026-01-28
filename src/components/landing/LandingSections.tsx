@@ -55,8 +55,8 @@ export function ProductShowcase() {
              </div>
           </div>
 
-          {/* Guideline Summaries */}
-          <div className="mt-24 text-center">
+          {/* Guideline Summaries - Increased margin top to prevent overlap */}
+          <div className="mt-56 text-center">
              <p className="text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto">
                Get summaries based on UK sources (NICE/CKS/SIGN/BNF).
              </p>
@@ -82,7 +82,8 @@ export function ProductShowcase() {
 
 export function CoreTools() {
   return (
-    <section className="py-10 px-6 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-white/5 backdrop-blur-sm">
+    // Increased padding to separate from section above
+    <section className="py-24 px-6 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-white/5 backdrop-blur-sm">
       <div className="container mx-auto max-w-6xl">
         
         {/* ADDED LABEL HEADER */}
@@ -206,24 +207,20 @@ export function CaptureLearning() {
 
 export function FinalCTA() {
   return (
-    <section className="py-64 px-6 bg-white dark:bg-gradient-to-b dark:from-[#0B1120] dark:to-slate-900 border-t border-slate-200 dark:border-white/5">
-      <motion.div 
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="max-w-5xl mx-auto flex flex-col items-center justify-center text-center"
-      >
-        {/* SUPER BIG BOX CONTAINER */}
-        <div className="w-full bg-slate-50 dark:bg-slate-800/20 border-2 border-slate-100 dark:border-slate-700 rounded-3xl p-10 md:p-20 shadow-2xl shadow-slate-200/50 dark:shadow-black/20">
-          <p className="text-3xl md:text-5xl lg:text-6xl text-slate-800 dark:text-white mb-16 font-bold tracking-tight">
+    // Removed border-t and background to blend with above. Reduced padding-top.
+    <section className="pb-32 pt-10 px-6">
+      <div className="max-w-4xl mx-auto flex flex-col items-center justify-center text-center">
+        {/* Simplified container - removed heavy borders and animations */}
+        <div className="w-full">
+          <p className="text-2xl md:text-3xl text-slate-800 dark:text-white mb-10 font-bold tracking-tight">
             Open a tab. Start typing.<br/>
             <span className="text-[var(--umbil-brand-teal)]">No installation required.</span>
           </p>
-          <Link href="/dashboard" className="w-full sm:w-auto px-16 py-8 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 !text-white text-2xl font-bold rounded-sm shadow-xl inline-flex items-center justify-center gap-4 transition-all transform hover:scale-[1.02]">
-            Start Free Now <ArrowRight size={32} />
+          <Link href="/dashboard" className="w-full sm:w-auto px-10 py-5 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 !text-white text-xl font-bold rounded-sm shadow-xl inline-flex items-center justify-center gap-3 transition-all transform hover:scale-[1.02]">
+            Start Free Now <ArrowRight size={24} />
           </Link>
         </div>
-      </motion.div>
+      </div>
     </section>
   );
 }
