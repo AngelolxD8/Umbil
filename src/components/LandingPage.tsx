@@ -267,8 +267,8 @@ export default function LandingPage() {
                className="relative"
             >
               <div className="text-center mb-20">
-                 <h2 className="text-lg font-semibold text-[var(--umbil-brand-teal)] tracking-wide uppercase">The Complete Platform</h2>
-                 <p className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mt-4">Everything you need. Nothing you don't.</p>
+                 <h2 className="text-lg font-semibold text-[var(--umbil-brand-teal)] tracking-wide uppercase">The modern clinician’s workspace</h2>
+                 <p className="text-3xl md:text-5xl font-bold text-slate-900 dark:text-white mt-4">Clinical tools. Without the clutter</p>
               </div>
 
               {/* Tilted Perspective Container */}
@@ -301,6 +301,27 @@ export default function LandingPage() {
                     />
                  </div>
               </div>
+
+              {/* MOVED CONTENT: Guideline Summaries */}
+              <div className="mt-24 text-center">
+                 <p className="text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto">
+                   Get summaries based on UK sources (NICE/CKS/SIGN/BNF).
+                 </p>
+                 
+                 <div className="flex flex-wrap justify-center gap-4">
+                   {[
+                     "Red flags for headache?", 
+                     "Management of CAP in elderly?", 
+                     "DOAC dosing for AF with renal impairment?"
+                   ].map((q, i) => (
+                     <div key={i} className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-full text-base font-medium text-slate-700 dark:text-slate-200 hover:border-[var(--umbil-brand-teal)]/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-default shadow-sm dark:shadow-lg">
+                       <Search size={16} className="text-[var(--umbil-brand-teal)]" />
+                       {q}
+                     </div>
+                   ))}
+                 </div>
+              </div>
+
             </motion.div>
           </div>
         </section>
@@ -370,30 +391,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* --- 4. GUIDELINE Q&A --- */}
-        <section className="py-52 px-6">
-          <div className="container mx-auto max-w-4xl text-center">
-            <h3 className="text-3xl font-bold text-slate-900 dark:text-white mb-6">
-              Or just ask a question.
-            </h3>
-            <p className="text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto">
-              Get summaries based on UK sources (NICE/CKS/SIGN/BNF).
-            </p>
-            
-            <div className="flex flex-wrap justify-center gap-4 mb-12">
-              {[
-                "Red flags for headache?", 
-                "Management of CAP in elderly?", 
-                "DOAC dosing for AF with renal impairment?"
-              ].map((q, i) => (
-                <div key={i} className="flex items-center gap-3 px-6 py-4 bg-white dark:bg-slate-800/40 border border-slate-200 dark:border-slate-700/50 rounded-full text-base font-medium text-slate-700 dark:text-slate-200 hover:border-[var(--umbil-brand-teal)]/50 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-default shadow-sm dark:shadow-lg">
-                  <Search size={16} className="text-[var(--umbil-brand-teal)]" />
-                  {q}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* (SECTION 4 DELETED) */}
 
         {/* --- 5. CAPTURE LEARNING --- */}
         <section className="py-52 px-6 relative overflow-hidden">
@@ -456,38 +454,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* --- 6. TRUST & SAFETY --- */}
-        <section className="py-52 px-6 border-t border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0B1120]">
-          <div className="container mx-auto max-w-5xl">
-            <div className="text-center mb-20">
-              <h2 className="text-3xl md:text-4xl font-bold text-slate-900 dark:text-white mb-4">Built to be boring. On purpose.</h2>
-              <p className="text-lg text-slate-600 dark:text-slate-400">
-                We prioritise clinical safety over clever features.
-              </p>
-            </div>
-            
-            <div className="grid md:grid-cols-2 gap-x-16 gap-y-12">
-              {[
-                { title: "No Hallucinated Vitals", desc: "Never invents observations, results, or clinical findings. If you didn't type it, we won't write it." },
-                { title: "Medication Safety Lock", desc: "No dosing instructions unless explicitly provided in your notes context." },
-                { title: "Emergency Flags", desc: "Recognises clear red flags (like Chest Pain + Sweating) and prompts for emergency action." },
-                { title: "Context First", desc: "Prioritises retrieved context from guidelines and labels consensus vs. general information." }
-              ].map((item, i) => (
-                <div key={i} className="flex gap-6 items-start">
-                  <div className="mt-1 min-w-[32px] w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-700">
-                    <Lock size={14} />
-                  </div>
-                  <div>
-                    <h4 className="font-bold text-slate-900 dark:text-white text-lg mb-2">{item.title}</h4>
-                    <p className="text-slate-600 dark:text-slate-400 text-sm leading-relaxed">
-                      {item.desc}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
+        {/* (SECTION 6 DELETED) */}
 
         {/* --- FINAL CTA --- */}
         <section className="py-64 px-6 text-center bg-white dark:bg-gradient-to-b dark:from-[#0B1120] dark:to-slate-900 border-t border-slate-200 dark:border-white/5">
