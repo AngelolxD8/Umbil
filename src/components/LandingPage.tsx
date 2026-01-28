@@ -68,13 +68,13 @@ export default function LandingPage() {
                 Paste rough notes. Get a calm, consultant-ready document in seconds.
               </p>
 
-              {/* BOXY BIG BUTTONS */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-5 mb-20">
-                <Link href="/dashboard" className="w-full sm:w-auto px-10 py-5 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 !text-white font-bold rounded-md shadow-xl shadow-teal-500/20 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 text-lg">
+              {/* BOXY BIG BUTTONS (Updated per feedback) */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-6 mb-20">
+                <Link href="/dashboard" className="w-full sm:w-auto px-12 py-6 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 !text-white font-bold rounded-sm shadow-xl shadow-teal-500/20 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-3 text-xl">
                   Try it in Clinic
-                  <ArrowRight className="group-hover:translate-x-1 transition-transform" size={22} />
+                  <ArrowRight className="group-hover:translate-x-1 transition-transform" size={24} />
                 </Link>
-                <Link href="/dashboard?tour=true&forceTour=true" className="w-full sm:w-auto px-10 py-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-md hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-3 text-lg shadow-sm">
+                <Link href="/dashboard?tour=true&forceTour=true" className="w-full sm:w-auto px-12 py-6 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-sm hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors flex items-center justify-center gap-3 text-xl shadow-sm">
                   See how it works
                 </Link>
               </div>
@@ -87,7 +87,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* --- 2. IMAGE SHOWCASE (Moved to Top) --- */}
+        {/* --- 2. IMAGE SHOWCASE --- */}
         <div className="mb-32">
           <ProductShowcase />
         </div>
@@ -97,9 +97,11 @@ export default function LandingPage() {
           <CoreTools />
         </div>
 
-        {/* --- 4. PHONE DEMO (Moved Down & New Section) --- */}
-        <section className="py-32 px-6 bg-white dark:bg-slate-900/50 border-y border-slate-200 dark:border-white/5">
-          <div className="container mx-auto max-w-7xl grid lg:grid-cols-2 gap-20 items-center">
+        {/* --- 4. PHONE DEMO (Spaced Out More) --- */}
+        <section className="py-40 px-6 bg-white dark:bg-slate-900/50 border-y border-slate-200 dark:border-white/5">
+          {/* Increased gap from 20 to 32/40 to prevent blocking */}
+          <div className="container mx-auto max-w-7xl grid lg:grid-cols-2 gap-32 lg:gap-40 items-center">
+             
              {/* Left Text */}
              <div className="order-2 lg:order-1">
                 <div className="inline-block px-3 py-1 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-300 rounded-md text-xs font-bold uppercase tracking-wider mb-6">

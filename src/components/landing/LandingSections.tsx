@@ -15,7 +15,6 @@ import {
 
 export function ProductShowcase() {
   return (
-    // Removed massive py-48 padding to allow LandingPage to control spacing
     <section className="px-6 overflow-hidden">
       <div className="container mx-auto max-w-6xl">
         <motion.div 
@@ -25,8 +24,6 @@ export function ProductShowcase() {
            transition={{ duration: 0.8 }}
            className="relative"
         >
-          {/* Removed the Header Text block here as it now lives in the Hero section */}
-
           {/* Tilted Perspective Container */}
           <div className="relative group perspective-[2000px] mt-10">
              {/* Glow behind image */}
@@ -87,6 +84,14 @@ export function CoreTools() {
   return (
     <section className="py-10 px-6 bg-slate-50 dark:bg-slate-900/30 border-y border-slate-200 dark:border-white/5 backdrop-blur-sm">
       <div className="container mx-auto max-w-6xl">
+        
+        {/* ADDED LABEL HEADER */}
+        <div className="mb-16 text-center">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-white">
+            Clinical Tools
+          </h2>
+        </div>
+
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           
           <motion.div whileHover={{ y: -8 }} className="bg-white dark:bg-slate-900/50 p-8 rounded-2xl border border-slate-100 dark:border-white/5 hover:border-[var(--umbil-brand-teal)]/30 shadow-lg shadow-slate-200/50 dark:shadow-none dark:hover:shadow-[var(--umbil-brand-teal)]/20 transition-all group">
@@ -201,19 +206,23 @@ export function CaptureLearning() {
 
 export function FinalCTA() {
   return (
-    <section className="py-64 px-6 text-center bg-white dark:bg-gradient-to-b dark:from-[#0B1120] dark:to-slate-900 border-t border-slate-200 dark:border-white/5">
+    <section className="py-64 px-6 bg-white dark:bg-gradient-to-b dark:from-[#0B1120] dark:to-slate-900 border-t border-slate-200 dark:border-white/5">
       <motion.div 
-        initial={{ opacity: 0, scale: 0.9 }}
-        whileInView={{ opacity: 1, scale: 1 }}
+        initial={{ opacity: 0, y: 30 }}
+        whileInView={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="max-w-4xl mx-auto flex flex-col items-center justify-center"
+        className="max-w-5xl mx-auto flex flex-col items-center justify-center text-center"
       >
-        <p className="text-2xl md:text-3xl text-slate-700 dark:text-slate-300 mb-12 font-light text-center">
-          Open a tab. Start typing. No installation required.
-        </p>
-        <Link href="/dashboard" className="px-12 py-6 bg-[var(--umbil-brand-teal)] hover:opacity-90 !text-white text-2xl font-bold rounded-md shadow-[0_0_60px_-15px_rgba(20,184,166,0.5)] inline-flex items-center gap-3 transition-all transform hover:scale-105 hover:-translate-y-1">
-          Start Free Now <ArrowRight size={28} />
-        </Link>
+        {/* SUPER BIG BOX CONTAINER */}
+        <div className="w-full bg-slate-50 dark:bg-slate-800/20 border-2 border-slate-100 dark:border-slate-700 rounded-3xl p-10 md:p-20 shadow-2xl shadow-slate-200/50 dark:shadow-black/20">
+          <p className="text-3xl md:text-5xl lg:text-6xl text-slate-800 dark:text-white mb-16 font-bold tracking-tight">
+            Open a tab. Start typing.<br/>
+            <span className="text-[var(--umbil-brand-teal)]">No installation required.</span>
+          </p>
+          <Link href="/dashboard" className="w-full sm:w-auto px-16 py-8 bg-[var(--umbil-brand-teal)] hover:bg-teal-600 !text-white text-2xl font-bold rounded-sm shadow-xl inline-flex items-center justify-center gap-4 transition-all transform hover:scale-[1.02]">
+            Start Free Now <ArrowRight size={32} />
+          </Link>
+        </div>
       </motion.div>
     </section>
   );
