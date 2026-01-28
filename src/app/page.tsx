@@ -1,5 +1,10 @@
-import LandingPage from "@/components/LandingPage";
+import { Suspense } from 'react';
+import MainWrapper from '@/components/MainWrapper';
 
 export default function Home() {
-  return <LandingPage />;
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <MainWrapper />
+    </Suspense>
+  );
 }
